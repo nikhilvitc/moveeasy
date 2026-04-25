@@ -1,111 +1,71 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import logoSvg from "../assets/logo/moveasy.svg";
-
-const googleProvider = new GoogleAuthProvider();
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const { user, profile } = useAuth();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [role, setRole] = useState("customer");
+  const { login, signup } = useAuth();
+  const navigate = useNavigate();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (user) {
-      navigate(profile?.profileComplete ? "/" : "/onboarding", {
-        replace: true,
-      });
-    }
-  }, [user, profile, navigate]);
-
-  const handleGoogleSignIn = async () => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
     setError("");
-    setLoading(true);
-
-    try {
-      await signInWithPopup(auth, googleProvider);
-      // onAuthStateChanged in AuthContext handles the redirect
-    } catch (err) {
-      console.error("Google sign-in error:", err);
-      if (err.code === "auth/popup-closed-by-user") {
-        // User closed the popup, not an error
-        setLoading(false);
-        return;
-      }
-      setError("Sign-in failed. Please try again.");
-      setLoading(false);
+    let result;
+    if (isSignup) {
+      result = signup(email, password, role, email.split("@")[0]);
+    } else {
+      result = login(email, password);
+    }
+    if (result.success) {
+      const r = result.role || role;
+      if (r === "admin") navigate("/admin");
+      else if (r === "seller") navigate("/seller");
+      else navigate("/customer");
+    } else {
+      setError(result.error || "Login failed");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo / Brand */}
-        <div className="text-center mb-8">
-          <a href="/" className="inline-block">
-            <img
-              src={logoSvg}
-              alt="MovEASY"
-              className="h-10 mx-auto mb-4"
-            />
-          </a>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to MovEazy</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Sign in to access your account
-          </p>
-        </div>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
+      <div style={{ background: "white", borderRadius: "16px", padding: "40px", width: "100%", maxWidth: "420px", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1e3a8a", textAlign: "center", margin: "0 0 4px" }}>MovEasy</h1>
+        <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}>{isSignup ? "Create your account" : "Sign in to your account"}</p>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          {error && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-5">
-              {error}
-            </p>
+        {error && <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}>{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" }}>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Enter email" style={{ width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" }} />
+
+          <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" }}>Password</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter password" style={{ width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" }} />
+
+          {isSignup && (
+            <div>
+              <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" }}>I am a</label>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                {["customer", "seller", "admin"].map((r) => (
+                  <button type="button" key={r} onClick={() => setRole(r)} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: role === r ? "2px solid #1e3a8a" : "1px solid #e2e8f0", background: role === r ? "#eff6ff" : "white", fontWeight: 600, fontSize: "13px", color: role === r ? "#1e3a8a" : "#64748b", cursor: "pointer", textTransform: "capitalize" }}>{r}</button>
+                ))}
+              </div>
+            </div>
           )}
 
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                Signing in...
-              </span>
-            ) : (
-              <>
-                {/* Google "G" icon */}
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path
-                    fill="#EA4335"
-                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                  />
-                  <path
-                    fill="#4285F4"
-                    d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                  />
-                </svg>
-                Continue with Google
-              </>
-            )}
-          </button>
+          <button type="submit" style={{ width: "100%", padding: "12px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: "pointer" }}>{isSignup ? "Create Account" : "Sign In"}</button>
+        </form>
 
-          <p className="text-xs text-gray-400 text-center mt-5">
-            By signing in, you agree to our Terms of Service
-          </p>
+        <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>{isSignup ? "Already have an account?" : "No account?"} <button onClick={() => { setIsSignup(!isSignup); setError(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>{isSignup ? "Sign In" : "Sign Up"}</button></p>
+
+        <div style={{ marginTop: "20px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "#334155", margin: "0 0 6px" }}>Demo Credentials:</p>
+          <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0" }}>Admin: admin@moveasy.com / admin123</p>
+          <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0" }}>Seller: seller@moveasy.com / seller123</p>
+          <p style={{ fontSize: "11px", color: "#64748b", margin: "2px 0" }}>Customer: customer@moveasy.com / customer123</p>
         </div>
       </div>
     </div>
