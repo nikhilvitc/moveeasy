@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -35,6 +35,21 @@ const bhkColors = {
   "Plot": "#F97316",
 };
 
+const areas = {
+  "Koramangala": [12.9351, 77.6244],
+  "HSR Layout": [12.9141, 77.6361],
+  "Indiranagar": [12.9719, 77.6412],
+  "Jayanagar": [12.9308, 77.5838],
+  "JP Nagar": [12.9063, 77.5857],
+  "Whitefield": [12.9698, 77.7500],
+};
+
+function ChangeView({ center, zoom }) {
+  const map = useMap();
+  map.setView(center, zoom);
+  return null;
+}
+
 function createBHKIcon(bhk) {
   const color = bhkColors[bhk] || "#3B82F6";
   return L.divIcon({
@@ -48,6 +63,7 @@ function createBHKIcon(bhk) {
 
 export default function MapView() {
   const [selected, setSelected] = useState(null);
+  const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
@@ -57,17 +73,36 @@ export default function MapView() {
           <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Moveasy</h1>
           <p style={{ fontSize: '12px', margin: 0, opacity: 0.8 }}>Interactive Property Map - Bengaluru</p>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '13px', fontWeight: 600 }}>
-          {properties.length} Listings Live
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {Object.keys(areas).slice(0, 3).map(area => (
+            <button
+              key={area}
+              onClick={() => setMapState({ center: areas[area], zoom: 14 })}
+              style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '15px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              {area}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* BHK Legend Bar */}
       <div style={{ background: '#f8fafc', padding: '8px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Filter:</span>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Filter BHK:</span>
         {Object.entries(bhkColors).map(([bhk, color]) => (
           <span key={bhk} style={{ background: color, color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>{bhk}</span>
         ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          {Object.keys(areas).slice(3).map(area => (
+            <button
+              key={area}
+              onClick={() => setMapState({ center: areas[area], zoom: 14 })}
+              style={{ background: 'white', color: '#1e3a8a', border: '1px solid #1e3a8a', padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              {area}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main Content: Map + Sidebar */}
@@ -75,11 +110,12 @@ export default function MapView() {
         {/* Map */}
         <div style={{ flex: 1, position: 'relative' }}>
           <MapContainer
-            center={[12.9716, 77.5946]}
-            zoom={12}
+            center={mapState.center}
+            zoom={mapState.zoom}
             style={{ height: '100%', width: '100%' }}
             zoomControl={true}
           >
+            <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -122,7 +158,10 @@ export default function MapView() {
           {properties.map((prop) => (
             <div
               key={prop.id}
-              onClick={() => setSelected(prop)}
+              onClick={() => {
+                setSelected(prop);
+                setMapState({ center: [prop.lat, prop.lng], zoom: 15 });
+              }}
               style={{
                 padding: '12px 16px',
                 borderBottom: '1px solid #f1f5f9',
@@ -139,7 +178,7 @@ export default function MapView() {
               <h4 style={{ margin: '2px 0', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{prop.title}</h4>
               <p style={{ margin: '2px 0', fontSize: '12px', color: '#94a3b8' }}>📍 {prop.address}</p>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                <b>{prop.seller}</b> · {prop.contact}
+                <b>{prop.seller}</b> - {prop.contact}
               </div>
             </div>
           ))}
