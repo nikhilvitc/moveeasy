@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import MapPage from "./pages/MapPage";
 import Services from "./pages/Services";
@@ -8,6 +8,7 @@ import Listings from "./pages/Listings";
 import Guarantee from "./pages/Guarantee";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
+
 
 export default function App() {
   return (
