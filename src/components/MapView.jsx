@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import listingsData from '../data/listingsData';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -10,38 +11,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-const properties = [
-  { id: 1, title: "Luxury 3BHK Apartment", price: "Rs.15,000/mo", type: "Rent", bhk: "3BHK", seller: "Settlin Zero Brokerage", contact: "9590039003", lat: 12.9279, lng: 77.6271, address: "Koramangala, Bengaluru" },
-  { id: 2, title: "Spacious Villa", price: "Rs.2.5 Cr", type: "Sale", bhk: "4BHK", seller: "Marketing Team", contact: "09611615947", lat: 12.9141, lng: 77.6308, address: "HSR Layout, Bengaluru" },
-  { id: 3, title: "Furnished 2BHK", price: "Rs.25,000/mo", type: "Rent", bhk: "2BHK", seller: "HomeSource", contact: "09972531093", lat: 12.9719, lng: 77.6412, address: "Indiranagar, Bengaluru" },
-  { id: 4, title: "Commercial Office Space", price: "Rs.75,000/mo", type: "Rent", bhk: "Office", seller: "PROPSPIRES", contact: "08041488389", lat: 12.9308, lng: 77.5838, address: "Jayanagar, Bengaluru" },
-  { id: 5, title: "Modern Studio Apartment", price: "Rs.12,000/mo", type: "Rent", bhk: "1RK", seller: "Leads Realty", contact: "09019000400", lat: 13.0279, lng: 77.5409, address: "Yeshwanthpur, Bengaluru" },
-  { id: 6, title: "Independent House", price: "Rs.1.2 Cr", type: "Sale", bhk: "3BHK", seller: "Sugumar Properties", contact: "09845688500", lat: 12.9081, lng: 77.5872, address: "JP Nagar, Bengaluru" },
-  { id: 7, title: "Penthouse Suite", price: "Rs.80,000/mo", type: "Rent", bhk: "3+BHK", seller: "Chandra Babu", contact: "09844759922", lat: 12.9925, lng: 77.7159, address: "Whitefield, Bengaluru" },
-  { id: 8, title: "Cozy 1BHK", price: "Rs.18,000/mo", type: "Rent", bhk: "1BHK", seller: "Maven Realty", contact: "09739490514", lat: 12.9856, lng: 77.5255, address: "Rajajinagar, Bengaluru" },
-  { id: 9, title: "Luxury Duplex", price: "Rs.3.1 Cr", type: "Sale", bhk: "4BHK", seller: "Siddardha Homes", contact: "09019343232", lat: 13.0604, lng: 77.5813, address: "Yelahanka, Bengaluru" },
-  { id: 10, title: "Affordable 2BHK", price: "Rs.20,000/mo", type: "Rent", bhk: "2BHK", seller: "Gruhaa Marketing", contact: "9632445483", lat: 12.8452, lng: 77.6602, address: "Electronic City, Bengaluru" },
-  { id: 11, title: "Premium Plot", price: "Rs.95 Lakhs", type: "Sale", bhk: "Plot", seller: "Syed Nadeem", contact: "09008395447", lat: 13.0031, lng: 77.6206, address: "Frazer Town, Bengaluru" },
-];
-
 const bhkColors = {
-  "1RK": "#F59E0B",
-  "1BHK": "#3B82F6",
-  "2BHK": "#EF4444",
-  "3BHK": "#EC4899",
-  "3+BHK": "#10B981",
-  "4BHK": "#8B5CF6",
-  "Office": "#6B7280",
-  "Plot": "#F97316",
+  '1RK': '#F59E0B',
+  '1BHK': '#3B82F6',
+  '2BHK': '#EF4444',
+  '3BHK': '#EC4899',
+  '3+BHK': '#10B981',
+  '4BHK': '#8B5CF6',
+  'Office': '#6B7280',
+  'Plot': '#F97316',
 };
 
 const areas = {
-  "Koramangala": [12.9351, 77.6244],
-  "HSR Layout": [12.9141, 77.6361],
-  "Indiranagar": [12.9719, 77.6412],
-  "Jayanagar": [12.9308, 77.5838],
-  "JP Nagar": [12.9063, 77.5857],
-  "Whitefield": [12.9698, 77.7500],
+  'Koramangala': [12.9351, 77.6244],
+  'HSR Layout': [12.9141, 77.6361],
+  'Indiranagar': [12.9719, 77.6412],
+  'Jayanagar': [12.9308, 77.5838],
+  'JP Nagar': [12.9063, 77.5857],
+  'Whitefield': [12.9698, 77.7500],
 };
 
 function ChangeView({ center, zoom }) {
@@ -51,10 +38,10 @@ function ChangeView({ center, zoom }) {
 }
 
 function createBHKIcon(bhk) {
-  const color = bhkColors[bhk] || "#3B82F6";
+  const color = bhkColors[bhk] || '#3B82F6';
   return L.divIcon({
     className: '',
-    html: `<div style="background:${color};color:white;padding:4px 10px;border-radius:16px;font-weight:bold;font-size:12px;white-space:nowrap;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);text-align:center;cursor:pointer;">${bhk}</div>`,
+    html: '<div style="background:' + color + ';color:white;padding:4px 10px;border-radius:16px;font-weight:bold;font-size:12px;white-space:nowrap;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);text-align:center;cursor:pointer;">' + bhk + '</div>',
     iconSize: [60, 28],
     iconAnchor: [30, 28],
     popupAnchor: [0, -28],
@@ -64,10 +51,10 @@ function createBHKIcon(bhk) {
 export default function MapView() {
   const [selected, setSelected] = useState(null);
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
+  const properties = listingsData;
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #1e3a8a, #1e40af)', color: 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Moveasy</h1>
@@ -86,7 +73,6 @@ export default function MapView() {
         </div>
       </div>
 
-      {/* BHK Legend Bar */}
       <div style={{ background: '#f8fafc', padding: '8px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Filter BHK:</span>
         {Object.entries(bhkColors).map(([bhk, color]) => (
@@ -105,9 +91,7 @@ export default function MapView() {
         </div>
       </div>
 
-      {/* Main Content: Map + Sidebar */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Map */}
         <div style={{ flex: 1, position: 'relative' }}>
           <MapContainer
             center={mapState.center}
@@ -118,7 +102,7 @@ export default function MapView() {
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <TileLayer
               attribution='&copy; OpenStreetMap'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             />
             {properties.map((prop) => (
               <Marker
@@ -149,7 +133,6 @@ export default function MapView() {
           </MapContainer>
         </div>
 
-        {/* Sidebar */}
         <div style={{ width: '320px', background: 'white', borderLeft: '1px solid #e2e8f0', overflowY: 'auto', flexShrink: 0 }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: '14px', color: '#334155' }}>Verified Listings</span>
@@ -186,4 +169,4 @@ export default function MapView() {
       </div>
     </div>
   );
-}
+                                  }
