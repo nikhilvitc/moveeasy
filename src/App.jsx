@@ -1,30 +1,38 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
-import MapPage from "./pages/MapPage";
-import Services from "./pages/Services";
-import Listings from "./pages/Listings";
-import Guarantee from "./pages/Guarantee";
 import Login from "./pages/Login";
-import Onboarding from "./pages/Onboarding";
+import MapView from "./components/MapView";
+import AdminDashboard from "./pages/AdminDashboard";
+import SellerDashboard from "./pages/SellerDashboard";
+import CustomerDashboard from "./pages/CustomerDashboard";
 
+function RoleRoute({ children, role }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontSize:"18px",color:"#64748b"}}>Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  if (role && user.role !== role) return <Navigate to="/login" />;
+  return children;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/map" element={<MapView />} />
+      <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
+      <Route path="/seller" element={<RoleRoute role="seller"><SellerDashboard /></RoleRoute>} />
+      <Route path="/customer" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          {/* Protected routes */}
-          <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
-          <Route path="/listings" element={<ProtectedRoute><Listings /></ProtectedRoute>} />
-          <Route path="/guarantee" element={<ProtectedRoute><Guarantee /></ProtectedRoute>} />
-        </Routes>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   );
