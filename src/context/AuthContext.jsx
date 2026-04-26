@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { gmailSignupErrorMessage, isGmailAddress } from "../lib/emailPolicy";
 
 const AuthContext = createContext(null);
 const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
@@ -24,8 +25,11 @@ function getSellerRequests() {
 }
 function saveSellerRequests(r) { localStorage.setItem("moveasy_seller_requests", JSON.stringify(r)); }
 
-function normalizeVerificationStatus(value) {
-  return value === "approved" ? "approved" : value === "rejected" ? "rejected" : "pending";
+function normalizeSellerBadgeStatus(value) {
+  if (value === "verified") return "verified";
+  if (value === "pending") return "pending";
+  if (value === "rejected") return "rejected";
+  return "none";
 }
 
 export function AuthProvider({ children }) {
@@ -57,14 +61,6 @@ export function AuthProvider({ children }) {
     const users = getUsers();
     const existing = users[e];
     if (!existing) return { success: false, error: "No account found. Please sign up first." };
-    const verificationStatus = normalizeVerificationStatus(existing.verificationStatus);
-    const emailVerified = Boolean(existing.emailVerified) || verificationStatus === "approved";
-    if (!emailVerified) {
-      if (verificationStatus === "rejected") {
-        return { success: false, error: "Your account verification was rejected. Contact admin." };
-      }
-      return { success: false, error: "Account not verified yet. Admin approval is required before login." };
-    }
     if (existing.passwordHash !== hashedSubmission) return { success: false, error: "Wrong password" };
     
     const u = { email: e, role: existing.role || "customer", name: existing.name };
@@ -76,6 +72,7 @@ export function AuthProvider({ children }) {
   const signup = async (email, password, name, role = "customer") => {
     const e = email.toLowerCase().trim();
     if (ADMIN_EMAILS.includes(e)) return { success: false, error: "This email is reserved." };
+    if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
     const users = getUsers();
     if (users[e]) return { success: false, error: "Account already exists. Please login." };
     const normalizedRole = role === "seller" ? "seller" : "customer";
@@ -86,49 +83,76 @@ export function AuthProvider({ children }) {
       passwordHash: hashedPassword,
       name: name || e.split("@")[0],
       role: normalizedRole,
-      emailVerified: false,
-      verificationStatus: "pending",
-      verificationRequestedAt: new Date().toISOString(),
+      emailVerified: true,
+      sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
     };
     saveUsers(users);
 
-    // Keep signup gated until verification is approved.
-    return { success: true, role: normalizedRole, requiresVerification: true };
+    const u = { email: e, role: normalizedRole, name: users[e].name };
+    setUser(u);
+    localStorage.setItem("moveasy_session", JSON.stringify(u));
+    return { success: true, role: normalizedRole };
   };
 
-  const getPendingVerifications = () => {
+  const getPendingSellerBadgeApplications = () => {
     const users = getUsers();
     return Object.entries(users)
-      .filter(([email, value]) => !ADMIN_EMAILS.includes(email) && normalizeVerificationStatus(value.verificationStatus) === "pending")
+      .filter(([, value]) => (value.role || "customer") === "seller" && normalizeSellerBadgeStatus(value.sellerBadgeStatus) === "pending")
       .map(([email, value]) => ({
         email,
         name: value.name || email.split("@")[0],
-        role: value.role || "customer",
-        verificationRequestedAt: value.verificationRequestedAt || null,
+        application: value.sellerBadgeApplication || null,
       }));
   };
 
-  const approveEmailVerification = (email) => {
+  const submitSellerBadgeApplication = ({ phone, businessName, gst }) => {
+    if (!user?.email) return { success: false, error: "Not signed in." };
     const users = getUsers();
-    if (!users[email]) return false;
-    users[email] = {
-      ...users[email],
-      emailVerified: true,
-      verificationStatus: "approved",
-      verifiedAt: new Date().toISOString(),
+    const row = users[user.email];
+    if (!row || (row.role || "customer") !== "seller") {
+      return { success: false, error: "Only seller accounts can request a verified badge." };
+    }
+    if (normalizeSellerBadgeStatus(row.sellerBadgeStatus) === "verified") {
+      return { success: false, error: "You are already verified." };
+    }
+    if (!String(phone || "").trim() || !String(businessName || "").trim()) {
+      return { success: false, error: "Business name and phone are required." };
+    }
+    users[user.email] = {
+      ...row,
+      sellerBadgeStatus: "pending",
+      sellerBadgeApplication: {
+        phone: String(phone).trim(),
+        businessName: String(businessName).trim(),
+        gst: String(gst || "").trim(),
+        submittedAt: new Date().toISOString(),
+      },
+    };
+    saveUsers(users);
+    return { success: true };
+  };
+
+  const approveSellerBadge = (email) => {
+    const e = String(email).toLowerCase().trim();
+    const users = getUsers();
+    if (!users[e]) return false;
+    users[e] = {
+      ...users[e],
+      sellerBadgeStatus: "verified",
+      sellerBadgeVerifiedAt: new Date().toISOString(),
     };
     saveUsers(users);
     return true;
   };
 
-  const rejectEmailVerification = (email) => {
+  const rejectSellerBadge = (email) => {
+    const e = String(email).toLowerCase().trim();
     const users = getUsers();
-    if (!users[email]) return false;
-    users[email] = {
-      ...users[email],
-      emailVerified: false,
-      verificationStatus: "rejected",
-      rejectedAt: new Date().toISOString(),
+    if (!users[e]) return false;
+    users[e] = {
+      ...users[e],
+      sellerBadgeStatus: "rejected",
+      sellerBadgeRejectedAt: new Date().toISOString(),
     };
     saveUsers(users);
     return true;
@@ -143,15 +167,17 @@ export function AuthProvider({ children }) {
   };
 
   const approveSeller = (email) => {
+    const e = String(email).toLowerCase().trim();
     const users = getUsers();
-    if (users[email]) { users[email].role = "seller"; saveUsers(users); }
+    if (users[e]) { users[e].role = "seller"; saveUsers(users); }
     const requests = getSellerRequests();
-    saveSellerRequests(requests.map((r) => r.email === email ? { ...r, status: "approved" } : r));
+    saveSellerRequests(requests.map((r) => r.email === e ? { ...r, status: "approved" } : r));
   };
 
   const rejectSeller = (email) => {
+    const e = String(email).toLowerCase().trim();
     const requests = getSellerRequests();
-    saveSellerRequests(requests.map((r) => r.email === email ? { ...r, status: "rejected" } : r));
+    saveSellerRequests(requests.map((r) => r.email === e ? { ...r, status: "rejected" } : r));
   };
 
   const logout = () => { setUser(null); localStorage.removeItem("moveasy_session"); };
@@ -179,9 +205,10 @@ export function AuthProvider({ children }) {
       rejectSeller,
       refreshRole,
       getSellerRequests,
-      getPendingVerifications,
-      approveEmailVerification,
-      rejectEmailVerification,
+      getPendingSellerBadgeApplications,
+      submitSellerBadgeApplication,
+      approveSellerBadge,
+      rejectSellerBadge,
       ADMIN_EMAILS,
     }}>
       {children}

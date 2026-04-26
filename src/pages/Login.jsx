@@ -30,12 +30,6 @@ export default function Login() {
       result = await login(email, password);
 }
     if (result.success) {
-      if (result.requiresVerification) {
-        setIsSignup(false);
-        setPassword("");
-        setInfo("Signup complete. Your account is pending admin email verification approval before first login.");
-        return;
-      }
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
       else if (r === "seller") navigate("/seller");
@@ -107,8 +101,8 @@ export default function Login() {
             </div>
           )}
 
-          <label style={lbl}>Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Enter email" style={inp} />
+          <label style={lbl}>Email (Gmail for new sign-ups)</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@gmail.com" style={inp} />
 
           <label style={lbl}>Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter password" minLength="6" style={inp} />
@@ -130,6 +124,9 @@ export default function Login() {
           <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Admin login: reserved admin email + password</p>
           <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Seller/Broker login: signup with Seller account type</p>
           <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Customer login: signup with Customer account type</p>
+          <p style={{ fontSize: "11px", color: "#14532d", margin: "8px 0 0", lineHeight: 1.45 }}>
+            New accounts must use <strong>@gmail.com</strong> or <strong>@googlemail.com</strong>. Proving the inbox exists and sending real verification email needs a backend or Firebase Auth (not possible from browser-only storage alone).
+          </p>
         </div>
       </div>
     </div>

@@ -67,9 +67,9 @@ export default function AdminDashboard() {
     logout,
     approveSeller,
     rejectSeller,
-    getPendingVerifications,
-    approveEmailVerification,
-    rejectEmailVerification,
+    getPendingSellerBadgeApplications,
+    approveSellerBadge,
+    rejectSellerBadge,
   } = useAuth();
   const navigate = useNavigate();
   const [refreshTick, setRefreshTick] = useState(0);
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
   const customers = users.filter((u) => u.role === "customer");
   const sellers = users.filter((u) => u.role === "seller");
   const sellerReqs = useMemo(() => getSellerRequests().filter((r) => r.status === "pending"), [refreshTick]);
-  const pendingVerifications = useMemo(() => getPendingVerifications(), [refreshTick, getPendingVerifications]);
+  const pendingSellerBadges = useMemo(() => getPendingSellerBadgeApplications(), [refreshTick, getPendingSellerBadgeApplications]);
 
   const handleSubmitListing = (e) => {
     e.preventDefault();
@@ -127,13 +127,13 @@ export default function AdminDashboard() {
     setRefreshTick((v) => v + 1);
   };
 
-  const handleApproveVerification = (email) => {
-    approveEmailVerification(email);
+  const handleApproveSellerBadge = (email) => {
+    approveSellerBadge(email);
     setRefreshTick((v) => v + 1);
   };
 
-  const handleRejectVerification = (email) => {
-    rejectEmailVerification(email);
+  const handleRejectSellerBadge = (email) => {
+    rejectSellerBadge(email);
     setRefreshTick((v) => v + 1);
   };
 
@@ -174,20 +174,29 @@ export default function AdminDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
-        {pendingVerifications.length > 0 && (
+        {pendingSellerBadges.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
-              Pending Account Verification ({pendingVerifications.length})
+              Pending verified seller badge ({pendingSellerBadges.length})
             </div>
-            {pendingVerifications.map((p) => (
-              <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px" }}>
+              Optional trust tier: sellers can still use the site after sign-up; this queue is only for a manual verified badge (similar in spirit to marketplace seller checks).
+            </p>
+            {pendingSellerBadges.map((p) => (
+              <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{p.email} • {p.role}</div>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>{p.email}</div>
+                  {p.application && (
+                    <div style={{ fontSize: "11px", color: "#475569", marginTop: "6px" }}>
+                      Business: {p.application.businessName} | Phone: {p.application.phone}
+                      {p.application.gst ? ` | GST: ${p.application.gst}` : ""}
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => handleApproveVerification(p.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve</button>
-                  <button onClick={() => handleRejectVerification(p.email)} style={{ ...btn, background: "#dc2626", color: "white", fontSize: "12px" }}>Reject</button>
+                <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                  <button type="button" onClick={() => handleApproveSellerBadge(p.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve badge</button>
+                  <button type="button" onClick={() => handleRejectSellerBadge(p.email)} style={{ ...btn, background: "#dc2626", color: "white", fontSize: "12px" }}>Reject</button>
                 </div>
               </div>
             ))}

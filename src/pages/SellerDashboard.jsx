@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+
+function readUserRow(email) {
+  if (!email) return null;
+  try {
+    const users = JSON.parse(localStorage.getItem("moveasy_users") || "{}");
+    return users[email] || null;
+  } catch {
+    return null;
+  }
+}
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { getAssignments, getListings, upsertListing, removeListing } from "../lib/store";
@@ -13,19 +23,36 @@ function LocationPicker({ position, setPosition }) {
 }
 
 export default function SellerDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, submitSellerBadgeApplication } = useAuth();
   const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
   const [pinPosition, setPinPosition] = useState(null);
   const [myAssignments, setMyAssignments] = useState([]);
+  const [sellerRow, setSellerRow] = useState(null);
+  const [badgeForm, setBadgeForm] = useState({ businessName: "", phone: "", gst: "" });
+  const [badgeMsg, setBadgeMsg] = useState("");
 
   useEffect(() => {
     const all = getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
     setMyAssignments(getAssignments().filter((a) => a.sellerEmail === user?.email));
+    setSellerRow(readUserRow(user?.email));
   }, [user]);
+
+  const handleBadgeSubmit = (e) => {
+    e.preventDefault();
+    setBadgeMsg("");
+    const res = submitSellerBadgeApplication(badgeForm);
+    if (!res.success) {
+      setBadgeMsg(res.error || "Could not submit");
+      return;
+    }
+    setBadgeForm({ businessName: "", phone: "", gst: "" });
+    setSellerRow(readUserRow(user?.email));
+    setBadgeMsg("Application submitted. Admin will review for a verified badge.");
+  };
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -61,6 +88,30 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
+          <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "6px" }}>Seller trust badge (optional)</div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px", lineHeight: 1.45 }}>
+            You can use MovEasy immediately after sign-up. For a <strong>verified seller</strong> badge (closer to how large marketplaces gate trusted sellers), submit business details; an admin reviews this separately from your login.
+          </p>
+          {sellerRow?.sellerBadgeStatus === "verified" && (
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#15803d" }}>Status: Verified seller</div>
+          )}
+          {sellerRow?.sellerBadgeStatus === "pending" && (
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#b45309" }}>Status: Badge application under review</div>
+          )}
+          {sellerRow?.sellerBadgeStatus === "rejected" && (
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#b91c1c" }}>Status: Badge application not approved</div>
+          )}
+          {(!sellerRow?.sellerBadgeStatus || sellerRow.sellerBadgeStatus === "none" || sellerRow.sellerBadgeStatus === "rejected") && (
+            <form onSubmit={handleBadgeSubmit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
+              <input required placeholder="Business / broker name" value={badgeForm.businessName} onChange={(e) => setBadgeForm((p) => ({ ...p, businessName: e.target.value }))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input required placeholder="Phone (WhatsApp preferred)" value={badgeForm.phone} onChange={(e) => setBadgeForm((p) => ({ ...p, phone: e.target.value }))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="GSTIN (optional)" value={badgeForm.gst} onChange={(e) => setBadgeForm((p) => ({ ...p, gst: e.target.value }))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
+              <button type="submit" style={{ ...btn, background: "#0f766e", color: "white", gridColumn: "span 2" }}>Submit for verified badge</button>
+            </form>
+          )}
+          {badgeMsg && <div style={{ marginTop: "8px", fontSize: "12px", color: "#0f766e", fontWeight: 600 }}>{badgeMsg}</div>}
+        </div>
         {myAssignments.length > 0 && (
           <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
             <div style={{ fontWeight: 700, marginBottom: "6px" }}>Assigned Leads ({myAssignments.length})</div>
