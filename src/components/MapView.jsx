@@ -17,7 +17,7 @@ function makeBhkIcon(bhk) {
   const c = bhkColors[bhk] || "#6b7280";
   return L.divIcon({
     className: "",
-    html: '<div style="background:' + c + ';color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + bhk + '</div>',
+    html: '<div style="background:' + c + ';color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + bhk + "</div>",
     iconSize: [40, 20],
     iconAnchor: [20, 10],
   });
@@ -37,7 +37,11 @@ const areas = {
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
-  useEffect(() => { map.setView(center, zoom); }, [center, zoom, map]);
+  useEffect(() => { 
+    // This forcibly recalculates the map size to fix the "grey area bounds" issue
+    map.invalidateSize(); 
+    map.setView(center, zoom); 
+  }, [center, zoom, map]);
   return null;
 }
 
@@ -49,26 +53,40 @@ export default function MapView() {
   useEffect(() => {
     const saved = localStorage.getItem("moveasy_listings");
     setListings(saved ? JSON.parse(saved) : initialListings);
+    
+    // Auto-fix map rendering bug 500ms after component mounts
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 500);
   }, []);
 
-  const btn = { padding: "6px 14px", borderRadius: "20px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer" };
-
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", padding: "12px 20px", color: "white" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <div style={{ fontSize: "18px", fontWeight: 800 }}>Moveasy Map</div>
           <div style={{ fontSize: "12px", opacity: 0.8 }}>{listings.length} properties</div>
         </div>
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-          <button onClick={() => setMapState({ center: [12.9716, 77.5946], zoom: 12 })} style={{ ...btn, background: "rgba(255,255,255,0.2)", color: "white" }}>All Bengaluru</button>
-          {Object.keys(areas).map((a) => (
-            <button key={a} onClick={() => setMapState({ center: areas[a], zoom: 16 })} style={{ ...btn, background: "white", color: "#1e3a8a" }}>{a}</button>
-          ))}
+        
+        {/* We replaced the buttons with this neat Dropdown */}
+        <div style={{ marginTop: "8px" }}>
+          <select 
+            onChange={(e) => {
+              if (e.target.value === "All") setMapState({ center: [12.9716, 77.5946], zoom: 12 });
+              else setMapState({ center: areas[e.target.value], zoom: 16 });
+            }}
+            style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #94a3b8", outline: "none", fontSize: "14px", fontWeight: 600, color: "#1e3a8a", cursor: "pointer", width: "100%", maxWidth: "300px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}
+          >
+            <option value="All">📍 All Bengaluru</option>
+            {Object.keys(areas).map((a) => (
+              <option key={a} value={a}>📍 {a}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex" }}>
+      {/* minHeight: 0 prevents the sidebar content from forcing the flex container to grow vertically and break Leaflet bounds */}
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <div style={{ flex: 1, position: "relative" }}>
           <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
@@ -89,7 +107,7 @@ export default function MapView() {
           </MapContainer>
         </div>
 
-        <div style={{ width: "320px", overflowY: "auto", background: "#f8fafc", borderLeft: "1px solid #e2e8f0", padding: "10px" }}>
+        <div style={{ width: "320px", overflowY: "auto", background: "#f8fafc", borderLeft: "1px solid #e2e8f0", padding: "10px", height: "100%" }}>
           <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#1e293b" }}>Properties ({listings.length})</div>
           {listings.map((l) => (
             <div key={l.id} onClick={() => setMapState({ center: [l.lat, l.lng], zoom: 17 })} style={{ background: "white", borderRadius: "8px", padding: "10px", marginBottom: "8px", cursor: "pointer", border: selected?.id === l.id ? "2px solid #3b82f6" : "1px solid #e2e8f0", transition: "all 0.2s" }}>
@@ -106,4 +124,4 @@ export default function MapView() {
       </div>
     </div>
   );
-                                            }
+}
