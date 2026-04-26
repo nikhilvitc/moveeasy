@@ -68,25 +68,41 @@ function normalizeBhk(bhk) {
 }
 
 function normalizeListing(listing) {
+  const fallbackPriceLabel = listing.price || (listing.rent ? `₹ ${listing.rent}` : "₹ 0");
+  const monthlyRentSource = listing.monthlyRent ?? listing.rentPrice ?? listing.rent ?? listing.price;
+  const parsedMonthlyRent = parseRentValue(monthlyRentSource);
+  const normalizedMonthlyRent = Number(listing.monthlyRent) > 0 ? Number(listing.monthlyRent) : parsedMonthlyRent;
+  const coordinates = Array.isArray(listing.coords) && listing.coords.length === 2 ? listing.coords : null;
+  const preferredTenants = Array.isArray(listing.preferredTenants)
+    ? listing.preferredTenants
+    : listing.tenants
+      ? [listing.tenants]
+      : ["Family"];
+  const parking = Array.isArray(listing.parking)
+    ? listing.parking
+    : typeof listing.parking === "string" && listing.parking.trim()
+      ? [listing.parking.trim()]
+      : ["2 Wheeler"];
+
   return {
     id: listing.id ?? Date.now(),
     title: listing.title ?? "Untitled listing",
-    price: listing.price ?? "₹ 0",
-    monthlyRent: listing.monthlyRent ?? parseRentValue(listing.price),
+    price: fallbackPriceLabel,
+    monthlyRent: normalizedMonthlyRent,
     type: listing.type ?? "Rent",
     bhk: normalizeBhk(listing.bhk ?? "1 BHK"),
-    address: listing.address ?? "Bengaluru",
+    address: listing.address ?? listing.location ?? "Bengaluru",
     contact: listing.contact ?? "",
     seller: listing.seller ?? "Unknown broker",
     sellerEmail: listing.sellerEmail ?? "",
     company: listing.company ?? "",
-    lat: Number(listing.lat ?? 12.9716),
-    lng: Number(listing.lng ?? 77.5946),
+    lat: Number(listing.lat ?? coordinates?.[0] ?? 12.9716),
+    lng: Number(listing.lng ?? coordinates?.[1] ?? 77.5946),
     availability: listing.availability ?? "Immediate",
-    preferredTenants: listing.preferredTenants ?? ["Family"],
+    preferredTenants,
     propertyType: listing.propertyType ?? "Apartment",
     furnishing: listing.furnishing ?? "Semi",
-    parking: listing.parking ?? ["2 Wheeler"],
+    parking,
     source: listing.source ?? "manual",
     sourceUrl: listing.sourceUrl ?? "",
     assignedCustomerEmail: listing.assignedCustomerEmail ?? null,

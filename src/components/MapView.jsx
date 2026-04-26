@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
+import { useAuth } from "../context/AuthContext";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -60,6 +62,8 @@ function ToggleOption({ label, active, onClick }) {
 }
 
 export default function MapView() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const listings = useMemo(() => getListings(), []);
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
@@ -79,7 +83,23 @@ export default function MapView() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ background: "white", padding: "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={() => navigate("/")}
+              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}
+            >
+              Home
+            </button>
+            {user?.role === "admin" && (
+              <button
+                onClick={() => navigate("/admin")}
+                style={{ border: "1px solid #1e40af", background: "#eff6ff", color: "#1e40af", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}
+              >
+                Admin Controls
+              </button>
+            )}
+            <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
+          </div>
           <div style={{ fontSize: "12px", color: "#64748b" }}>{filteredListings.length} properties</div>
         </div>
       </div>
