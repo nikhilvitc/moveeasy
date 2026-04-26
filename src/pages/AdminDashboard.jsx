@@ -3,29 +3,71 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing } from "../lib/store";
 import { ingestPartnerListings } from "../lib/externalFeeds";
+import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+const DEFAULT_FORM = {
+  title: "",
+  price: "",
+  bhk: "2 BHK",
+  address: "",
+  seller: "",
+  sellerEmail: "",
+  contact: "",
+  monthlyRent: 25000,
+  availability: "Immediate",
+  propertyType: "Apartment",
+  furnishing: "Semi",
+  preferredTenants: ["Family"],
+  parking: ["2 Wheeler"],
+  lat: 12.9716,
+  lng: 77.5946,
+};
+
+function LocationPicker({ position, onPick }) {
+  useMapEvents({
+    click(e) {
+      onPick([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return position ? <Marker position={position} /> : null;
+}
+
+function toList(value, fallback) {
+  if (Array.isArray(value) && value.length) return value;
+  if (typeof value === "string" && value.trim()) {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return fallback;
+}
+
+function listingToForm(listing) {
+  return {
+    title: listing.title || "",
+    price: listing.price || "",
+    bhk: listing.bhk || "2 BHK",
+    address: listing.address || "",
+    seller: listing.seller || "",
+    sellerEmail: listing.sellerEmail || "",
+    contact: listing.contact || "",
+    monthlyRent: Number(listing.monthlyRent || 25000),
+    availability: listing.availability || "Immediate",
+    propertyType: listing.propertyType || "Apartment",
+    furnishing: listing.furnishing || "Semi",
+    preferredTenants: toList(listing.preferredTenants, ["Family"]),
+    parking: toList(listing.parking, ["2 Wheeler"]),
+    lat: Number(listing.lat || 12.9716),
+    lng: Number(listing.lng || 77.5946),
+  };
+}
 
 export default function AdminDashboard() {
   const { user, logout, approveSeller, rejectSeller } = useAuth();
   const navigate = useNavigate();
   const [refreshTick, setRefreshTick] = useState(0);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({
-    title: "",
-    price: "",
-    bhk: "2 BHK",
-    address: "",
-    seller: "",
-    sellerEmail: "",
-    contact: "",
-    monthlyRent: 25000,
-    availability: "Immediate",
-    propertyType: "Apartment",
-    furnishing: "Semi",
-    preferredTenants: ["Family"],
-    parking: ["2 Wheeler"],
-    lat: 12.9716,
-    lng: 77.5946,
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [pinPosition, setPinPosition] = useState([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
   const [assignment, setAssignment] = useState({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
   const [feedJson, setFeedJson] = useState("");
 
@@ -38,31 +80,27 @@ export default function AdminDashboard() {
 
   const handleSubmitListing = (e) => {
     e.preventDefault();
-    upsertListing({ ...form, id: editingId || Date.now(), updatedAt: new Date().toISOString() });
+    const payload = {
+      ...form,
+      id: editingId || Date.now(),
+      lat: Number(pinPosition?.[0] ?? form.lat),
+      lng: Number(pinPosition?.[1] ?? form.lng),
+      preferredTenants: toList(form.preferredTenants, ["Family"]),
+      parking: toList(form.parking, ["2 Wheeler"]),
+      updatedAt: new Date().toISOString(),
+    };
+    upsertListing(payload);
     setEditingId(null);
-    setForm({
-      title: "",
-      price: "",
-      bhk: "2 BHK",
-      address: "",
-      seller: "",
-      sellerEmail: "",
-      contact: "",
-      monthlyRent: 25000,
-      availability: "Immediate",
-      propertyType: "Apartment",
-      furnishing: "Semi",
-      preferredTenants: ["Family"],
-      parking: ["2 Wheeler"],
-      lat: 12.9716,
-      lng: 77.5946,
-    });
+    setForm(DEFAULT_FORM);
+    setPinPosition([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
     setRefreshTick((v) => v + 1);
   };
 
   const handleEdit = (listing) => {
     setEditingId(listing.id);
-    setForm(listing);
+    const nextForm = listingToForm(listing);
+    setForm(nextForm);
+    setPinPosition([nextForm.lat, nextForm.lng]);
   };
 
   const handleDelete = (id) => {
@@ -150,10 +188,45 @@ export default function AdminDashboard() {
             <select value={form.furnishing} onChange={(e) => setForm((p) => ({ ...p, furnishing: e.target.value }))}><option>Full</option><option>Semi</option><option>None</option></select>
             <input type="text" placeholder="Parking (comma separated)" value={form.parking.join(", ")} onChange={(e) => setForm((p) => ({ ...p, parking: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
             <input type="text" placeholder="Preferred tenants (comma separated)" value={form.preferredTenants.join(", ")} onChange={(e) => setForm((p) => ({ ...p, preferredTenants: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
-            <input type="number" step="0.0001" placeholder="Latitude" value={form.lat} onChange={(e) => setForm((p) => ({ ...p, lat: Number(e.target.value) }))} />
-            <input type="number" step="0.0001" placeholder="Longitude" value={form.lng} onChange={(e) => setForm((p) => ({ ...p, lng: Number(e.target.value) }))} />
+            <input
+              type="number"
+              step="0.0001"
+              placeholder="Latitude"
+              value={Number(pinPosition?.[0] ?? form.lat)}
+              onChange={(e) => {
+                const lat = Number(e.target.value);
+                setForm((p) => ({ ...p, lat }));
+                setPinPosition((prev) => [lat, Number(prev?.[1] ?? form.lng)]);
+              }}
+            />
+            <input
+              type="number"
+              step="0.0001"
+              placeholder="Longitude"
+              value={Number(pinPosition?.[1] ?? form.lng)}
+              onChange={(e) => {
+                const lng = Number(e.target.value);
+                setForm((p) => ({ ...p, lng }));
+                setPinPosition((prev) => [Number(prev?.[0] ?? form.lat), lng]);
+              }}
+            />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>
+          <div style={{ marginTop: "12px", fontSize: "12px", color: "#475569" }}>
+            Click on the map to pinpoint the exact listing location.
+            <span style={{ marginLeft: "8px", fontWeight: 700 }}>
+              {`Lat: ${Number(pinPosition?.[0]).toFixed(5)}, Lng: ${Number(pinPosition?.[1]).toFixed(5)}`}
+            </span>
+          </div>
+          <div style={{ marginTop: "10px", height: "260px", borderRadius: "10px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+            <MapContainer center={pinPosition} zoom={14} style={{ height: "100%", width: "100%" }}>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <LocationPicker position={pinPosition} onPick={setPinPosition} />
+            </MapContainer>
+          </div>
         </div>
 
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
