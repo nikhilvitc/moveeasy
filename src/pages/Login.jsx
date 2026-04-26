@@ -1,1 +1,106 @@
-import { useState } from "react"; import { useAuth } from "../context/AuthContext"; import { useNavigate } from "react-router-dom"; export default function Login() { const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [name, setName] = useState(""); const [error, setError] = useState(""); const [isSignup, setIsSignup] = useState(false); const [selectedRole, setSelectedRole] = useState("customer"); // UI Guide: doesn't force role but guides user const { login, signup } = useAuth(); const navigate = useNavigate(); const handleSubmit = async (e) => { e.preventDefault(); setError(""); let result; if (isSignup) { if (!name.trim()) { setError("Please enter your name"); return; } result = await signup(email, password, name); } else { result = await login(email, password); } if (result.success) { const r = result.role || "customer"; if (r === "admin") navigate("/admin"); else if (r === "seller") navigate("/seller"); else navigate("/customer"); } else { setError(result.error || "Login Failed. Check credentials or sign up."); } }; const box = { background: "white", borderRadius: "24px", padding: "40px", width: "100%", maxWidth: "440px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" }; const inp = { width: "100%", padding: "12px 14px", border: "1px solid #e2e8f0", borderRadius: "10px", marginBottom: "16px", fontSize: "14px", outline: "none", transition: "all 0.2s" }; const lbl = { fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }; const roleBtn = (id, label) => ( <button type="button" onClick={() => setSelectedRole(id)} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "2px solid", borderColor: selectedRole === id ? "#1e3a8a" : "#e2e8f0", background: selectedRole === id ? "#eff6ff" : "white", color: selectedRole === id ? "#1e3a8a" : "#64748b", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}> {label} </button> ); return ( <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}> <div style={box}> <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1e3a8a", textAlign: "center", margin: "0 0 4px" }}>MovEasy</h1> <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}> {isSignup ? "Create your account" : "Sign in to your account"} </p> {error && ( <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}> {error} </div> )} <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}> {roleBtn("customer", "Customer")} {roleBtn("seller", "Seller")} {roleBtn("admin", "Admin")} </div> <form onSubmit={handleSubmit}> {isSignup && ( <div> <label style={lbl}>Full Name</label> <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your name" style={inp} /> </div> )} <label style={lbl}>{selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Email</label> <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={`email@example.com`} style={inp} /> <label style={lbl}>Password</label> <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" minLength="6" style={inp} /> {selectedRole === "admin" && !isSignup && ( <div style={{ fontSize: "11px", color: "#1e3a8a", background: "#eff6ff", padding: "8px", borderRadius: "6px", marginBottom: "16px" }}> <b>Note:</b> Only authorized staff emails can login as Admin. </div> )} <button type="submit" style={{ width: "100%", padding: "14px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "10px", fontWeight: 800, fontSize: "16px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30, 58, 138, 0.3)" }}> {isSignup ? `Join as ${selectedRole}` : `Login as ${selectedRole}`} </button> </form> <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}> {isSignup ? "Already have an account? " : "No account? "} <button onClick={() => { setIsSignup(!isSignup); setError(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}> {isSignup ? "Sign In" : "Sign Up"} </button> </p> <div style={{ marginTop: "20px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}> <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>How it works:</p> <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>1. Sign up as a Customer (free)</p> <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>2. Apply as Seller from your dashboard</p> <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>3. Admin approves your seller request</p> </div> </div> </div> ); }
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("customer"); // UI Guide: doesn't force role but guides user
+  const { login, signup } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    let result;
+    if (isSignup) {
+      if (!name.trim()) { setError("Please enter your name"); return; }
+      result = await signup(email, password, name);
+    } else {
+      result = await login(email, password);
+    }
+    if (result.success) {
+      const r = result.role || "customer";
+      if (r === "admin") navigate("/admin");
+      else if (r === "seller") navigate("/seller");
+      else navigate("/customer");
+    } else {
+      setError(result.error || "Login Failed. Check credentials or sign up.");
+    }
+  };
+
+  const box = { background: "white", borderRadius: "24px", padding: "40px", width: "100%", maxWidth: "440px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" };
+  const inp = { width: "100%", padding: "12px 14px", border: "1px solid #e2e8f0", borderRadius: "10px", marginBottom: "16px", fontSize: "14px", outline: "none", transition: "all 0.2s" };
+  const lbl = { fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" };
+  const roleBtn = (id, label) => (
+    <button 
+      type="button"
+      onClick={() => setSelectedRole(id)}
+      style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "2px solid", borderColor: selectedRole === id ? "#1e3a8a" : "#e2e8f0", background: selectedRole === id ? "#eff6ff" : "white", color: selectedRole === id ? "#1e3a8a" : "#64748b", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
+      <div style={box}>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1e3a8a", textAlign: "center", margin: "0 0 4px" }}>MovEasy</h1>
+        <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}>
+          {isSignup ? "Create your account" : "Sign in to your account"}
+        </p>
+
+        {error && (
+          <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
+          {roleBtn("customer", "Customer")}
+          {roleBtn("seller", "Seller")}
+          {roleBtn("admin", "Admin")}
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {isSignup && (
+            <div>
+              <label style={lbl}>Full Name</label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your name" style={inp} />
+            </div>
+          )}
+          <label style={lbl}>{selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder=`email@example.com` style={inp} />
+          <label style={lbl}>Password</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength="6" style={inp} />
+          
+          {selectedRole === "admin" && !isSignup && (
+              <div style={{ fontSize: "11px", color: "#1e3a8a", background: "#eff6ff", padding: "8px", borderRadius: "6px", marginBottom: "16px" }}>
+                  <b>Note:</b> Only authorized staff emails can login as Admin.
+              </div>
+          )}
+
+          <button type="submit" style={{ width: "100%", padding: "14px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "10px", fontWeight: 800, fontSize: "16px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30, 58, 138, 0.3)" }}>
+            {isSignup ? `Join as ${selectedRole}` : `Login as ${selectedRole}`}
+          </button>
+        </form>
+
+        <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
+          {isSignup ? "Already have an account? " : "No account? "}
+          <button onClick={() => { setIsSignup(!isSignup); setError(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+            {isSignup ? "Sign In" : "Sign Up"}
+          </button>
+        </p>
+
+        <div style={{ marginTop: "20px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>How it works:</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>1. Sign up as a Customer (free)</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>2. Apply as Seller from your dashboard</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>3. Admin approves your seller request</p>
+        </div>
+      </div>
+    </div>
+  );
+}
