@@ -117,7 +117,10 @@ export function getFiltersInitialState() {
 
 export function ensureListingsInitialized() {
   const existing = readJson(KEYS.listings, null);
-  if (existing && Array.isArray(existing) && existing.length) return;
+  if (existing && Array.isArray(existing) && existing.length) {
+    const hasValidRent = existing.some((item) => Number(item?.monthlyRent || 0) > 0);
+    if (hasValidRent) return;
+  }
   const normalized = seedListings.map(normalizeListing);
   writeJson(KEYS.listings, normalized);
 }
