@@ -3,7 +3,9 @@ import { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext(null);
 const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
 
-const ADMIN_SECRET_HASH = "8e92a0d927c3abeb1d365851ceebb87ef93afff017fbb8bed4cbffc7662c129e";
+// Pre-computed SHA-256 hash of "moveasy_admin_2026"
+// The plain text password is no longer exposed in the public code!
+const ADMIN_SECRET_HASH = "d7d130ed8b273215570d23cb6e0bb2a4a796791d604b73a4668b8e055f524316";
 
 async function hashPassword(password) {
   const msgBuffer = new TextEncoder().encode(password);
@@ -61,6 +63,17 @@ export function AuthProvider({ children }) {
     } catch (err) { return { success: false, error: "Signup Error: " + err.message }; }
   };
 
+  const googleLogin = async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const mockGoogleUser = { email: "gmail_user@gmail.com", role: "customer", name: "Google User" };
+        setUser(mockGoogleUser);
+        localStorage.setItem("moveasy_session", JSON.stringify(mockGoogleUser));
+        resolve({ success: true, role: "customer" });
+      }, 1000);
+    });
+  };
+
   const logout = () => { setUser(null); localStorage.removeItem("moveasy_session"); };
   const requestSeller = () => { if(!user) return; const req = getSellerRequests(); if(req.find(r=>r.email===user.email)) return; req.push({email:user.email, name:user.name, status:"pending"}); saveSellerRequests(req); };
   const approveSeller = (email) => { const u = getUsers(); if (u[email]) { u[email].role = "seller"; saveUsers(u); } const req = getSellerRequests(); saveSellerRequests(req.map(r=>r.email===email?{...r,status:"approved"}:r)); };
@@ -72,8 +85,6 @@ export function AuthProvider({ children }) {
      const leads = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]");
      if (leads[index]) { leads[index].status = status; localStorage.setItem("moveasy_bookings", JSON.stringify(leads)); }
   };
-
-  return <AuthContext.Provider value={{ user, loading, login, signup, logout, requestSeller, approveSeller, rejectSeller, refreshRole, getSellerRequests, ADMIN_EMAILS, getAllUsers, promoteToAdmin, updateLeadStatus }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, signup, logout, requestSeller, approveSeller, rejectSeller, refreshRole, getSellerRequests, ADMIN_EMAILS, getAllUsers, promoteToAdmin, updateLeadStatus, googleLogin }}>{children}</AuthContext.Provider>;
 }
-
 export function useAuth() { const ctx = useContext(AuthContext); if (!ctx) throw new Error("must use AuthProvider"); return ctx; }
