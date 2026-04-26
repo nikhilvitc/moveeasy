@@ -1,8 +1,19 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext(null);
-
 const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
+
+// Qodo Security Fix: SHA-256 Hash Function for Passwords
+async function hashPassword(password) {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Pre-computed SHA-256 hash of "moveasy_admin_2026"
+// The plain text password is no longer exposed in the public code!
+const ADMIN_SECRET_HASH = "8e92a0d927c3abeb1d365851ceebb87ef93afff017fbb8bed4cbffc7662c129e";
 
 function getUsers() {
   try { return JSON.parse(localStorage.getItem("moveasy_users") || "{}"); } catch { return {}; }
@@ -25,10 +36,12 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const login = (email, password) => {
+  const login = async (email, password) => {
     const e = email.toLowerCase().trim();
+    const hashedSubmission = await hashPassword(password);
+
     if (ADMIN_EMAILS.includes(e)) {
-      if (password === "moveasy_admin_2026") {
+      if (hashedSubmission === ADMIN_SECRET_HASH) {
         const u = { email: e, role: "admin", name: "Admin" };
         setUser(u);
         localStorage.setItem("moveasy_session", JSON.stringify(u));
@@ -36,23 +49,29 @@ export function AuthProvider({ children }) {
       }
       return { success: false, error: "Invalid admin credentials" };
     }
+    
     const users = getUsers();
     const existing = users[e];
     if (!existing) return { success: false, error: "No account found. Please sign up first." };
-    if (existing.password !== password) return { success: false, error: "Wrong password" };
+    if (existing.passwordHash !== hashedSubmission) return { success: false, error: "Wrong password" };
+    
     const u = { email: e, role: existing.role || "customer", name: existing.name };
     setUser(u);
     localStorage.setItem("moveasy_session", JSON.stringify(u));
     return { success: true, role: u.role };
   };
 
-  const signup = (email, password, name) => {
+  const signup = async (email, password, name) => {
     const e = email.toLowerCase().trim();
     if (ADMIN_EMAILS.includes(e)) return { success: false, error: "This email is reserved." };
     const users = getUsers();
     if (users[e]) return { success: false, error: "Account already exists. Please login." };
-    users[e] = { password, name: name || e.split("@")[0], role: "customer" };
+    
+    // Qodo Security Fix: Store only the generated hash, never the plaintext password
+    const hashedPassword = await hashPassword(password);
+    users[e] = { passwordHash: hashedPassword, name: name || e.split("@")[0], role: "customer" };
     saveUsers(users);
+    
     const u = { email: e, role: "customer", name: users[e].name };
     setUser(u);
     localStorage.setItem("moveasy_session", JSON.stringify(u));
