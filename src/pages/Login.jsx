@@ -30,6 +30,12 @@ export default function Login() {
       result = await login(email, password);
 }
     if (result.success) {
+      if (result.requiresVerification) {
+        setIsSignup(false);
+        setPassword("");
+        setInfo(result.info || "Verification email sent. Please verify your email before login.");
+        return;
+      }
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
       else if (r === "seller") navigate("/seller");

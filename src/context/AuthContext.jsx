@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { gmailSignupErrorMessage, isGmailAddress } from "../lib/emailPolicy";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import { auth, isFirebaseConfigured } from "../lib/firebase";
 
 const AuthContext = createContext(null);
 const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
@@ -32,6 +39,35 @@ function normalizeSellerBadgeStatus(value) {
   return "none";
 }
 
+function normalizeFirebaseError(error) {
+  const code = error?.code || "";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+    return "Invalid email or password.";
+  }
+  if (code === "auth/email-already-in-use") return "Email already in use. Please login.";
+  if (code === "auth/invalid-email") return "Invalid email address.";
+  if (code === "auth/weak-password") return "Password is too weak.";
+  if (code === "auth/too-many-requests") return "Too many attempts. Try again later.";
+  return error?.message || "Authentication failed. Please try again.";
+}
+
+async function triggerWelcomeEmail({ email, name, role, idToken }) {
+  const endpoint = import.meta.env.VITE_WELCOME_EMAIL_FUNCTION_URL;
+  if (!endpoint || !idToken) return;
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ email, name, role }),
+    });
+  } catch {
+    // Keep login success even if email dispatch endpoint is temporarily unavailable.
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,40 +94,73 @@ export function AuthProvider({ children }) {
       return { success: false, error: "Invalid admin credentials" };
     }
     
-    const users = getUsers();
-    const existing = users[e];
-    if (!existing) return { success: false, error: "No account found. Please sign up first." };
-    if (existing.passwordHash !== hashedSubmission) return { success: false, error: "Wrong password" };
-    
-    const u = { email: e, role: existing.role || "customer", name: existing.name };
-    setUser(u);
-    localStorage.setItem("moveasy_session", JSON.stringify(u));
-    return { success: true, role: u.role };
+    if (!isFirebaseConfigured) {
+      return {
+        success: false,
+        error: "Email verification is not configured. Add Firebase env keys to enable real mailbox verification.",
+      };
+    }
+    try {
+      const cred = await signInWithEmailAndPassword(auth, e, password);
+      if (!cred.user.emailVerified) {
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        return {
+          success: false,
+          error: "Email not verified. Verification link has been sent again to your inbox.",
+        };
+      }
+      const users = getUsers();
+      const profile = users[e] || {};
+      if (!users[e]) {
+        users[e] = { name: profile.name || e.split("@")[0], role: profile.role || "customer" };
+        saveUsers(users);
+      }
+      const u = { email: e, role: users[e]?.role || "customer", name: users[e]?.name || e.split("@")[0] };
+      setUser(u);
+      localStorage.setItem("moveasy_session", JSON.stringify(u));
+      const idToken = await cred.user.getIdToken();
+      await triggerWelcomeEmail({ email: u.email, name: u.name, role: u.role, idToken });
+      return { success: true, role: u.role };
+    } catch (error) {
+      return { success: false, error: normalizeFirebaseError(error) };
+    }
   };
 
   const signup = async (email, password, name, role = "customer") => {
     const e = email.toLowerCase().trim();
     if (ADMIN_EMAILS.includes(e)) return { success: false, error: "This email is reserved." };
     if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
+    if (!isFirebaseConfigured) {
+      return {
+        success: false,
+        error: "Firebase email verification is not configured. Add VITE_FIREBASE_* keys first.",
+      };
+    }
     const users = getUsers();
     if (users[e]) return { success: false, error: "Account already exists. Please login." };
     const normalizedRole = role === "seller" ? "seller" : "customer";
-    
-    // Qodo Security Fix: Store only the generated hash, never the plaintext password
-    const hashedPassword = await hashPassword(password);
-    users[e] = {
-      passwordHash: hashedPassword,
-      name: name || e.split("@")[0],
-      role: normalizedRole,
-      emailVerified: true,
-      sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
-    };
-    saveUsers(users);
 
-    const u = { email: e, role: normalizedRole, name: users[e].name };
-    setUser(u);
-    localStorage.setItem("moveasy_session", JSON.stringify(u));
-    return { success: true, role: normalizedRole };
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, e, password);
+      await sendEmailVerification(cred.user);
+      users[e] = {
+        name: name || e.split("@")[0],
+        role: normalizedRole,
+        sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
+      };
+      saveUsers(users);
+      await signOut(auth);
+      localStorage.removeItem("moveasy_session");
+      setUser(null);
+      return {
+        success: true,
+        requiresVerification: true,
+        info: "Verification email sent. Please verify your Gmail inbox before logging in.",
+      };
+    } catch (error) {
+      return { success: false, error: normalizeFirebaseError(error) };
+    }
   };
 
   const getPendingSellerBadgeApplications = () => {
@@ -180,7 +249,13 @@ export function AuthProvider({ children }) {
     saveSellerRequests(requests.map((r) => r.email === e ? { ...r, status: "rejected" } : r));
   };
 
-  const logout = () => { setUser(null); localStorage.removeItem("moveasy_session"); };
+  const logout = async () => {
+    setUser(null);
+    localStorage.removeItem("moveasy_session");
+    if (isFirebaseConfigured) {
+      try { await signOut(auth); } catch { /* noop */ }
+    }
+  };
 
   const refreshRole = () => {
     if (!user || ADMIN_EMAILS.includes(user.email)) return;
