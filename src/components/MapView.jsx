@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import initialListings from "../data/listingsData";
@@ -38,7 +39,6 @@ const areas = {
 function ChangeView({ center, zoom }) {
   const map = useMap();
   useEffect(() => { 
-    // This forcibly recalculates the map size to fix the "grey area bounds" issue
     map.invalidateSize(); 
     map.setView(center, zoom); 
   }, [center, zoom, map]);
@@ -46,6 +46,7 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function MapView() {
+  const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
@@ -54,7 +55,6 @@ export default function MapView() {
     const saved = localStorage.getItem("moveasy_listings");
     setListings(saved ? JSON.parse(saved) : initialListings);
     
-    // Auto-fix map rendering bug 500ms after component mounts
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 500);
@@ -64,11 +64,13 @@ export default function MapView() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", padding: "12px 20px", color: "white" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 800 }}>Moveasy Map</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button onClick={() => navigate("/")} style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)", color: "white", padding: "4px 12px", borderRadius: "20px", cursor: "pointer", fontWeight: 700, fontSize: "13px" }}>← Home</button>
+            <div style={{ fontSize: "18px", fontWeight: 800 }}>Moveasy Map</div>
+          </div>
           <div style={{ fontSize: "12px", opacity: 0.8 }}>{listings.length} properties</div>
         </div>
         
-        {/* We replaced the buttons with this neat Dropdown */}
         <div style={{ marginTop: "8px" }}>
           <select 
             onChange={(e) => {
@@ -85,7 +87,6 @@ export default function MapView() {
         </div>
       </div>
 
-      {/* minHeight: 0 prevents the sidebar content from forcing the flex container to grow vertically and break Leaflet bounds */}
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <div style={{ flex: 1, position: "relative" }}>
           <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
