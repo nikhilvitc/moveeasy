@@ -24,6 +24,10 @@ function getSellerRequests() {
 }
 function saveSellerRequests(r) { localStorage.setItem("moveasy_seller_requests", JSON.stringify(r)); }
 
+function normalizeVerificationStatus(value) {
+  return value === "approved" ? "approved" : value === "rejected" ? "rejected" : "pending";
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +57,14 @@ export function AuthProvider({ children }) {
     const users = getUsers();
     const existing = users[e];
     if (!existing) return { success: false, error: "No account found. Please sign up first." };
+    const verificationStatus = normalizeVerificationStatus(existing.verificationStatus);
+    const emailVerified = Boolean(existing.emailVerified) || verificationStatus === "approved";
+    if (!emailVerified) {
+      if (verificationStatus === "rejected") {
+        return { success: false, error: "Your account verification was rejected. Contact admin." };
+      }
+      return { success: false, error: "Account not verified yet. Admin approval is required before login." };
+    }
     if (existing.passwordHash !== hashedSubmission) return { success: false, error: "Wrong password" };
     
     const u = { email: e, role: existing.role || "customer", name: existing.name };
@@ -70,13 +82,56 @@ export function AuthProvider({ children }) {
     
     // Qodo Security Fix: Store only the generated hash, never the plaintext password
     const hashedPassword = await hashPassword(password);
-    users[e] = { passwordHash: hashedPassword, name: name || e.split("@")[0], role: normalizedRole };
+    users[e] = {
+      passwordHash: hashedPassword,
+      name: name || e.split("@")[0],
+      role: normalizedRole,
+      emailVerified: false,
+      verificationStatus: "pending",
+      verificationRequestedAt: new Date().toISOString(),
+    };
     saveUsers(users);
-    
-    const u = { email: e, role: normalizedRole, name: users[e].name };
-    setUser(u);
-    localStorage.setItem("moveasy_session", JSON.stringify(u));
-    return { success: true, role: normalizedRole };
+
+    // Keep signup gated until verification is approved.
+    return { success: true, role: normalizedRole, requiresVerification: true };
+  };
+
+  const getPendingVerifications = () => {
+    const users = getUsers();
+    return Object.entries(users)
+      .filter(([email, value]) => !ADMIN_EMAILS.includes(email) && normalizeVerificationStatus(value.verificationStatus) === "pending")
+      .map(([email, value]) => ({
+        email,
+        name: value.name || email.split("@")[0],
+        role: value.role || "customer",
+        verificationRequestedAt: value.verificationRequestedAt || null,
+      }));
+  };
+
+  const approveEmailVerification = (email) => {
+    const users = getUsers();
+    if (!users[email]) return false;
+    users[email] = {
+      ...users[email],
+      emailVerified: true,
+      verificationStatus: "approved",
+      verifiedAt: new Date().toISOString(),
+    };
+    saveUsers(users);
+    return true;
+  };
+
+  const rejectEmailVerification = (email) => {
+    const users = getUsers();
+    if (!users[email]) return false;
+    users[email] = {
+      ...users[email],
+      emailVerified: false,
+      verificationStatus: "rejected",
+      rejectedAt: new Date().toISOString(),
+    };
+    saveUsers(users);
+    return true;
   };
 
   const requestSeller = () => {
@@ -113,7 +168,22 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, requestSeller, approveSeller, rejectSeller, refreshRole, getSellerRequests, ADMIN_EMAILS }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      signup,
+      logout,
+      requestSeller,
+      approveSeller,
+      rejectSeller,
+      refreshRole,
+      getSellerRequests,
+      getPendingVerifications,
+      approveEmailVerification,
+      rejectEmailVerification,
+      ADMIN_EMAILS,
+    }}>
       {children}
     </AuthContext.Provider>
   );

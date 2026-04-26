@@ -8,6 +8,7 @@ export default function Login() {
   const [name, setName] = useState("");
   const [signupRole, setSignupRole] = useState("customer");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [isSignup, setIsSignup] = useState(false);
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setInfo("");
     let result;
     if (isSignup) {
       if (!name.trim()) { setError("Please enter your name"); return; }
@@ -28,6 +30,12 @@ export default function Login() {
       result = await login(email, password);
 }
     if (result.success) {
+      if (result.requiresVerification) {
+        setIsSignup(false);
+        setPassword("");
+        setInfo("Signup complete. Your account is pending admin email verification approval before first login.");
+        return;
+      }
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
       else if (r === "seller") navigate("/seller");
@@ -74,6 +82,11 @@ export default function Login() {
             ))}
           </div>
         )}
+        {info && (
+          <div style={{ background: "#ecfeff", color: "#155e75", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center", border: "1px solid #a5f3fc" }}>
+            {info}
+          </div>
+        )}
 
         {error && (
           <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}>
@@ -107,7 +120,7 @@ export default function Login() {
 
         <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
           {isSignup ? "Already have an account? " : "No account? "}
-          <button onClick={() => { setIsSignup(!isSignup); setError(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+          <button onClick={() => { setIsSignup(!isSignup); setError(""); setInfo(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
             {isSignup ? "Sign In" : "Sign Up"}
           </button>
         </p>
