@@ -1,10 +1,86 @@
 const listingsData = [
-  { id: 1, title: 'Luxury 3BHK in Indiranagar', price: 'Rs.75,000 / month', bhk: '3BHK', address: 'Indiranagar, Bangalore', lat: 12.9784, lng: 77.6408, availability: 'Immediate', tenants: 'Family', propType: 'Apartment', furnishing: 'Full', parking: '4 Wheeler', seller: 'Rahul Sharma', contact: '9876543210', images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267'] },
-  { id: 2, title: 'Modern 2BHK in Whitefield', price: 'Rs.45,000 / month', bhk: '2BHK', address: 'Whitefield, Bangalore', lat: 12.9698, lng: 77.7500, availability: 'Within 15 days', tenants: 'Bachelor Male', propType: 'Gated Societies', furnishing: 'Semi', parking: '2 Wheeler', seller: 'Anita Gupta', contact: '9876543211', images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688'] },
-  { id: 3, title: 'Cozy 1BHK in Koramangala', price: 'Rs.30,000 / month', bhk: '1BHK', address: 'Koramangala, Bangalore', lat: 12.9352, lng: 77.6245, availability: 'Immediate', tenants: 'Bachelor Female', propType: 'Apartment', furnishing: 'Semi', parking: '2 Wheeler', seller: 'Suresh Kumar', contact: '9876543212', images: ['https://images.unsplash.com/photo-1493809842364-78817add7ffb'] },
+  {
+    id: 1,
+    title: "Luxury 3BHK in Indiranagar",
+    rent: "75,000",
+    bhk: "3 BHK",
+    type: "Flat",
+    location: "Bangalore",
+    coords: [12.9716, 77.5946],
+    availability: "Immediate",
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
+    images: [
+      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800"
+    ]
+  },
+  {
+    id: 2,
+    title: "Modern 2BHK in Whitefield",
+    rent: "45,000",
+    bhk: "2 BHK",
+    type: "Flat",
+    location: "Bangalore",
+    coords: [12.9698, 77.7500],
+    availability: "Within 15 Days",
+    image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800",
+    images: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=800"]
+  },
+  {
+    id: 3,
+    title: "Cozy 1BHK in Koramangala",
+    rent: "30,000",
+    bhk: "1 BHK",
+    type: "Flat",
+    location: "Bangalore",
+    coords: [12.9352, 77.6245],
+    availability: "Immediate",
+    image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 4,
+    title: "Spacious Villa in HSR",
+    rent: "1,20,000",
+    bhk: "4+ BHK",
+    type: "Villa",
+    location: "Bangalore",
+    coords: [12.9141, 77.6411],
+    availability: "Within 30 Days",
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 5,
+    title: "Studio in Bandra",
+    rent: "55,000",
+    bhk: "1 BHK",
+    type: "Flat",
+    location: "Mumbai",
+    coords: [19.0596, 72.8295],
+    availability: "Immediate",
+    image: "https://images.unsplash.com/photo-1536376074432-bf1219d7ff12?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 6,
+    title: "3BHK Sea View in Worli",
+    rent: "2,50,000",
+    bhk: "3 BHK",
+    type: "Flat",
+    location: "Mumbai",
+    coords: [19.0176, 72.8177],
+    availability: "Within 15 Days",
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800"
+  },
+  {
+    id: 7,
+    title: "Penthouse in Powai",
+    rent: "1,80,000",
+    bhk: "4+ BHK",
+    type: "Flat",
+    location: "Mumbai",
+    coords: [19.1176, 72.9060],
+    availability: "Immediate",
+    image: "https://images.unsplash.com/photo-1567496898669-ee935f5f647a?auto=format&fit=crop&q=80&w=800"
+  }
+];
 
-  { id: 4, title: 'Spacious 3+BHK Villa in HSR', price: 'Rs.1,20,000 / month', bhk: '3+BHK', address: 'HSR Layout, Bangalore', lat: 12.9100, lng: 77.6450, availability: 'Within 30 days', tenants: 'Family', propType: 'Independent House/Villa', furnishing: 'Full', parking: '4 Wheeler', seller: 'Megha Singh', contact: '9876543213', images: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750'] },
-  { id: 5, title: 'Bachelors 1RK in Marathahalli', price: 'Rs.15,000 / month', bhk: '1RK', address: 'Marathahalli, Bangalore', lat: 12.9562, lng: 77.7019, availability: 'Immediate', tenants: 'Bachelor Male', propType: 'Apartment', furnishing: 'None', parking: '2 Wheeler', seller: 'Pankaj Dave', contact: '9876543214', images: ['https://images.unsplash.com/photo-1536376074432-8d2a8125a59d'] },
-  { id: 6, title: 'Premium Office Space in MG Road', price: 'Rs.2,50,000 / month', bhk: 'Office', address: 'MG Road, Bangalore', lat: 12.9733, lng: 77.6085, availability: 'Immediate', tenants: 'Company', propType: 'Apartment', furnishing: 'Full', parking: '4 Wheeler', seller: 'Birendra Singh', contact: '9876543215', images: ['https://images.unsplash.com/photo-1497366216548-37526070297c'] },
-  ];
 export default listingsData;
