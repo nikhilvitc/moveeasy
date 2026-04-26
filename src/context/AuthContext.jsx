@@ -5,7 +5,7 @@ const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
 
 // Pre-computed SHA-256 hash of "moveasy_admin_2026"
 // The plain text password is no longer exposed in the public code!
-const ADMIN_SECRET_HASH = "d7d130ed8b273215570d23cb6e0bb2a4a796791d604b73a4668b8e055f524316";
+const ADMIN_SECRET_HASH = "5da9364841af9a59dd4427b956a812751a68ab9cb14f7a91355caa7fe1d5d6c9";
 
 async function hashPassword(password) {
   const msgBuffer = new TextEncoder().encode(password);
@@ -81,10 +81,9 @@ export function AuthProvider({ children }) {
   const refreshRole = () => { if (!user || ADMIN_EMAILS.includes(user.email)) return; const u = getUsers(); if (u[user.email] && u[user.email].role !== user.role) { const updated = { ...user, role: u[user.email].role }; setUser(updated); localStorage.setItem("moveasy_session", JSON.stringify(updated)); } };
   const getAllUsers = () => getUsers();
   const promoteToAdmin = (email) => { const u = getUsers(); if (u[email]) { u[email].role = "admin"; saveUsers(u); } };
-  const updateLeadStatus = (index, status) => {
-     const leads = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]");
-     if (leads[index]) { leads[index].status = status; localStorage.setItem("moveasy_bookings", JSON.stringify(leads)); }
-  };
+  const updateLeadStatus = (index, status) => { const leads = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]"); if (leads[index]) { leads[index].status = status; localStorage.setItem("moveasy_bookings", JSON.stringify(leads)); } };
+
   return <AuthContext.Provider value={{ user, loading, login, signup, logout, requestSeller, approveSeller, rejectSeller, refreshRole, getSellerRequests, ADMIN_EMAILS, getAllUsers, promoteToAdmin, updateLeadStatus, googleLogin }}>{children}</AuthContext.Provider>;
 }
+
 export function useAuth() { const ctx = useContext(AuthContext); if (!ctx) throw new Error("must use AuthProvider"); return ctx; }
