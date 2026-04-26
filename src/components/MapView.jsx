@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import initialListings from "../data/listingsData";
 
+// Fix for default marker icons in Leaflet + React
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -12,183 +13,128 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-const bhkColors = { "1RK": "#8b5cf6", "1BHK": "#3b82f6", "2BHK": "#22c55e", "3BHK": "#f59e0b", "3+BHK": "#ef4444", "4BHK": "#ec4899", "Office": "#6366f1", "Plot": "#14b8a6" };
+const bhkColors = {
+  "1 BHK": "#3b82f6",
+  "2 BHK": "#22c55e",
+  "3 BHK": "#f59e0b",
+  "4+ BHK": "#ef4444"
+};
 
 function makeBhkIcon(bhk) {
-  const c = bhkColors[bhk] || "#6b7280";
-  return L.divIcon({
-    className: "",
-    html: '<div style="background:' + c + ';color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + bhk + "</div>",
-    iconSize: [40, 20],
-    iconAnchor: [20, 10],
+  const color = bhkColors[bhk] || "#6366f1";
+  return new L.DivIcon({
+    className: "custom-div-icon",
+    html: `<div style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); color: white; font-weight: 800; font-size: 10px;">${bhk.split(' ')[0]}</div></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30]
   });
 }
 
-function ChangeView({ center, zoom }) {
+function ChangeView({ center }) {
   const map = useMap();
-  useEffect(() => { map.invalidateSize(); map.setView(center, zoom); }, [center, zoom, map]);
+  useEffect(() => {
+    map.setView(center);
+  }, [center, map]);
   return null;
 }
 
 export default function MapView() {
   const navigate = useNavigate();
-  const [allListings, setAllListings] = useState([]);
   const [listings, setListings] = useState([]);
-  const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
-  const [selected, setSelected] = useState(null);
-
-  // Filters State
-  const [bhkFilter, setBhkFilter] = useState([]);
-  const [minRent, setMinRent] = useState(10000);
-  const [maxRent, setMaxRent] = useState(100000);
-  const [avail, setAvail] = useState("");
-  const [tenant, setTenant] = useState("");
-  const [propType, setPropType] = useState("");
-  const [furnish, setFurnish] = useState("");
-  const [parking, setParking] = useState("");
+  const [filtered, setFiltered] = useState([]);
+  const [filters, setFilters] = useState({ bhk: "All", rent: "All", type: "All", availability: "All" });
 
   useEffect(() => {
     const saved = localStorage.getItem("moveasy_listings");
-    let d = saved ? JSON.parse(saved) : initialListings;
-    d = d.map(item => ({...item, rentPrice: item.rentPrice || parseInt(String(item.price).replace(/[^0-9]/g, '')) || 0}));
-    setAllListings(d);
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
+    const data = saved ? JSON.parse(saved) : initialListings;
+    setListings(data);
+    setFiltered(data);
   }, []);
 
-  useEffect(() => {
-    let l = allListings;
-    if (bhkFilter.length > 0) l = l.filter((x) => bhkFilter.includes(x.bhk));
-    l = l.filter((x) => x.rentPrice >= minRent && x.rentPrice <= maxRent);
-    if (avail) l = l.filter(x => x.availability === avail);
-    if (tenant) l = l.filter(x => x.tenants === tenant);
-    if (propType) l = l.filter(x => x.propType === propType);
-    if (furnish) l = l.filter(x => x.furnishing === furnish);
-    if (parking) l = l.filter(x => x.parking === parking);
-    setListings(l);
-  }, [bhkFilter, minRent, maxRent, avail, tenant, propType, furnish, parking, allListings]);
-
-  const toggleArray = (arr, setArr, val) => {
-    if (arr.includes(val)) setArr(arr.filter(a => a !== val));
-    else setArr([...arr, val]);
+  const handleFilter = (key, val) => {
+    const newFilters = { ...filters, [key]: val };
+    setFilters(newFilters);
+    
+    let result = listings;
+    if (newFilters.bhk !== "All") result = result.filter(l => l.bhk === newFilters.bhk);
+    if (newFilters.rent !== "All") {
+       const [min, max] = newFilters.rent.split('-').map(Number);
+       result = result.filter(l => {
+          const r = parseInt(l.rent.replace(/,/g, ''));
+          return max ? (r >= min && r <= max) : (r >= min);
+       });
+    }
+    if (newFilters.type !== "All") result = result.filter(l => l.type === newFilters.type);
+    if (newFilters.availability !== "All") result = result.filter(l => l.availability === newFilters.availability);
+    setFiltered(result);
   };
 
-  const btnFilter = (lbl, val, stateStr, setter) => (
-    <div 
-      onClick={() => setter(stateStr === val ? "" : val)}
-      style={{ padding: "4px 8px", background: stateStr === val ? "#1e3a8a" : "white", color: stateStr === val ? "white" : "#475569", border: "1px solid", borderColor: stateStr === val ? "#1e3a8a" : "#cbd5e1", borderRadius: "16px", fontSize: "11px", cursor: "pointer", display: "inline-block", marginRight: "6px", marginBottom: "6px", fontWeight: 600 }}>
-      {lbl}
-    </div>
-  );
+  const sidebarStyle = { width: "350px", height: "calc(100vh - 80px)", background: "white", padding: "20px", overflowY: "auto", boxShadow: "2px 0 10px rgba(0,0,0,0.1)", zIndex: 10 };
+  const filterLabel = { fontSize: "12px", fontWeight: 700, color: "#64748b", margin: "12px 0 6px", display: "block" };
+  const filterSelect = { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none", fontSize: "14px" };
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ background: "linear-gradient(135deg, #1e3a8a, #3b82f6)", padding: "12px 20px", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={() => navigate("/")} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "white", padding: "4px 12px", borderRadius: "20px", cursor: "pointer", fontWeight: 700 }}>← Home</button>
-          <div style={{ fontSize: "18px", fontWeight: 800 }}>Moveasy Map</div>
+    <div style={{ display: "flex", height: "calc(100vh - 80px)", background: "#f8fafc" }}>
+      {/* Filters Sidebar */}
+      <div style={sidebarStyle}>
+        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1e3a8a", marginBottom: "20px" }}>Map Filters</h2>
+        
+        <label style={filterLabel}>BHK Type</label>
+        <select value={filters.bhk} onChange={e => handleFilter("bhk", e.target.value)} style={filterSelect}>
+          <option>All</option><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option><option>4+ BHK</option>
+        </select>
+
+        <label style={filterLabel}>Rent Range</label>
+        <select value={filters.rent} onChange={e => handleFilter("rent", e.target.value)} style={filterSelect}>
+          <option>All</option>
+          <option value="0-20000">Below 20k</option>
+          <option value="20000-50000">20k - 50k</option>
+          <option value="50000-100000">50k - 1L</option>
+          <option value="100000">Above 1L</option>
+        </select>
+
+        <label style={filterLabel}>Property Type</label>
+        <select value={filters.type} onChange={e => handleFilter("type", e.target.value)} style={filterSelect}>
+          <option>All</option><option>Flat</option><option>House</option><option>Villa</option>
+        </select>
+
+        <label style={filterLabel}>Availability</label>
+        <select value={filters.availability} onChange={e => handleFilter("availability", e.target.value)} style={filterSelect}>
+          <option>All</option><option>Immediate</option><option>Within 15 Days</option><option>Within 30 Days</option>
+        </select>
+
+        <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #f1f5f9" }} />
+
+        <p style={{ fontSize: "14px", color: "#64748b" }}>Showing <b>{filtered.length}</b> listings on map</p>
+        
+        <div style={{ marginTop: "20px" }}>
+          {filtered.slice(0, 5).map(l => (
+            <div key={l.id} onClick={() => navigate(`/listing/${l.id}`)} style={{ padding: "12px", background: "#f8fafc", borderRadius: "10px", marginBottom: "10px", cursor: "pointer", border: "1px solid transparent" }} onMouseOver={e=>e.currentTarget.style.borderColor="#1e3a8a"} onMouseOut={e=>e.currentTarget.style.borderColor="transparent"}>
+               <p style={{ margin: 0, fontWeight: 700, fontSize: "14px" }}>{l.title}</p>
+               <p style={{ margin: 0, color: "#1e3a8a", fontSize: "13px", fontWeight: 600 }}>₹{l.rent}</p>
+            </div>
+          ))}
+          {filtered.length > 5 && <p style={{textAlign:"center", fontSize:"12px", color:"#94a3b8"}}>+ {filtered.length - 5} more houses</p>}
         </div>
-        <div style={{ fontSize: "13px", fontWeight: 600 }}>{listings.length} properties matching criteria</div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        
-        {/* FILTERS SIDEBAR */}
-        <div style={{ width: "260px", background: "#f8fafc", borderRight: "1px solid #e2e8f0", overflowY: "auto", padding: "16px", flexShrink: 0 }}>
-          <h3 style={{ margin: "0 0 16px", color: "#1e3a8a", fontSize: "16px", fontWeight: 800 }}>Filters</h3>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>BHK Type</div>
-            {["1RK", "1BHK", "2BHK", "3BHK", "3+BHK", "Office"].map(bhk => (
-              <div 
-                key={bhk} onClick={() => toggleArray(bhkFilter, setBhkFilter, bhk)}
-                style={{ padding: "4px 8px", background: bhkFilter.includes(bhk) ? "#16a34a" : "white", color: bhkFilter.includes(bhk) ? "white" : "#475569", border: "1px solid", borderColor: bhkFilter.includes(bhk) ? "#16a34a" : "#cbd5e1", borderRadius: "16px", fontSize: "11px", cursor: "pointer", display: "inline-block", marginRight: "6px", marginBottom: "6px", fontWeight: 600 }}>
-                {bhk}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Rent Range: ₹{minRent/1000}k to ₹{maxRent/1000}k</div>
-            <input type="range" min="10000" max="100000" step="5000" value={maxRent} onChange={(e) => setMaxRent(Number(e.target.value))} style={{ width: "100%" }} />
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Availability</div>
-            {btnFilter("Immediate", "Immediate", avail, setAvail)}
-            {btnFilter("Within 15 days", "Within 15 days", avail, setAvail)}
-            {btnFilter("Within 30 days", "Within 30 days", avail, setAvail)}
-            {btnFilter("After 30 days", "After 30 days", avail, setAvail)}
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Preferred Tenants</div>
-            {btnFilter("Family", "Family", tenant, setTenant)}
-            {btnFilter("Company", "Company", tenant, setTenant)}
-            {btnFilter("Bachelor Male", "Bachelor Male", tenant, setTenant)}
-            {btnFilter("Bachelor Female", "Bachelor Female", tenant, setTenant)}
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Property Type</div>
-            {btnFilter("Gated Societies", "Gated Societies", propType, setPropType)}
-            {btnFilter("Apartment", "Apartment", propType, setPropType)}
-            {btnFilter("Independent House/Villa", "Independent House/Villa", propType, setPropType)}
-          </div>
-
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Furnishing</div>
-            {btnFilter("Full", "Full", furnish, setFurnish)}
-            {btnFilter("Semi", "Semi", furnish, setFurnish)}
-            {btnFilter("None", "None", furnish, setFurnish)}
-          </div>
-
-          <div>
-            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px", color: "#334155" }}>Parking</div>
-            {btnFilter("2 Wheeler", "2 Wheeler", parking, setParking)}
-            {btnFilter("4 Wheeler", "4 Wheeler", parking, setParking)}
-          </div>
-          
-          <button onClick={() => { setBhkFilter([]); setMinRent(10000); setMaxRent(100000); setAvail(""); setTenant(""); setPropType(""); setFurnish(""); setParking(""); }} 
-            style={{ width: "100%", marginTop: "16px", padding: "8px", background: "#ef4444", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 700, fontSize: "13px" }}>
-            Clear All Filters
-          </button>
-        </div>
-
-        {/* MAP CONTAINER */}
-        <div style={{ flex: 1, position: "relative" }}>
-          <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
-            <ChangeView center={mapState.center} zoom={mapState.zoom} />
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-            {listings.map((l) => (
-              <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
-                <Popup>
-                  <div style={{ minWidth: "220px", padding: "4px" }}>
-                    {l.images && l.images[0] && (
-                       <img src={l.images[0]} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }} alt="Property" />
-                    )}
-                    <div style={{ fontWeight: 800, fontSize: "15px", color: "#1e293b", marginBottom: "2px" }}>{l.title}</div>
-                    <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>{l.address}</div>
-                    
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "10px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#334155" }}>{l.propType || "Apartment"}</span>
-                        <span style={{ fontSize: "10px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#334155" }}>{l.furnishing || "Semi"}</span>
-                        <span style={{ fontSize: "10px", background: "#fef3c7", padding: "2px 6px", borderRadius: "4px", color: "#d97706" }}>Available {l.availability || "Immediate"}</span>
-                    </div>
-
-                    <div style={{ fontWeight: 800, color: "#16a34a", fontSize: "18px", margin: "4px 0" }}>{l.price}</div>
-                    <div style={{ fontSize: "12px", marginTop: "8px", borderTop: "1px solid #e2e8f0", paddingTop: "8px" }}><b>Seller:</b> {l.seller} <br/> <b>Contact:</b> {l.contact}</div>
-                    <button onClick={() => {
-                        const existingBookings = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]");
-                        existingBookings.push({ propertyId: l.id, customerName: "Registered Customer", title: l.title, status: "Interested", date: new Date().toISOString() });
-                        localStorage.setItem("moveasy_bookings", JSON.stringify(existingBookings));
-                        alert("Interest registered! Admin has been notified.");
-                    }} style={{ display: "block", width: "100%", marginTop: "12px", padding: "6px 8px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "6px", textAlign: "center", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>Book / Pre-Register</button>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
+      {/* Map View */}
+      <div style={{ flex: 1, zIndex: 1 }}>
+        <MapContainer center={[19.076, 72.877]} zoom={12} style={{ height: "100%", width: "100%" }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {filtered.map(l => (
+            <Marker key={l.id} position={l.coords} icon={makeBhkIcon(l.bhk)}>
+              <Popup>
+                <div style={{ width: "200px" }}>
+                  <img src={l.image} alt="" style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "8px" }} />
+                  <h4 style={{ margin: "10px 0 5px" }}>{l.title}</h4>
+                  <p style={{ margin: "0", color: "#1e3a8a", fontWeight: 700 }}>₹{l.rent}/mo</p>
+                  <button onClick={() => navigate(`/listing/${l.id}`)} style={{ width: "100%", marginTop: "10px", padding: "8px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>View Details</button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
       </div>
     </div>
   );
