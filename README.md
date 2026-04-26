@@ -47,6 +47,7 @@ The app will be available at `http://localhost:5173` (default Vite port).
 | `npm run build`     | Build for production (outputs to `dist/`)  |
 | `npm run preview`   | Preview the production build locally       |
 | `npm run lint`      | Run ESLint across the project              |
+| `npm run test`      | Run unit tests (Vitest)                    |
 
 ## Project Structure
 
@@ -89,6 +90,13 @@ To preview the build locally:
 ```bash
 npm run preview
 ```
+
+## Production Setup Docs
+
+- Email verification + welcome email function setup:
+  - `docs/EMAIL_VERIFICATION_AND_WELCOME_SETUP.md`
+- Go-live checklist:
+  - `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`
 
 ## License
 
