@@ -72,7 +72,7 @@ export default function Login() {
             </div>
           )}
           <label style={lbl}>{selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder=`email@example.com` style={inp} />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="email@example.com" style={inp} />
           <label style={lbl}>Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength="6" style={inp} />
           
@@ -83,7 +83,7 @@ export default function Login() {
           )}
 
           <button type="submit" style={{ width: "100%", padding: "14px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "10px", fontWeight: 800, fontSize: "16px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30, 58, 138, 0.3)" }}>
-            {isSignup ? `Join as ${selectedRole}` : `Login as ${selectedRole}`}
+            {isSignup ? "Join as " + selectedRole : "Login as " + selectedRole}
           </button>
         </form>
 
