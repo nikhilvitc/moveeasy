@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import initialListings from "../data/listingsData";
+import { getAssignments, getListings } from "../lib/store";
 
 export default function CustomerDashboard() {
   const { user, logout, requestSeller, refreshRole } = useAuth();
@@ -13,8 +13,7 @@ export default function CustomerDashboard() {
   const [sellerRequested, setSellerRequested] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("moveasy_listings");
-    setListings(saved ? JSON.parse(saved) : initialListings);
+    setListings(getListings());
     const b = localStorage.getItem("moveasy_bookings");
     setBookings(b ? JSON.parse(b) : []);
     refreshRole();
@@ -40,7 +39,8 @@ export default function CustomerDashboard() {
 
   const isBooked = (id) => bookings.some((b) => b.listingId === id && b.customerEmail === user?.email);
   const bhkTypes = ["All", "1RK", "1BHK", "2BHK", "3BHK", "3+BHK", "4BHK"];
-  const filtered = listings.filter((l) => (filter === "All" || l.bhk === filter) && (!search || l.title.toLowerCase().includes(search.toLowerCase()) || l.address.toLowerCase().includes(search.toLowerCase())));
+  const filtered = listings.filter((l) => (filter === "All" || l.bhk === filter || l.bhk.replace(" ", "") === filter) && (!search || l.title.toLowerCase().includes(search.toLowerCase()) || l.address.toLowerCase().includes(search.toLowerCase())));
+  const myAssignments = getAssignments().filter((a) => a.customerEmail === user?.email);
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
 
   return (
@@ -73,9 +73,10 @@ export default function CustomerDashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "14px" }}>
           {filtered.map((l) => (
             <div key={l.id} style={{ background: "white", borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ background: "#dbeafe", color: "#1e40af", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>{l.bhk}</span>
                 <span style={{ background: l.type === "Sale" ? "#dcfce7" : "#fef3c7", color: l.type === "Sale" ? "#166534" : "#92400e", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>For {l.type}</span>
+                <span style={{ background: "#fee2e2", color: "#b91c1c", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>{l.availability}</span>
               </div>
               <div style={{ fontWeight: 700, fontSize: "16px", color: "#1e293b", margin: "4px 0" }}>{l.title}</div>
               <div style={{ fontSize: "13px", color: "#64748b" }}>{l.address}</div>
@@ -97,6 +98,16 @@ export default function CustomerDashboard() {
             {bookings.filter((b) => b.customerEmail === user?.email).map((b, i) => (
               <div key={i} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px" }}>
                 <b>{b.listingTitle}</b> — {new Date(b.date).toLocaleDateString()} — <span style={{ color: "#f59e0b", fontWeight: 600 }}>{b.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {myAssignments.length > 0 && (
+          <div style={{ marginTop: "24px" }}>
+            <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px" }}>Listings Assigned By Admin</div>
+            {myAssignments.map((a) => (
+              <div key={a.id} style={{ background: "#ecfeff", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px" }}>
+                Listing #{a.listingId} assigned with broker <b>{a.sellerEmail}</b>{a.notes ? ` — ${a.notes}` : ""}
               </div>
             ))}
           </div>

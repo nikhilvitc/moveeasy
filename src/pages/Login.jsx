@@ -6,11 +6,16 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [signupRole, setSignupRole] = useState("customer");
   const [error, setError] = useState("");
   const [isSignup, setIsSignup] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("customer"); // UI Guide: doesn't force role but guides user
-  const { login, signup, googleLogin } = useAuth();
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
+  const roleCards = [
+    { id: "admin", title: "Admin", hint: "Manage all listings and assignments" },
+    { id: "seller", title: "Seller", hint: "Manage your listings and leads" },
+    { id: "customer", title: "Customer", hint: "Browse homes and apply quickly" },
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,38 +23,23 @@ export default function Login() {
     let result;
     if (isSignup) {
       if (!name.trim()) { setError("Please enter your name"); return; }
-      result = await signup(email, password, name);
+      result = await signup(email, password, name, signupRole);
     } else {
       result = await login(email, password);
-    }
+}
     if (result.success) {
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
       else if (r === "seller") navigate("/seller");
       else navigate("/customer");
     } else {
-      setError(result.error || "Login Failed. Check credentials or sign up.");
+      setError(result.error || "Something went wrong");
     }
   };
 
-  const handleGoogle = async () => {
-    setError("");
-    const result = await googleLogin();
-    if (result.success) navigate("/customer");
-    else setError("Google Login Failed");
-  };
-
-  const box = { background: "white", borderRadius: "24px", padding: "40px", width: "100%", maxWidth: "440px", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" };
-  const inp = { width: "100%", padding: "12px 14px", border: "1px solid #e2e8f0", borderRadius: "10px", marginBottom: "16px", fontSize: "14px", outline: "none", transition: "all 0.2s" };
-  const lbl = { fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" };
-  const roleBtn = (id, label) => (
-    <button 
-      type="button"
-      onClick={() => setSelectedRole(id)}
-      style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "2px solid", borderColor: selectedRole === id ? "#1e3a8a" : "#e2e8f0", background: selectedRole === id ? "#eff6ff" : "white", color: selectedRole === id ? "#1e3a8a" : "#64748b", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-      {label}
-    </button>
-  );
+  const box = { background: "white", borderRadius: "16px", padding: "40px", width: "100%", maxWidth: "420px", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" };
+  const inp = { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" };
+  const lbl = { fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
@@ -58,6 +48,32 @@ export default function Login() {
         <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}>
           {isSignup ? "Create your account" : "Sign in to your account"}
         </p>
+        {!isSignup && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+            {roleCards.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => {
+                  if (card.id === "admin") {
+                    setEmail("jiyanshudhaka20@gmail.com");
+                  }
+                }}
+                style={{
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  padding: "8px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#1e293b" }}>{card.title}</div>
+                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{card.hint}</div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}>
@@ -65,48 +81,29 @@ export default function Login() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-          {roleBtn("customer", "Customer")}
-          {roleBtn("seller", "Seller")}
-          {roleBtn("admin", "Admin")}
-        </div>
-
         <form onSubmit={handleSubmit}>
           {isSignup && (
             <div>
               <label style={lbl}>Full Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your name" style={inp} />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" style={inp} />
+              <label style={lbl}>Account Type</label>
+              <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)} style={inp}>
+                <option value="customer">Customer</option>
+                <option value="seller">Seller / Broker</option>
+              </select>
             </div>
           )}
-          <label style={lbl}>{selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={`email@example.com`} style={inp} />
-          <label style={lbl}>Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength="6" style={inp} />
-          
-          {selectedRole === "admin" && !isSignup && (
-              <div style={{ fontSize: "11px", color: "#1e3a8a", background: "#eff6ff", padding: "8px", borderRadius: "6px", marginBottom: "16px" }}>
-                  <b>Note:</b> Only authorized staff emails can login as Admin.
-              </div>
-          )}
 
-          <button type="submit" style={{ width: "100%", padding: "14px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "10px", fontWeight: 800, fontSize: "16px", cursor: "pointer", boxShadow: "0 4px 6px -1px rgba(30, 58, 138, 0.3)" }}>
-            {isSignup ? `Join as ${selectedRole}` : `Login as ${selectedRole}`}
+          <label style={lbl}>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Enter email" style={inp} />
+
+          <label style={lbl}>Password</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter password" minLength="6" style={inp} />
+
+          <button type="submit" style={{ width: "100%", padding: "12px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: "pointer", marginTop: "4px" }}>
+            {isSignup ? "Create Account" : "Sign In"}
           </button>
         </form>
-
-        {!isSignup && (
-          <div style={{ marginTop: "16px" }}>
-            <div style={{ display: "flex", alignItems: "center", margin: "16px 0" }}>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }}></div>
-              <span style={{ padding: "0 10px", fontSize: "12px", color: "#94a3b8", fontWeight: 600 }}>OR</span>
-              <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }}></div>
-            </div>
-            <button onClick={handleGoogle} style={{ width: "100%", padding: "12px", background: "white", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "10px", fontWeight: 700, fontSize: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style={{ width: "18px" }} />
-              Continue with Google
-            </button>
-          </div>
-        )}
 
         <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
           {isSignup ? "Already have an account? " : "No account? "}
@@ -116,10 +113,10 @@ export default function Login() {
         </p>
 
         <div style={{ marginTop: "20px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-          <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>How it works:</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>1. Sign up as a Customer (free)</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>2. Apply as Seller from your dashboard</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>3. Admin approves your seller request</p>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>Roles available:</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Admin login: reserved admin email + password</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Seller/Broker login: signup with Seller account type</p>
+          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Customer login: signup with Customer account type</p>
         </div>
       </div>
     </div>

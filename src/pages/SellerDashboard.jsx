@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import initialListings from "../data/listingsData";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { getAssignments, getListings, upsertListing, removeListing } from "../lib/store";
 
 function LocationPicker({ position, setPosition }) {
   useMapEvents({
@@ -19,21 +19,20 @@ export default function SellerDashboard() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
   const [pinPosition, setPinPosition] = useState(null);
+  const [myAssignments, setMyAssignments] = useState([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("moveasy_listings");
-    const all = saved ? JSON.parse(saved) : initialListings;
+    const all = getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
+    setMyAssignments(getAssignments().filter((a) => a.sellerEmail === user?.email));
   }, [user]);
 
   const handleAdd = (e) => {
     e.preventDefault();
     if (!pinPosition) { alert("Please click on the map to set property location"); return; }
-    const newItem = { ...form, id: Date.now(), seller: user?.name || "Seller", sellerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A" };
-    const saved = localStorage.getItem("moveasy_listings");
-    const all = saved ? JSON.parse(saved) : initialListings;
-    all.unshift(newItem);
-    localStorage.setItem("moveasy_listings", JSON.stringify(all));
+    const newItem = { ...form, id: Date.now(), seller: user?.name || "Seller", sellerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || 0, availability: "Immediate", propertyType: "Apartment", furnishing: "Semi", preferredTenants: ["Family"], parking: ["2 Wheeler"] };
+    upsertListing(newItem);
+    const all = getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
     setForm({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
     setPinPosition(null);
@@ -41,11 +40,9 @@ export default function SellerDashboard() {
   };
 
   const handleDelete = (id) => {
-    const saved = localStorage.getItem("moveasy_listings");
-    const all = saved ? JSON.parse(saved) : initialListings;
-    const updated = all.filter((l) => l.id !== id);
-    localStorage.setItem("moveasy_listings", JSON.stringify(updated));
-    setListings(updated.filter((l) => l.sellerEmail === user?.email));
+    removeListing(id);
+    const all = getListings();
+    setListings(all.filter((l) => l.sellerEmail === user?.email));
   };
 
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
@@ -64,6 +61,16 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
+        {myAssignments.length > 0 && (
+          <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 700, marginBottom: "6px" }}>Assigned Leads ({myAssignments.length})</div>
+            {myAssignments.map((a) => (
+              <div key={a.id} style={{ fontSize: "12px", marginBottom: "4px" }}>
+                Customer: {a.customerEmail} | Listing #{a.listingId}
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700 }}>My Listings ({listings.length})</div>
           <button onClick={() => setShowAdd(!showAdd)} style={{ ...btn, background: "#1e3a8a", color: "white" }}>{showAdd ? "Cancel" : "+ Add Listing"}</button>

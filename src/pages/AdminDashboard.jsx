@@ -1,239 +1,212 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import initialListings from "../data/listingsData";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-
-function LocationPicker({ position, setPosition }) {
-  useMapEvents({
-    click(e) {
-      setPosition([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-  return position ? <Marker position={position} /> : null;
-}
+import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing } from "../lib/store";
+import { ingestPartnerListings } from "../lib/externalFeeds";
 
 export default function AdminDashboard() {
-  const { user, logout, getSellerRequests, approveSeller, rejectSeller, getAllUsers, promoteToAdmin, updateLeadStatus } = useAuth();
+  const { user, logout, approveSeller, rejectSeller } = useAuth();
   const navigate = useNavigate();
-  const [listings, setListings] = useState([]);
-  const [activeTab, setActiveTab] = useState("listings");
-
-  // Form State for Adding/Editing
-  const [showModal, setShowModal] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     title: "",
-    rent: "",
+    price: "",
     bhk: "2 BHK",
-    type: "Flat",
-    location: "Mumbai",
-    coords: [19.076, 72.877],
+    address: "",
+    seller: "",
+    sellerEmail: "",
+    contact: "",
+    monthlyRent: 25000,
     availability: "Immediate",
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=800",
-    images: []
+    propertyType: "Apartment",
+    furnishing: "Semi",
+    preferredTenants: ["Family"],
+    parking: ["2 Wheeler"],
+    lat: 12.9716,
+    lng: 77.5946,
   });
+  const [assignment, setAssignment] = useState({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
+  const [feedJson, setFeedJson] = useState("");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("moveasy_listings");
-    if (saved) setListings(JSON.parse(saved));
-    else setListings(initialListings);
-  }, []);
+  const listings = useMemo(() => getListings(), [refreshTick]);
+  const assignments = useMemo(() => getAssignments(), [refreshTick]);
+  const users = useMemo(() => getAllUsers(), [refreshTick]);
+  const customers = users.filter((u) => u.role === "customer");
+  const sellers = users.filter((u) => u.role === "seller");
+  const sellerReqs = useMemo(() => getSellerRequests().filter((r) => r.status === "pending"), [refreshTick]);
 
-  const saveToLocal = (newListings) => {
-    setListings(newListings);
-    localStorage.setItem("moveasy_listings", JSON.stringify(newListings));
+  const handleSubmitListing = (e) => {
+    e.preventDefault();
+    upsertListing({ ...form, id: editingId || Date.now(), updatedAt: new Date().toISOString() });
+    setEditingId(null);
+    setForm({
+      title: "",
+      price: "",
+      bhk: "2 BHK",
+      address: "",
+      seller: "",
+      sellerEmail: "",
+      contact: "",
+      monthlyRent: 25000,
+      availability: "Immediate",
+      propertyType: "Apartment",
+      furnishing: "Semi",
+      preferredTenants: ["Family"],
+      parking: ["2 Wheeler"],
+      lat: 12.9716,
+      lng: 77.5946,
+    });
+    setRefreshTick((v) => v + 1);
   };
 
   const handleEdit = (listing) => {
     setEditingId(listing.id);
-    setFormData({ ...listing, images: listing.images || [] });
-    setShowModal(true);
+    setForm(listing);
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("Delete this listing?")) {
-      const filtered = listings.filter(l => l.id !== id);
-      saveToLocal(filtered);
-    }
+    removeListing(id);
+    setRefreshTick((v) => v + 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleApprove = (email) => {
+    approveSeller(email);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleReject = (email) => {
+    rejectSeller(email);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleAssign = (e) => {
     e.preventDefault();
-    if (editingId) {
-      const updated = listings.map(l => l.id === editingId ? { ...formData, id: editingId } : l);
-      saveToLocal(updated);
-    } else {
-      const newListing = { ...formData, id: Date.now() };
-      saveToLocal([newListing, ...listings]);
-    }
-    setShowModal(false);
-    setEditingId(null);
-    setFormData({ title: "", rent: "", bhk: "2 BHK", type: "Flat", location: "Mumbai", coords: [19.076, 72.877], availability: "Immediate", image: "", images: [] });
+    if (!assignment.listingId || !assignment.customerEmail || !assignment.sellerEmail) return;
+    addAssignment({ ...assignment, listingId: Number(assignment.listingId), createdBy: user?.email });
+    setAssignment({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
+    setRefreshTick((v) => v + 1);
   };
 
-  // Stats
-  const sellers = Object.values(getAllUsers()).filter(u => u.role === "seller");
-  const sellerReqs = getSellerRequests().filter(r => r.status === "pending");
-  const leads = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]");
+  const handleFeedImport = () => {
+    if (!feedJson.trim()) return;
+    try {
+      const parsed = JSON.parse(feedJson);
+      const result = ingestPartnerListings(parsed, "partner-import");
+      alert(`Imported ${result.imported} listings`);
+      setFeedJson("");
+      setRefreshTick((v) => v + 1);
+    } catch {
+      alert("Invalid JSON feed format");
+    }
+  };
 
-  if (!user || user.role !== "admin") {
-    return <div style={{ padding: "100px", textAlign: "center" }}>Access Denied</div>;
-  }
-
-  const navItem = (id, label) => (
-    <button 
-      onClick={() => setActiveTab(id)}
-      style={{ padding: "12px 24px", background: activeTab === id ? "#1e3a8a" : "transparent", color: activeTab === id ? "white" : "#64748b", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 700, transition: "0.2s" }}>
-      {label}
-    </button>
-  );
+  const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex" }}>
-      {/* Sidebar */}
-      <div style={{ width: "280px", background: "#0f172a", color: "white", padding: "40px 20px" }}>
-        <h2 style={{ fontSize: "24px", fontWeight: 800, margin: "0 0 40px", color: "#38bdf8" }}>Admin Console</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {navItem("listings", "All Listings")}
-          {navItem("leads", "Customer Leads")}
-          {navItem("sellers", "Seller Management")}
-          {navItem("users", "User Directory")}
+    <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+      <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "white", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: "20px", fontWeight: 800 }}>Admin Dashboard</div>
+          <div style={{ fontSize: "12px", opacity: 0.7 }}>{user?.email}</div>
         </div>
-        <button onClick={logout} style={{ marginTop: "100px", width: "100%", padding: "12px", background: "#ef4444", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 800 }}>Logout</button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => navigate("/map")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Map</button>
+          <button onClick={() => navigate("/")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Home</button>
+          <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#ef4444", color: "white" }}>Logout</button>
+        </div>
       </div>
-
-      {/* Main Content */}
-      <div style={{ flex: 1, padding: "40px" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
-          <h1 style={{ fontSize: "32px", fontWeight: 800, color: "#1e293b" }}>
-            {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-          </h1>
-          {activeTab === "listings" && (
-            <button onClick={() => setShowModal(true)} style={{ padding: "12px 24px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>
-              + Add Property
-            </button>
-          )}
-        </header>
-
-        {activeTab === "listings" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "24px" }}>
-            {listings.map(l => (
-              <div key={l.id} style={{ background: "white", borderRadius: "16px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                <img src={l.image} alt="" style={{ width: "100%", height: "180px", objectFit: "cover" }} />
-                <div style={{ padding: "20px" }}>
-                  <h3 style={{ margin: "0 0 8px", fontSize: "18px" }}>{l.title}</h3>
-                  <p style={{ color: "#1e3a8a", fontWeight: 800, fontSize: "20px", margin: "0 0 16px" }}>₹{l.rent}/mo</p>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={() => handleEdit(l)} style={{ flex: 1, padding: "8px", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>Edit</button>
-                    <button onClick={() => handleDelete(l.id)} style={{ flex: 1, padding: "8px", background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: "6px", cursor: "pointer" }}>Delete</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "leads" && (
-          <div style={{ background: "white", borderRadius: "16px", padding: "24px", border: "1px solid #e2e8f0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #f1f5f9" }}>
-                  <th style={{ padding: "16px" }}>Customer</th>
-                  <th>Property</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead, idx) => (
-                  <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "16px" }}>{lead.userName}<br/><span style={{fontSize:"12px", color:"#64748b"}}>{lead.userEmail}</span></td>
-                    <td>{Object.values(listings).find(l=>l.id == lead.listingId)?.title || "Unknown Property"}</td>
-                    <td>
-                      <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 700, background: lead.status === "Assigned" ? "#dcfce7" : "#fff7ed", color: lead.status === "Assigned" ? "#166534" : "#9a3412" }}>
-                        {lead.status || "Open"}
-                      </span>
-                    </td>
-                    <td>
-                      <button onClick={() => updateLeadStatus(idx, "Assigned")} style={{ padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer" }}>Assign Broker</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {activeTab === "sellers" && (
-          <div style={{ background: "white", borderRadius: "16px", padding: "24px", border: "1px solid #e2e8f0" }}>
-            <h3 style={{ margin: "0 0 20px" }}>Pending Requests ({sellerReqs.length})</h3>
-            {sellerReqs.length === 0 && <p style={{color:"#64748b"}}>No pending requests found.</p>}
-            {sellerReqs.map(r => (
-              <div key={r.email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", background: "#f8fafc", borderRadius: "10px", marginBottom: "12px" }}>
+      <div style={{ padding: "20px 24px" }}>
+        {sellerReqs.length > 0 && (
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626", marginBottom: "10px" }}>Pending Seller Requests ({sellerReqs.length})</div>
+            {sellerReqs.map((r) => (
+              <div key={r.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <p style={{ fontWeight: 700, margin: 0 }}>{r.name}</p>
-                  <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>{r.email}</p>
+                  <div style={{ fontWeight: 600 }}>{r.name}</div>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>{r.email}</div>
                 </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={() => approveSeller(r.email)} style={{ padding: "8px 16px", background: "#166534", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Approve</button>
-                  <button onClick={() => rejectSeller(r.email)} style={{ padding: "8px 16px", background: "#ef4444", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Reject</button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button onClick={() => handleApprove(r.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve</button>
+                  <button onClick={() => handleReject(r.email)} style={{ ...btn, background: "#dc2626", color: "white", fontSize: "12px" }}>Reject</button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
+          <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+            <input placeholder="Title" required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+            <input placeholder="Price label (₹ 25,000/mo)" required value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+            <input type="number" placeholder="Monthly rent" required value={form.monthlyRent} onChange={(e) => setForm((p) => ({ ...p, monthlyRent: Number(e.target.value) }))} />
+            <select value={form.bhk} onChange={(e) => setForm((p) => ({ ...p, bhk: e.target.value }))}><option>1 RK</option><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option><option>3+ BHK</option><option>Roommate needed</option></select>
+            <input placeholder="Address" required value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+            <input placeholder="Seller / broker name" required value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
+            <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
+            <input placeholder="Contact" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
+            <select value={form.availability} onChange={(e) => setForm((p) => ({ ...p, availability: e.target.value }))}><option>Immediate</option><option>Within 15 days</option><option>Within 30 days</option><option>After 30 days</option></select>
+            <select value={form.propertyType} onChange={(e) => setForm((p) => ({ ...p, propertyType: e.target.value }))}><option>Gated Societies</option><option>Apartment</option><option>Independent House/Villa</option><option>Gated Community Villa</option></select>
+            <select value={form.furnishing} onChange={(e) => setForm((p) => ({ ...p, furnishing: e.target.value }))}><option>Full</option><option>Semi</option><option>None</option></select>
+            <input type="text" placeholder="Parking (comma separated)" value={form.parking.join(", ")} onChange={(e) => setForm((p) => ({ ...p, parking: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
+            <input type="text" placeholder="Preferred tenants (comma separated)" value={form.preferredTenants.join(", ")} onChange={(e) => setForm((p) => ({ ...p, preferredTenants: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
+            <input type="number" step="0.0001" placeholder="Latitude" value={form.lat} onChange={(e) => setForm((p) => ({ ...p, lat: Number(e.target.value) }))} />
+            <input type="number" step="0.0001" placeholder="Longitude" value={form.lng} onChange={(e) => setForm((p) => ({ ...p, lng: Number(e.target.value) }))} />
+            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
+          </form>
+        </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
-          <div style={{ background: "white", padding: "32px", borderRadius: "24px", width: "100%", maxWidth: "800px", maxHeight: "90vh", overflowY: "auto" }}>
-            <h2 style={{ marginBottom: "24px" }}>{editingId ? "Edit Property" : "Add New Property"}</h2>
-            <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>Title</label>
-                <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} required style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Partner Feed Import</div>
+          <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#64748b" }}>Paste a legal partner JSON feed array to import broker listings.</p>
+          <textarea value={feedJson} onChange={(e) => setFeedJson(e.target.value)} rows={5} style={{ width: "100%", marginBottom: "8px" }} placeholder='[{"title":"2 BHK in HSR","monthlyRent":28000,"lat":12.91,"lng":77.63}]' />
+          <button onClick={handleFeedImport} style={{ ...btn, background: "#7c3aed", color: "white", marginBottom: "16px" }}>Import Feed</button>
+        </div>
+
+        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Assign listing to customer and broker</div>
+          <form onSubmit={handleAssign} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 2fr auto", gap: "8px" }}>
+            <select value={assignment.listingId} onChange={(e) => setAssignment((p) => ({ ...p, listingId: e.target.value }))}>
+              <option value="">Select listing</option>
+              {listings.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+            </select>
+            <select value={assignment.customerEmail} onChange={(e) => setAssignment((p) => ({ ...p, customerEmail: e.target.value }))}>
+              <option value="">Customer</option>
+              {customers.map((c) => <option key={c.email} value={c.email}>{c.name}</option>)}
+            </select>
+            <select value={assignment.sellerEmail} onChange={(e) => setAssignment((p) => ({ ...p, sellerEmail: e.target.value }))}>
+              <option value="">Seller/Broker</option>
+              {sellers.map((s) => <option key={s.email} value={s.email}>{s.name}</option>)}
+            </select>
+            <input placeholder="Notes" value={assignment.notes} onChange={(e) => setAssignment((p) => ({ ...p, notes: e.target.value }))} />
+            <button type="submit" style={{ ...btn, background: "#1e3a8a", color: "white" }}>Assign</button>
+          </form>
+          <div style={{ marginTop: "10px", maxHeight: "160px", overflowY: "auto" }}>
+            {assignments.map((a) => (
+              <div key={a.id} style={{ fontSize: "12px", borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
+                Listing #{a.listingId} → {a.customerEmail} (Broker: {a.sellerEmail})
               </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>Rent (₹)</label>
-                <input type="number" value={formData.rent} onChange={e => setFormData({ ...formData, rent: e.target.value })} required style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>BHK</label>
-                <select value={formData.bhk} onChange={e => setFormData({ ...formData, bhk: e.target.value })} style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
-                  <option>1 BHK</option><option>2 BHK</option><option>3 BHK</option><option>4+ BHK</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>Availability</label>
-                <select value={formData.availability} onChange={e => setFormData({ ...formData, availability: e.target.value })} style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}>
-                  <option>Immediate</option><option>Within 15 Days</option><option>Within 30 Days</option>
-                </select>
-              </div>
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>Thumbnail URL</label>
-                <input type="text" value={formData.image} onChange={e => setFormData({ ...formData, image: e.target.value })} placeholder="https://..." style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
-              </div>
-              <div style={{ gridColumn: "span 2" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontWeight: 700 }}>Pick Location on Map</label>
-                <div style={{ height: "300px", borderRadius: "12px", overflow: "hidden", border: "1px solid #cbd5e1" }}>
-                  <MapContainer center={formData.coords} zoom={12} style={{ height: "100%", width: "100%" }}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <LocationPicker position={formData.coords} setPosition={(pos) => setFormData({ ...formData, coords: pos })} />
-                  </MapContainer>
-                </div>
-                <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>Selected Coords: {formData.coords[0].toFixed(4)}, {formData.coords[1].toFixed(4)}</p>
-              </div>
-              <div style={{ gridColumn: "span 2", display: "flex", gap: "12px", marginTop: "12px" }}>
-                <button type="submit" style={{ flex: 1, padding: "14px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "10px", fontWeight: 800 }}>{editingId ? "Update Listing" : "Create Listing"}</button>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: "14px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: "10px", fontWeight: 800 }}>Cancel</button>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
-      )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 700 }}>All Listings ({listings.length})</div>
+        </div>
+        <div style={{ background: "white", borderRadius: "12px", overflow: "hidden" }}>
+          {listings.map((l, i) => (
+            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", background: i % 2 ? "#fafafa" : "white" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: "14px" }}>{l.title}</div>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller} | {l.contact}</div>
+              </div>
+              <div style={{ fontWeight: 700, color: "#16a34a", marginRight: "16px", fontSize: "13px" }}>{l.price}</div>
+              <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "4px 10px", marginRight: "8px" }}>Edit</button>
+              <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "4px 10px" }}>Delete</button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

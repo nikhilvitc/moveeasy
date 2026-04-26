@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import initialListings from "../data/listingsData";
+import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
 
-// Fix for default marker icons in Leaflet + React
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -14,127 +12,181 @@ L.Icon.Default.mergeOptions({
 });
 
 const bhkColors = {
-  "1 BHK": "#3b82f6",
-  "2 BHK": "#22c55e",
-  "3 BHK": "#f59e0b",
-  "4+ BHK": "#ef4444"
+  "1 RK": "#10b981",
+  "1 BHK": "#2563eb",
+  "2 BHK": "#f97316",
+  "3 BHK": "#9333ea",
+  "3+ BHK": "#0d9488",
+  "Roommate needed": "#ca8a04",
 };
 
 function makeBhkIcon(bhk) {
-  const color = bhkColors[bhk] || "#6366f1";
-  return new L.DivIcon({
-    className: "custom-div-icon",
-    html: `<div style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); color: white; font-weight: 800; font-size: 10px;">${bhk.split(' ')[0]}</div></div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 30]
+  const c = bhkColors[bhk] || "#6b7280";
+  return L.divIcon({
+    className: "",
+    html: '<div style="background:' + c + ';color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + bhk + "</div>",
+    iconSize: [40, 20],
+    iconAnchor: [20, 10],
   });
 }
 
-function ChangeView({ center }) {
+function ChangeView({ center, zoom }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
+    map.invalidateSize();
+    map.setView(center, zoom);
+  }, [map, center, zoom]);
   return null;
 }
 
+function ToggleOption({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: active ? "1px solid #dc2626" : "1px solid #e2e8f0",
+        background: active ? "#fee2e2" : "white",
+        color: active ? "#b91c1c" : "#334155",
+        borderRadius: "8px",
+        padding: "6px 10px",
+        fontSize: "12px",
+        fontWeight: 600,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function MapView() {
-  const navigate = useNavigate();
-  const [listings, setListings] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [filters, setFilters] = useState({ bhk: "All", rent: "All", type: "All", availability: "All" });
+  const listings = useMemo(() => getListings(), []);
+  const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
+  const [selected, setSelected] = useState(null);
+  const [filters, setFilters] = useState(getFiltersInitialState());
 
-  useEffect(() => {
-    const saved = localStorage.getItem("moveasy_listings");
-    const data = saved ? JSON.parse(saved) : initialListings;
-    setListings(data);
-    setFiltered(data);
-  }, []);
+  const filteredListings = useMemo(() => applyListingFilters(listings, filters), [listings, filters]);
 
-  const handleFilter = (key, val) => {
-    const newFilters = { ...filters, [key]: val };
-    setFilters(newFilters);
-    
-    let result = listings;
-    if (newFilters.bhk !== "All") result = result.filter(l => l.bhk === newFilters.bhk);
-    if (newFilters.rent !== "All") {
-       const [min, max] = newFilters.rent.split('-').map(Number);
-       result = result.filter(l => {
-          const r = parseInt(l.rent.replace(/,/g, ''));
-          return max ? (r >= min && r <= max) : (r >= min);
-       });
-    }
-    if (newFilters.type !== "All") result = result.filter(l => l.type === newFilters.type);
-    if (newFilters.availability !== "All") result = result.filter(l => l.availability === newFilters.availability);
-    setFiltered(result);
+  const toggleFilter = (key, value) => {
+    setFilters((prev) => {
+      const exists = prev[key].includes(value);
+      const next = exists ? prev[key].filter((v) => v !== value) : [...prev[key], value];
+      return { ...prev, [key]: next };
+    });
   };
 
-  const sidebarStyle = { width: "350px", height: "calc(100vh - 80px)", background: "white", padding: "20px", overflowY: "auto", boxShadow: "2px 0 10px rgba(0,0,0,0.1)", zIndex: 10 };
-  const filterLabel = { fontSize: "12px", fontWeight: 700, color: "#64748b", margin: "12px 0 6px", display: "block" };
-  const filterSelect = { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none", fontSize: "14px" };
-
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 80px)", background: "#f8fafc" }}>
-      {/* Filters Sidebar */}
-      <div style={sidebarStyle}>
-        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1e3a8a", marginBottom: "20px" }}>Map Filters</h2>
-        
-        <label style={filterLabel}>BHK Type</label>
-        <select value={filters.bhk} onChange={e => handleFilter("bhk", e.target.value)} style={filterSelect}>
-          <option>All</option><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option><option>4+ BHK</option>
-        </select>
-
-        <label style={filterLabel}>Rent Range</label>
-        <select value={filters.rent} onChange={e => handleFilter("rent", e.target.value)} style={filterSelect}>
-          <option>All</option>
-          <option value="0-20000">Below 20k</option>
-          <option value="20000-50000">20k - 50k</option>
-          <option value="50000-100000">50k - 1L</option>
-          <option value="100000">Above 1L</option>
-        </select>
-
-        <label style={filterLabel}>Property Type</label>
-        <select value={filters.type} onChange={e => handleFilter("type", e.target.value)} style={filterSelect}>
-          <option>All</option><option>Flat</option><option>House</option><option>Villa</option>
-        </select>
-
-        <label style={filterLabel}>Availability</label>
-        <select value={filters.availability} onChange={e => handleFilter("availability", e.target.value)} style={filterSelect}>
-          <option>All</option><option>Immediate</option><option>Within 15 Days</option><option>Within 30 Days</option>
-        </select>
-
-        <hr style={{ margin: "24px 0", border: "none", borderTop: "1px solid #f1f5f9" }} />
-
-        <p style={{ fontSize: "14px", color: "#64748b" }}>Showing <b>{filtered.length}</b> listings on map</p>
-        
-        <div style={{ marginTop: "20px" }}>
-          {filtered.slice(0, 5).map(l => (
-            <div key={l.id} onClick={() => navigate(`/listing/${l.id}`)} style={{ padding: "12px", background: "#f8fafc", borderRadius: "10px", marginBottom: "10px", cursor: "pointer", border: "1px solid transparent" }} onMouseOver={e=>e.currentTarget.style.borderColor="#1e3a8a"} onMouseOut={e=>e.currentTarget.style.borderColor="transparent"}>
-               <p style={{ margin: 0, fontWeight: 700, fontSize: "14px" }}>{l.title}</p>
-               <p style={{ margin: 0, color: "#1e3a8a", fontSize: "13px", fontWeight: 600 }}>₹{l.rent}</p>
-            </div>
-          ))}
-          {filtered.length > 5 && <p style={{textAlign:"center", fontSize:"12px", color:"#94a3b8"}}>+ {filtered.length - 5} more houses</p>}
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: "white", padding: "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
+          <div style={{ fontSize: "12px", color: "#64748b" }}>{filteredListings.length} properties</div>
         </div>
       </div>
 
-      {/* Map View */}
-      <div style={{ flex: 1, zIndex: 1 }}>
-        <MapContainer center={[19.076, 72.877]} zoom={12} style={{ height: "100%", width: "100%" }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {filtered.map(l => (
-            <Marker key={l.id} position={l.coords} icon={makeBhkIcon(l.bhk)}>
-              <Popup>
-                <div style={{ width: "200px" }}>
-                  <img src={l.image} alt="" style={{ width: "100%", height: "100px", objectFit: "cover", borderRadius: "8px" }} />
-                  <h4 style={{ margin: "10px 0 5px" }}>{l.title}</h4>
-                  <p style={{ margin: "0", color: "#1e3a8a", fontWeight: 700 }}>₹{l.rent}/mo</p>
-                  <button onClick={() => navigate(`/listing/${l.id}`)} style={{ width: "100%", marginTop: "10px", padding: "8px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>View Details</button>
-                </div>
-              </Popup>
-            </Marker>
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        <aside
+          style={{
+            width: "clamp(220px, 26vw, 360px)",
+            overflowY: "auto",
+            borderRight: "1px solid #e2e8f0",
+            background: "#f8fafc",
+            padding: "14px",
+            flexShrink: 0,
+          }}
+        >
+          <h3 style={{ margin: "0 0 8px", color: "#b91c1c" }}>Filters</h3>
+          <div style={{ marginBottom: "14px" }}>
+            <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "8px" }}>BHK Type</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {FILTER_OPTIONS.bhkTypes.map((item) => (
+                <ToggleOption key={item} label={item} active={filters.bhkTypes.includes(item)} onClick={() => toggleFilter("bhkTypes", item)} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "14px" }}>
+            <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "6px" }}>Rent range: ₹ 10k to ₹ 1 Lakh</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <input type="number" value={filters.minRent} onChange={(e) => setFilters((p) => ({ ...p, minRent: Number(e.target.value || 0) }))} placeholder="Min" />
+              <input type="number" value={filters.maxRent} onChange={(e) => setFilters((p) => ({ ...p, maxRent: Number(e.target.value || 0) }))} placeholder="Max" />
+            </div>
+          </div>
+
+          {[
+            ["availability", "Availability"],
+            ["preferredTenants", "Preferred tenants"],
+            ["propertyTypes", "Property type"],
+            ["furnishing", "Furnishing"],
+            ["parking", "Parking"],
+          ].map(([key, label]) => (
+            <div key={key} style={{ marginBottom: "14px" }}>
+              <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "8px" }}>{label}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {FILTER_OPTIONS[key].map((item) => (
+                  <ToggleOption key={item} label={item} active={filters[key].includes(item)} onClick={() => toggleFilter(key, item)} />
+                ))}
+              </div>
+            </div>
           ))}
-        </MapContainer>
+        </aside>
+
+        <div style={{ flex: 1, minWidth: "360px", position: "relative" }}>
+          <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
+            <ChangeView center={mapState.center} zoom={mapState.zoom} />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
+            {filteredListings.map((l) => (
+              <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
+                <Popup>
+                  <div style={{ minWidth: "180px" }}>
+                    <div style={{ fontWeight: 700, fontSize: "14px" }}>{l.title}</div>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
+                    <div style={{ fontWeight: 800, color: "#16a34a", fontSize: "16px", margin: "4px 0" }}>{l.price}</div>
+                    <div style={{ fontSize: "12px" }}>{l.seller} | {l.contact}</div>
+                    <a href={"tel:" + l.contact} style={{ display: "block", marginTop: "6px", padding: "4px 8px", background: "#1e3a8a", color: "white", borderRadius: "4px", textAlign: "center", textDecoration: "none", fontSize: "12px", fontWeight: 600 }}>Call Now</a>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+
+        <div
+          style={{
+            width: "clamp(220px, 24vw, 320px)",
+            overflowY: "auto",
+            background: "#f8fafc",
+            borderLeft: "1px solid #e2e8f0",
+            padding: "10px",
+            height: "100%",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#1e293b" }}>Properties ({filteredListings.length})</div>
+          {filteredListings.map((l) => (
+            <div
+              key={l.id}
+              onClick={() => setMapState({ center: [l.lat, l.lng], zoom: 17 })}
+              style={{
+                background: "white",
+                borderRadius: "8px",
+                padding: "10px",
+                marginBottom: "8px",
+                cursor: "pointer",
+                border: selected?.id === l.id ? "2px solid #3b82f6" : "1px solid #e2e8f0",
+                transition: "all 0.2s",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ background: bhkColors[l.bhk] || "#6b7280", color: "white", padding: "1px 6px", borderRadius: "8px", fontSize: "10px", fontWeight: 700 }}>{l.bhk}</span>
+                <span style={{ fontWeight: 700, color: "#16a34a", fontSize: "12px" }}>{l.price}</span>
+              </div>
+              <div style={{ fontWeight: 600, fontSize: "13px", color: "#1e293b" }}>{l.title}</div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>{l.address}</div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{l.seller} | {l.contact}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
