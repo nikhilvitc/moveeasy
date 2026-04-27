@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
+import HomeV2 from "./pages/HomeV2";
 import Login from "./pages/Login";
 import MapView from "./components/MapView";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -19,6 +20,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/v2" element={<HomeV2 />} />
       <Route path="/login" element={<Login />} />
       <Route path="/map" element={<MapView />} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
