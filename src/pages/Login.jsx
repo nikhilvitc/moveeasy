@@ -7,6 +7,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [signupRole, setSignupRole] = useState("customer");
+  const [selectedAccountType, setSelectedAccountType] = useState("customer");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSignup, setIsSignup] = useState(false);
@@ -48,6 +49,7 @@ export default function Login() {
   const box = { background: "white", borderRadius: "16px", padding: "40px", width: "100%", maxWidth: "420px", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" };
   const inp = { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" };
   const lbl = { fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" };
+  const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
@@ -56,32 +58,45 @@ export default function Login() {
         <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}>
           {isSignup ? "Create your account" : "Sign in to your account"}
         </p>
-        {!isSignup && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "14px" }}>
-            {roleCards.map((card) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+          {roleCards.map((card) => {
+            const active = selectedAccountType === card.id;
+            return (
               <button
                 key={card.id}
                 type="button"
                 onClick={() => {
+                  setSelectedAccountType(card.id);
+                  setError("");
+                  setInfo("");
                   if (card.id === "admin") {
+                    setIsSignup(false);
                     setEmail("jiyanshudhaka20@gmail.com");
+                    setInfo("Admin mode selected. Use admin credentials to sign in.");
+                    return;
                   }
+                  setIsSignup(true);
+                  setSignupRole(card.id);
+                  setInfo(`${card.title} mode selected. Complete signup to create a ${card.title.toLowerCase()} account.`);
                 }}
                 style={{
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
+                  border: active ? "1px solid #1e3a8a" : "1px solid #e2e8f0",
+                  background: active ? "#eef2ff" : "#f8fafc",
                   borderRadius: "8px",
                   padding: "8px",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
               >
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#1e293b" }}>{card.title}</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "#1e3a8a" : "#1e293b" }}>{card.title}</div>
                 <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{card.hint}</div>
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+        <p style={{ margin: "0 0 14px", fontSize: "11px", color: "#475569" }}>
+          Selected account type: <strong>{selectedTitle}</strong>
+        </p>
         {info && (
           <div style={{ background: "#ecfeff", color: "#155e75", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center", border: "1px solid #a5f3fc" }}>
             {info}
@@ -100,7 +115,14 @@ export default function Login() {
               <label style={lbl}>Full Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" style={inp} />
               <label style={lbl}>Account Type</label>
-              <select value={signupRole} onChange={(e) => setSignupRole(e.target.value)} style={inp}>
+              <select
+                value={signupRole}
+                onChange={(e) => {
+                  setSignupRole(e.target.value);
+                  setSelectedAccountType(e.target.value);
+                }}
+                style={inp}
+              >
                 <option value="customer">Customer</option>
                 <option value="seller">Seller / Broker</option>
               </select>
@@ -120,7 +142,7 @@ export default function Login() {
 
         <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
           {isSignup ? "Already have an account? " : "No account? "}
-          <button onClick={() => { setIsSignup(!isSignup); setError(""); setInfo(""); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+          <button onClick={() => { setIsSignup(!isSignup); setError(""); setInfo(""); if (!isSignup) setSelectedAccountType("customer"); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
             {isSignup ? "Sign In" : "Sign Up"}
           </button>
         </p>
