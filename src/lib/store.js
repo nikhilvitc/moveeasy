@@ -162,6 +162,20 @@ export function getUsersByRole(role) {
   return getAllUsers().filter((u) => u.role === role);
 }
 
+export function removeUserLocally(email) {
+  const users = readJson(KEYS.users, {});
+  if (users[email]) {
+    delete users[email];
+    writeJson(KEYS.users, users);
+  }
+}
+
+export function addUserLocally(email, name, role) {
+  const users = readJson(KEYS.users, {});
+  users[email.toLowerCase().trim()] = { name, role };
+  writeJson(KEYS.users, users);
+}
+
 export function getAssignments() {
   return readJson(KEYS.assignments, []);
 }

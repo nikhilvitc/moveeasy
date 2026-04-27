@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing } from "../lib/store";
+import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings } from "../lib/externalFeeds";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -81,6 +81,9 @@ export default function AdminDashboard() {
   const [feedJson, setFeedJson] = useState("");
   const [importBrokerName, setImportBrokerName] = useState("");
   const [importSourceName, setImportSourceName] = useState("manual-transfer");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserRole, setNewUserRole] = useState("customer");
+  const [newUserName, setNewUserName] = useState("");
 
   const listings = useMemo(() => getListings(), [refreshTick]);
   const assignments = useMemo(() => getAssignments(), [refreshTick]);
@@ -144,6 +147,20 @@ export default function AdminDashboard() {
 
   const handleRejectSellerBadge = (email) => {
     rejectSellerBadge(email);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleRemoveUser = (email) => {
+    removeUserLocally(email);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleAddUser = (e) => {
+    e.preventDefault();
+    if (!newUserEmail.trim()) return;
+    addUserLocally(newUserEmail, newUserName, newUserRole);
+    setNewUserEmail("");
+    setNewUserName("");
     setRefreshTick((v) => v + 1);
   };
 
@@ -245,6 +262,34 @@ export default function AdminDashboard() {
             ))}
           </div>
         )}
+
+        {/* User Management Section */}
+        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>User Management ({users.length} total)</div>
+          
+          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "10px", marginBottom: "16px" }}>
+            <input placeholder="Full Name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
+            <input type="email" placeholder="Email Address" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
+            <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}>
+              <option value="customer">Customer</option>
+              <option value="seller">Seller / Broker</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>Add User</button>
+          </form>
+
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+            {users.map((u) => (
+              <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email}</div>
+                </div>
+                <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
