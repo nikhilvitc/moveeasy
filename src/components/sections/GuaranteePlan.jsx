@@ -8,13 +8,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import guaranteeBg from "../../assets/images/guarantee-bg.png";
 
 const EASE = [0.22, 1, 0.36, 1];
 
 export default function GuaranteePlan() {
-  const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const navigate = useNavigate();
+  const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
 
   return (
     <section>
@@ -117,7 +119,9 @@ export default function GuaranteePlan() {
               transition={{ duration: 0.52, delay: 0.28, ease: EASE }}
               className="mt-9"
             >
-              <button className="
+              <button 
+                onClick={() => navigate('/map')}
+                className="
                 px-10 py-[14px]
                 text-[13.5px] font-semibold tracking-widest uppercase
                 text-white

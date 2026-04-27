@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import cityBg from "../../assets/images/city-bg.png";
 
@@ -16,6 +17,7 @@ const EASE = [0.22, 1, 0.36, 1];
 
 export default function CityCTA() {
   const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const navigate = useNavigate();
 
   return (
     <section className="bg-white py-6 sm:py-8">
@@ -91,7 +93,9 @@ export default function CityCTA() {
               transition={{ duration: 0.55, delay: 0.24, ease: EASE }}
               className="mt-8"
             >
-              <button className="
+              <button
+                onClick={() => navigate('/map')}
+                className="
                 px-8 sm:px-10 py-[14px] sm:py-[15px]
                 text-[14.5px] sm:text-[15px] font-semibold
                 text-white bg-[#EF4444] rounded-full

@@ -68,9 +68,9 @@ export default function Login() {
   const isAdminEmail = ADMIN_EMAILS.includes(normalizedEmail);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #fff1f2 0%, #fecdd3 100%)" }}>
       <div style={box}>
-        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1e3a8a", textAlign: "center", margin: "0 0 4px" }}>MovEasy</h1>
+        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#EF4444", textAlign: "center", margin: "0 0 4px" }}>MovEasy</h1>
         <p style={{ textAlign: "center", color: "#64748b", margin: "0 0 24px", fontSize: "14px" }}>
           {isSignup ? "Create your account" : "Sign in to your account"}
         </p>
@@ -96,15 +96,15 @@ export default function Login() {
                   setInfo(`${card.title} mode selected. Complete signup to create a ${card.title.toLowerCase()} account.`);
                 }}
                 style={{
-                  border: active ? "1px solid #1e3a8a" : "1px solid #e2e8f0",
-                  background: active ? "#eef2ff" : "#f8fafc",
+                  border: active ? "1px solid #EF4444" : "1px solid #e2e8f0",
+                  background: active ? "#fef2f2" : "#f8fafc",
                   borderRadius: "8px",
                   padding: "8px",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
               >
-                <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "#1e3a8a" : "#1e293b" }}>{card.title}</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: active ? "#EF4444" : "#1e293b" }}>{card.title}</div>
                 <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{card.hint}</div>
               </button>
             );
@@ -151,29 +151,31 @@ export default function Login() {
           <label style={lbl}>Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Enter password" minLength="6" style={inp} />
 
-          <button type="submit" style={{ width: "100%", padding: "12px", background: "#1e3a8a", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: "pointer", marginTop: "4px" }}>
-            {isSignup ? "Create Account" : "Sign In"}
+          <button type="submit" style={{ width: "100%", padding: "12px", background: "#EF4444", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: "pointer", marginTop: "4px" }}>
+            {isSignup ? `Create ${selectedTitle} Account` : `Sign In as ${selectedTitle}`}
           </button>
         </form>
 
-        <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
-          {isSignup ? "Already have an account? " : "No account? "}
-          <button
-            onClick={() => {
-              setError("");
-              setInfo("");
-              if (selectedAccountType === "admin") {
-                setIsSignup(false);
-                return;
-              }
-              setIsSignup(!isSignup);
-              if (!isSignup) setSelectedAccountType("customer");
-            }}
-            style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}
-          >
-            {isSignup ? "Sign In" : "Sign Up"}
-          </button>
-        </p>
+        {selectedAccountType === "admin" ? (
+          <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
+            Admin mode is sign-in only.
+          </p>
+        ) : (
+          <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
+            {isSignup ? "Already have an account? " : "No account? "}
+            <button
+              onClick={() => {
+                setError("");
+                setInfo("");
+                setIsSignup(!isSignup);
+                if (!isSignup) setSelectedAccountType("customer");
+              }}
+              style={{ color: "#EF4444", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}
+            >
+              {isSignup ? "Sign In" : "Sign Up"}
+            </button>
+          </p>
+        )}
 
         <div style={{ marginTop: "20px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
           <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>Roles available:</p>

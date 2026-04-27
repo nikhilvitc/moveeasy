@@ -112,6 +112,7 @@ export default function AdminDashboard() {
     const nextForm = listingToForm(listing);
     setForm(nextForm);
     setPinPosition([nextForm.lat, nextForm.lng]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = (id) => {
@@ -187,7 +188,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
-      <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "white", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: "20px", fontWeight: 800 }}>Admin Dashboard</div>
           <div style={{ fontSize: "12px", opacity: 0.7 }}>{user?.email}</div>
@@ -317,6 +318,21 @@ export default function AdminDashboard() {
               placeholder="Source name (housing-transfer, 99acres-transfer)"
               value={importSourceName}
               onChange={(e) => setImportSourceName(e.target.value)}
+            />
+          </div>
+          <div style={{ marginBottom: "8px" }}>
+            <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Or Upload File (CSV, JSON, TSV)</label>
+            <input 
+              type="file" 
+              accept=".csv, .json, .txt, .tsv"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => setFeedJson(evt.target.result);
+                reader.readAsText(file);
+              }}
+              style={{ padding: "4px", border: "1px solid #e2e8f0", borderRadius: "6px", width: "100%", fontSize: "12px" }}
             />
           </div>
           <textarea

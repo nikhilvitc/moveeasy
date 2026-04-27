@@ -11,7 +11,8 @@
 // Property cards: photo (with red badge chip), location pin + area/BHK, subtitle.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import logoSvg from "../../assets/logo/moveasy.svg";
 import { MapPin } from "lucide-react";
@@ -115,6 +116,7 @@ function PropertyCard({ property, delay }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SmartMatch() {
+  const navigate = useNavigate();
   const { ref: titleRef, inView: titleInView } = useInView({ threshold: 0.2, triggerOnce: true });
 
   return (
@@ -180,7 +182,9 @@ export default function SmartMatch() {
             </ul>
 
             {/* CTA button */}
-            <button className="
+            <button 
+              onClick={() => navigate('/map')}
+              className="
               mt-8 w-full py-[14px]
               text-[14.5px] font-semibold text-white
               bg-[#EF4444] rounded-xl

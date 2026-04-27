@@ -42,7 +42,9 @@ export default function Navbar() {
 
       {/* RIGHT SIDE (AUTH & ACTIONS) */}
       <div className="flex items-center gap-4">
-        <button className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-black rounded-full hover:bg-gray-50 transition-colors">
+        <button 
+          onClick={() => navigate("/map")}
+          className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-black rounded-full hover:bg-gray-50 transition-colors">
           Book A Consultation
         </button>
         

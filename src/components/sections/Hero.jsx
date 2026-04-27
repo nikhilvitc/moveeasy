@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   phoneMockup,
   ratingCard,
@@ -50,6 +51,7 @@ function FloatingCard({
 }
 
 export default function Hero() {
+  const navigate = useNavigate();
   return (
     <section
       className="
@@ -129,6 +131,7 @@ export default function Hero() {
               className="mt-8 flex justify-center lg:justify-start"
             >
               <button
+                onClick={() => navigate('/login')}
                 className="
                   flex items-center gap-3
                   px-8 sm:px-10 py-[14px] sm:py-[16px]

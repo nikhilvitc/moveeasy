@@ -1,5 +1,6 @@
 // src/components/sections/Features.jsx
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import userMaleIcon from "../../assets/icons/user-male.png";
 
@@ -29,6 +30,7 @@ const FEATURES = [
 ];
 
 export default function Features() {
+  const navigate = useNavigate();
   const { ref: gridRef, inView: gridInView } = useInView({ threshold: 0.08, triggerOnce: true });
 
   return (
@@ -84,7 +86,9 @@ export default function Features() {
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.55, delay: 0.3, ease: EASE }}
         >
-          <button className="px-8 py-[14px] text-[14.5px] font-semibold text-white bg-[#EF4444] rounded-xl hover:bg-[#DC2626] active:scale-[0.975] transition-all duration-200 shadow-[0_6px_22px_rgba(239,68,68,0.28)]">
+          <button 
+            onClick={() => navigate('/map')}
+            className="px-8 py-[14px] text-[14.5px] font-semibold text-white bg-[#EF4444] rounded-xl hover:bg-[#DC2626] active:scale-[0.975] transition-all duration-200 shadow-[0_6px_22px_rgba(239,68,68,0.28)]">
             Book a Free Consultation Now
           </button>
         </motion.div>
