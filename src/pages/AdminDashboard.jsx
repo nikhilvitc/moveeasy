@@ -72,6 +72,7 @@ export default function AdminDashboard() {
     rejectSellerBadge,
   } = useAuth();
   const navigate = useNavigate();
+
   const [refreshTick, setRefreshTick] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(DEFAULT_FORM);
@@ -84,10 +85,16 @@ export default function AdminDashboard() {
   const listings = useMemo(() => getListings(), [refreshTick]);
   const assignments = useMemo(() => getAssignments(), [refreshTick]);
   const users = useMemo(() => getAllUsers(), [refreshTick]);
+
   const customers = users.filter((u) => u.role === "customer");
   const sellers = users.filter((u) => u.role === "seller");
   const sellerReqs = useMemo(() => getSellerRequests().filter((r) => r.status === "pending"), [refreshTick]);
-  const pendingSellerBadges = useMemo(() => getPendingSellerBadgeApplications(), [refreshTick, getPendingSellerBadgeApplications]);
+  const pendingSellerBadgeApps = useMemo(() => {
+    if (typeof getPendingSellerBadgeApplications === 'function') {
+      return getPendingSellerBadgeApplications();
+    }
+    return [];
+  }, [refreshTick, getPendingSellerBadgeApplications]);
 
   const handleSubmitListing = (e) => {
     e.preventDefault();
@@ -153,7 +160,7 @@ export default function AdminDashboard() {
     try {
       const parsed = JSON.parse(feedJson);
       const result = ingestPartnerListings(parsed, "partner-import");
-      alert(`Imported ${result.imported} listings`);
+      alert("Imported " + result.imported + " listings");
       setFeedJson("");
       setRefreshTick((v) => v + 1);
     } catch {
@@ -176,10 +183,10 @@ export default function AdminDashboard() {
       sourceName: importSourceName || "manual-transfer",
     });
     if (!result.imported) {
-      alert(`No listings imported. Parsed ${result.parsed} rows but none matched broker name or valid lat/lng data.`);
+      alert("No listings imported.");
       return;
     }
-    alert(`Imported ${result.imported} listings for broker "${importBrokerName.trim()}"`);
+    alert("Imported " + result.imported + " listings for broker " + importBrokerName.trim());
     setFeedJson("");
     setRefreshTick((v) => v + 1);
   };
@@ -199,26 +206,18 @@ export default function AdminDashboard() {
           <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#ef4444", color: "white" }}>Logout</button>
         </div>
       </div>
+
       <div style={{ padding: "20px 24px" }}>
-        {pendingSellerBadges.length > 0 && (
+        {pendingSellerBadgeApps.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
-              Pending verified seller badge ({pendingSellerBadges.length})
+              Pending verified seller badge ({pendingSellerBadgeApps.length})
             </div>
-            <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px" }}>
-              Optional trust tier: sellers can still use the site after sign-up; this queue is only for a manual verified badge (similar in spirit to marketplace seller checks).
-            </p>
-            {pendingSellerBadges.map((p) => (
+            {pendingSellerBadgeApps.map((p) => (
               <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={{ fontSize: "12px", color: "#64748b" }}>{p.email}</div>
-                  {p.application && (
-                    <div style={{ fontSize: "11px", color: "#475569", marginTop: "6px" }}>
-                      Business: {p.application.businessName} | Phone: {p.application.phone}
-                      {p.application.gst ? ` | GST: ${p.application.gst}` : ""}
-                    </div>
-                  )}
                 </div>
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
                   <button type="button" onClick={() => handleApproveSellerBadge(p.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve badge</button>
@@ -228,6 +227,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         )}
+
         {sellerReqs.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626", marginBottom: "10px" }}>Pending Seller Requests ({sellerReqs.length})</div>
@@ -245,58 +245,25 @@ export default function AdminDashboard() {
             ))}
           </div>
         )}
+
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
           <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
             <input placeholder="Title" required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-            <input placeholder="Price label (₹ 25,000/mo)" required value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+            <input placeholder="Price label" required value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
             <input type="number" placeholder="Monthly rent" required value={form.monthlyRent} onChange={(e) => setForm((p) => ({ ...p, monthlyRent: Number(e.target.value) }))} />
-            <select value={form.bhk} onChange={(e) => setForm((p) => ({ ...p, bhk: e.target.value }))}><option>1 RK</option><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option><option>3+ BHK</option><option>Roommate needed</option></select>
+            <select value={form.bhk} onChange={(e) => setForm((p) => ({ ...p, bhk: e.target.value }))}><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option></select>
             <input placeholder="Address" required value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-            <input placeholder="Seller / broker name" required value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
+            <input placeholder="Seller name" required value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
             <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
-            <input placeholder="Contact" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
-            <select value={form.availability} onChange={(e) => setForm((p) => ({ ...p, availability: e.target.value }))}><option>Immediate</option><option>Within 15 days</option><option>Within 30 days</option><option>After 30 days</option></select>
-            <select value={form.propertyType} onChange={(e) => setForm((p) => ({ ...p, propertyType: e.target.value }))}><option>Gated Societies</option><option>Apartment</option><option>Independent House/Villa</option><option>Gated Community Villa</option></select>
-            <select value={form.furnishing} onChange={(e) => setForm((p) => ({ ...p, furnishing: e.target.value }))}><option>Full</option><option>Semi</option><option>None</option></select>
-            <input type="text" placeholder="Parking (comma separated)" value={form.parking.join(", ")} onChange={(e) => setForm((p) => ({ ...p, parking: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
-            <input type="text" placeholder="Preferred tenants (comma separated)" value={form.preferredTenants.join(", ")} onChange={(e) => setForm((p) => ({ ...p, preferredTenants: e.target.value.split(",").map((x) => x.trim()).filter(Boolean) }))} />
-            <input
-              type="number"
-              step="0.0001"
-              placeholder="Latitude"
-              value={Number(pinPosition?.[0] ?? form.lat)}
-              onChange={(e) => {
-                const lat = Number(e.target.value);
-                setForm((p) => ({ ...p, lat }));
-                setPinPosition((prev) => [lat, Number(prev?.[1] ?? form.lng)]);
-              }}
-            />
-            <input
-              type="number"
-              step="0.0001"
-              placeholder="Longitude"
-              value={Number(pinPosition?.[1] ?? form.lng)}
-              onChange={(e) => {
-                const lng = Number(e.target.value);
-                setForm((p) => ({ ...p, lng }));
-                setPinPosition((prev) => [Number(prev?.[0] ?? form.lat), lng]);
-              }}
-            />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>
-          <div style={{ marginTop: "12px", fontSize: "12px", color: "#475569" }}>
-            Click on the map to pinpoint the exact listing location.
-            <span style={{ marginLeft: "8px", fontWeight: 700 }}>
-              {`Lat: ${Number(pinPosition?.[0]).toFixed(5)}, Lng: ${Number(pinPosition?.[1]).toFixed(5)}`}
-            </span>
+          <div style={{ marginTop: "12px", fontSize: "12px" }}>
+            Location: {pinPosition?.[0]?.toFixed(4)}, {pinPosition?.[1]?.toFixed(4)}
           </div>
-          <div style={{ marginTop: "10px", height: "260px", borderRadius: "10px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-            <MapContainer center={pinPosition} zoom={14} style={{ height: "100%", width: "100%" }}>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+          <div style={{ marginTop: "10px", height: "260px" }}>
+            <MapContainer center={pinPosition} zoom={13} style={{ height: "100%" }}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <LocationPicker position={pinPosition} onPick={setPinPosition} />
             </MapContainer>
           </div>
@@ -304,21 +271,9 @@ export default function AdminDashboard() {
 
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Broker Bulk Import</div>
-          <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#64748b" }}>
-            Enter broker name, then paste JSON/CSV/TSV export data from legal partner feeds or broker-provided exports.
-            This imports all matching rows for that broker at once.
-          </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-            <input
-              placeholder="Broker name (required)"
-              value={importBrokerName}
-              onChange={(e) => setImportBrokerName(e.target.value)}
-            />
-            <input
-              placeholder="Source name (housing-transfer, 99acres-transfer)"
-              value={importSourceName}
-              onChange={(e) => setImportSourceName(e.target.value)}
-            />
+            <input placeholder="Broker name" value={importBrokerName} onChange={(e) => setImportBrokerName(e.target.value)} />
+            <input placeholder="Source name" value={importSourceName} onChange={(e) => setImportSourceName(e.target.value)} />
           </div>
           <div style={{ marginBottom: "8px" }}>
             <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Or Upload File (CSV, JSON, TSV)</label>
@@ -348,46 +303,17 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Assign listing to customer and broker</div>
-          <form onSubmit={handleAssign} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 2fr auto", gap: "8px" }}>
-            <select value={assignment.listingId} onChange={(e) => setAssignment((p) => ({ ...p, listingId: e.target.value }))}>
-              <option value="">Select listing</option>
-              {listings.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
-            </select>
-            <select value={assignment.customerEmail} onChange={(e) => setAssignment((p) => ({ ...p, customerEmail: e.target.value }))}>
-              <option value="">Customer</option>
-              {customers.map((c) => <option key={c.email} value={c.email}>{c.name}</option>)}
-            </select>
-            <select value={assignment.sellerEmail} onChange={(e) => setAssignment((p) => ({ ...p, sellerEmail: e.target.value }))}>
-              <option value="">Seller/Broker</option>
-              {sellers.map((s) => <option key={s.email} value={s.email}>{s.name}</option>)}
-            </select>
-            <input placeholder="Notes" value={assignment.notes} onChange={(e) => setAssignment((p) => ({ ...p, notes: e.target.value }))} />
-            <button type="submit" style={{ ...btn, background: "#1e3a8a", color: "white" }}>Assign</button>
-          </form>
-          <div style={{ marginTop: "10px", maxHeight: "160px", overflowY: "auto" }}>
-            {assignments.map((a) => (
-              <div key={a.id} style={{ fontSize: "12px", borderBottom: "1px solid #f1f5f9", padding: "6px 0" }}>
-                Listing #{a.listingId} → {a.customerEmail} (Broker: {a.sellerEmail})
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 700 }}>All Listings ({listings.length})</div>
-        </div>
+        <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>All Listings ({listings.length})</div>
         <div style={{ background: "white", borderRadius: "12px", overflow: "hidden" }}>
-          {listings.map((l, i) => (
-            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", background: i % 2 ? "#fafafa" : "white" }}>
+          {listings.map((l) => (
+            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: "14px" }}>{l.title}</div>
-                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller} | {l.contact}</div>
+                <div style={{ fontWeight: 600 }}>{l.title}</div>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller}</div>
               </div>
-              <div style={{ fontWeight: 700, color: "#16a34a", marginRight: "16px", fontSize: "13px" }}>{l.price}</div>
-              <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "4px 10px", marginRight: "8px" }}>Edit</button>
-              <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "4px 10px" }}>Delete</button>
+              <div style={{ fontWeight: 700, color: "#16a34a", marginRight: "16px" }}>{l.price}</div>
+              <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", marginRight: "8px" }}>Edit</button>
+              <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px" }}>Delete</button>
             </div>
           ))}
         </div>
