@@ -48,6 +48,30 @@ export default function Navbar() {
         
         {user ? (
           <div className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+            {user.role === "customer" && (
+              <button
+                onClick={() => navigate("/customer")}
+                className="px-4 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-colors"
+              >
+                Customer Dashboard
+              </button>
+            )}
+            {user.role === "seller" && (
+              <button
+                onClick={() => navigate("/seller")}
+                className="px-4 py-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-full hover:bg-emerald-100 transition-colors"
+              >
+                Seller Dashboard
+              </button>
+            )}
+            {user.role === "admin" && (
+              <button
+                onClick={() => navigate("/admin")}
+                className="px-4 py-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 transition-colors"
+              >
+                Admin Dashboard
+              </button>
+            )}
             <span className="hidden sm:inline-flex items-center gap-1 opacity-75">👤 {user.email}</span>
             <button 
               onClick={() => { logout(); navigate("/login"); }} 

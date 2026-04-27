@@ -40,7 +40,7 @@ export default function Login() {
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
       else if (r === "seller") navigate("/seller");
-      else navigate("/customer");
+      else navigate("/");
     } else {
       setError(result.error || "Something went wrong");
     }
