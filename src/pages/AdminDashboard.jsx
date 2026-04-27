@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing } from "../lib/store";
-import { ingestPartnerListings } from "../lib/externalFeeds";
+import { ingestBrokerListings, ingestPartnerListings } from "../lib/externalFeeds";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -78,6 +78,8 @@ export default function AdminDashboard() {
   const [pinPosition, setPinPosition] = useState([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
   const [assignment, setAssignment] = useState({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
   const [feedJson, setFeedJson] = useState("");
+  const [importBrokerName, setImportBrokerName] = useState("");
+  const [importSourceName, setImportSourceName] = useState("manual-transfer");
 
   const listings = useMemo(() => getListings(), [refreshTick]);
   const assignments = useMemo(() => getAssignments(), [refreshTick]);
@@ -156,6 +158,29 @@ export default function AdminDashboard() {
     } catch {
       alert("Invalid JSON feed format");
     }
+  };
+
+  const handleBrokerImport = () => {
+    if (!importBrokerName.trim()) {
+      alert("Enter broker name first");
+      return;
+    }
+    if (!feedJson.trim()) {
+      alert("Paste broker listing export data first");
+      return;
+    }
+    const result = ingestBrokerListings({
+      brokerName: importBrokerName.trim(),
+      rawInput: feedJson,
+      sourceName: importSourceName || "manual-transfer",
+    });
+    if (!result.imported) {
+      alert(`No listings imported. Parsed ${result.parsed} rows but none matched broker name or valid lat/lng data.`);
+      return;
+    }
+    alert(`Imported ${result.imported} listings for broker "${importBrokerName.trim()}"`);
+    setFeedJson("");
+    setRefreshTick((v) => v + 1);
   };
 
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
@@ -277,10 +302,34 @@ export default function AdminDashboard() {
         </div>
 
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Partner Feed Import</div>
-          <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#64748b" }}>Paste a legal partner JSON feed array to import broker listings.</p>
-          <textarea value={feedJson} onChange={(e) => setFeedJson(e.target.value)} rows={5} style={{ width: "100%", marginBottom: "8px" }} placeholder='[{"title":"2 BHK in HSR","monthlyRent":28000,"lat":12.91,"lng":77.63}]' />
-          <button onClick={handleFeedImport} style={{ ...btn, background: "#7c3aed", color: "white", marginBottom: "16px" }}>Import Feed</button>
+          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Broker Bulk Import</div>
+          <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#64748b" }}>
+            Enter broker name, then paste JSON/CSV/TSV export data from legal partner feeds or broker-provided exports.
+            This imports all matching rows for that broker at once.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+            <input
+              placeholder="Broker name (required)"
+              value={importBrokerName}
+              onChange={(e) => setImportBrokerName(e.target.value)}
+            />
+            <input
+              placeholder="Source name (housing-transfer, 99acres-transfer)"
+              value={importSourceName}
+              onChange={(e) => setImportSourceName(e.target.value)}
+            />
+          </div>
+          <textarea
+            value={feedJson}
+            onChange={(e) => setFeedJson(e.target.value)}
+            rows={6}
+            style={{ width: "100%", marginBottom: "8px" }}
+            placeholder={'JSON example: [{"title":"2 BHK in HSR","brokerName":"Rahul Estates","monthlyRent":28000,"lat":12.91,"lng":77.63}]\nCSV example header: title,brokerName,monthlyRent,lat,lng,address'}
+          />
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button onClick={handleBrokerImport} style={{ ...btn, background: "#7c3aed", color: "white" }}>Import by Broker Name</button>
+            <button onClick={handleFeedImport} style={{ ...btn, background: "#475569", color: "white" }}>Generic Import (legacy)</button>
+          </div>
         </div>
 
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
