@@ -11,7 +11,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSignup, setIsSignup] = useState(false);
-  const { login, signup } = useAuth();
+  const { login, signup, ADMIN_EMAILS } = useAuth();
   const navigate = useNavigate();
   const roleCards = [
     { id: "admin", title: "Admin", hint: "Manage all listings and assignments" },
@@ -23,6 +23,20 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setInfo("");
+
+    if (selectedAccountType === "admin" && isSignup) {
+      setError("Admin mode supports sign in only.");
+      return;
+    }
+    if (selectedAccountType !== "admin" && isAdminEmail) {
+      setError("You entered admin email in customer/seller mode. Select Admin card to continue.");
+      return;
+    }
+    if (selectedAccountType === "admin" && !isAdminEmail) {
+      setError("Admin mode requires the reserved admin email.");
+      return;
+    }
+
     let result;
     if (isSignup) {
       if (!name.trim()) { setError("Please enter your name"); return; }
@@ -50,6 +64,8 @@ export default function Login() {
   const inp = { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" };
   const lbl = { fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" };
   const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
+  const normalizedEmail = email.toLowerCase().trim();
+  const isAdminEmail = ADMIN_EMAILS.includes(normalizedEmail);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)" }}>
@@ -76,7 +92,7 @@ export default function Login() {
                     return;
                   }
                   setIsSignup(true);
-                  setSignupRole(card.id);
+                  setSignupRole(card.id === "seller" ? "seller" : "customer");
                   setInfo(`${card.title} mode selected. Complete signup to create a ${card.title.toLowerCase()} account.`);
                 }}
                 style={{
@@ -142,7 +158,19 @@ export default function Login() {
 
         <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
           {isSignup ? "Already have an account? " : "No account? "}
-          <button onClick={() => { setIsSignup(!isSignup); setError(""); setInfo(""); if (!isSignup) setSelectedAccountType("customer"); }} style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>
+          <button
+            onClick={() => {
+              setError("");
+              setInfo("");
+              if (selectedAccountType === "admin") {
+                setIsSignup(false);
+                return;
+              }
+              setIsSignup(!isSignup);
+              if (!isSignup) setSelectedAccountType("customer");
+            }}
+            style={{ color: "#1e3a8a", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}
+          >
             {isSignup ? "Sign In" : "Sign Up"}
           </button>
         </p>
