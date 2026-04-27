@@ -1,7 +1,8 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
+// Production config — env loaded from .env
 export default defineConfig({
     plugins: [react()],
-    base: process.env.GITHUB_ACTIONS ? '/moveazy/' : '/',
+    base: '/MOVEASY-WEBSITE/',
 })
