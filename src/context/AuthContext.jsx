@@ -102,14 +102,7 @@ export function AuthProvider({ children }) {
     }
     try {
       const cred = await signInWithEmailAndPassword(auth, e, password);
-      if (!cred.user.emailVerified) {
-        await sendEmailVerification(cred.user);
-        await signOut(auth);
-        return {
-          success: false,
-          error: "Email not verified. Verification link has been sent again to your inbox.",
-        };
-      }
+      // Skip email verification check — Spark plan doesn't reliably deliver emails
       const users = getUsers();
       const profile = users[e] || {};
       if (!users[e]) {
@@ -143,21 +136,20 @@ export function AuthProvider({ children }) {
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, e, password);
-      await sendEmailVerification(cred.user);
+      // Save user profile locally
       users[e] = {
         name: name || e.split("@")[0],
         role: normalizedRole,
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
       };
       saveUsers(users);
-      await signOut(auth);
-      localStorage.removeItem("moveasy_session");
-      setUser(null);
-      return {
-        success: true,
-        requiresVerification: true,
-        info: "Verification email sent. Please verify your Gmail inbox before logging in.",
-      };
+      // Log user in immediately — no email verification gate
+      const u = { email: e, role: normalizedRole, name: name || e.split("@")[0] };
+      setUser(u);
+      localStorage.setItem("moveasy_session", JSON.stringify(u));
+      const idToken = await cred.user.getIdToken();
+      await triggerWelcomeEmail({ email: u.email, name: u.name, role: u.role, idToken });
+      return { success: true, role: normalizedRole };
     } catch (error) {
       return { success: false, error: normalizeFirebaseError(error) };
     }
