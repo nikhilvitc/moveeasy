@@ -11,7 +11,9 @@ export default function Login() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSignup, setIsSignup] = useState(false);
-  const { login, signup, ADMIN_EMAILS } = useAuth();
+  const { login, signup, resendVerificationEmail, ADMIN_EMAILS } = useAuth();
+  const [resendBusy, setResendBusy] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
   const navigate = useNavigate();
   const roleCards = [
     { id: "admin", title: "Admin", hint: "Manage all listings and assignments" },
@@ -23,6 +25,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setInfo("");
+    setShowResendVerification(false);
 
     if (selectedAccountType === "admin" && isSignup) {
       setError("Admin mode supports sign in only.");
@@ -43,7 +46,7 @@ export default function Login() {
       result = await signup(email, password, name, signupRole);
     } else {
       result = await login(email, password);
-}
+    }
     if (result.success) {
       if (result.requiresVerification) {
         setIsSignup(false);
@@ -57,7 +60,23 @@ export default function Login() {
       else navigate("/");
     } else {
       setError(result.error || "Something went wrong");
+      setShowResendVerification(!!result.unverified);
     }
+  };
+
+  const handleResendVerification = async () => {
+    setError("");
+    setInfo("");
+    setShowResendVerification(false);
+    if (!email.trim() || !password) {
+      setError("Enter your email and password, then click resend.");
+      return;
+    }
+    setResendBusy(true);
+    const result = await resendVerificationEmail(email, password);
+    setResendBusy(false);
+    if (result.success) setInfo(result.info || "Verification email sent.");
+    else setError(result.error || "Could not resend.");
   };
 
   const box = { background: "white", borderRadius: "16px", padding: "40px", width: "100%", maxWidth: "420px", boxShadow: "0 25px 50px rgba(0,0,0,0.25)" };
@@ -122,6 +141,27 @@ export default function Login() {
         {error && (
           <div style={{ background: "#fef2f2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center" }}>
             {error}
+            {showResendVerification && selectedAccountType !== "admin" && (
+              <div style={{ marginTop: "10px" }}>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendBusy}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    border: "1px solid #fca5a5",
+                    background: "#fff",
+                    color: "#b91c1c",
+                    cursor: resendBusy ? "wait" : "pointer",
+                  }}
+                >
+                  {resendBusy ? "Sending…" : "Resend verification email"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -183,7 +223,7 @@ export default function Login() {
           <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Seller/Broker login: signup with Seller account type</p>
           <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Customer login: signup with Customer account type</p>
           <p style={{ fontSize: "11px", color: "#14532d", margin: "8px 0 0", lineHeight: 1.45 }}>
-            New accounts must use <strong>@gmail.com</strong> or <strong>@googlemail.com</strong>. Proving the inbox exists and sending real verification email needs a backend or Firebase Auth (not possible from browser-only storage alone).
+            New accounts use <strong>@gmail.com</strong> or <strong>@googlemail.com</strong>. Firebase sends a <strong>free verification link</strong> to your inbox; you must open it before sign-in. Optional welcome + admin alerts use <strong>EmailJS</strong> (free tier) when configured in GitHub Secrets — see docs.
           </p>
         </div>
       </div>

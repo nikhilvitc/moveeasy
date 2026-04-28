@@ -36,3 +36,7 @@ firebase-debug.log
 # Local dev scripts
 build-production.js
 restart.bat
+
+# Playwright
+playwright-report/
+test-results/

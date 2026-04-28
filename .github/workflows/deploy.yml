@@ -31,6 +31,11 @@ jobs:
           echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
           echo "VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}" >> .env
           echo "VITE_WELCOME_EMAIL_FUNCTION_URL=${{ secrets.VITE_WELCOME_EMAIL_FUNCTION_URL }}" >> .env
+          echo "VITE_EMAILJS_PUBLIC_KEY=${{ secrets.VITE_EMAILJS_PUBLIC_KEY }}" >> .env
+          echo "VITE_EMAILJS_SERVICE_ID=${{ secrets.VITE_EMAILJS_SERVICE_ID }}" >> .env
+          echo "VITE_EMAILJS_WELCOME_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_WELCOME_TEMPLATE_ID }}" >> .env
+          echo "VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID }}" >> .env
+          echo "VITE_ADMIN_NOTIFY_EMAIL=${{ secrets.VITE_ADMIN_NOTIFY_EMAIL }}" >> .env
 
       - run: npm run build
         env:

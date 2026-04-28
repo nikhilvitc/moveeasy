@@ -1,63 +1,43 @@
-# Email Verification and Welcome Mail Setup
+# Email: verification (free) + welcome / admin (free EmailJS)
 
-This project now enforces real mailbox verification with Firebase Auth:
+## What runs today
 
-1. User signs up with email/password.
-2. Firebase sends verification email.
-3. Login is blocked until `emailVerified=true`.
-4. After verified login, app calls a Cloud Function to send one welcome email.
+1. **Firebase verification (no paid add-on)** — On customer/seller sign-up, the app calls `sendEmailVerification`. The user must click the link in the email from Firebase/Google before sign-in succeeds.
+2. **Welcome + admin notification (free tier)** — After the first **verified** sign-in, the app tries **EmailJS** from the browser (no Cloud Function required). If EmailJS env vars are missing, sign-in still works; emails are skipped.
 
-## 1) Configure Frontend Environment
+Optional **Cloud Function + SMTP** (`VITE_WELCOME_EMAIL_FUNCTION_URL`) remains available for a server-side welcome path but is not required for the EmailJS flow.
 
-Copy `.env.example` to `.env` and fill:
+## 1) Firebase Auth env (required)
 
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_WELCOME_EMAIL_FUNCTION_URL`
+Copy `.env.example` to `.env` and set all `VITE_FIREBASE_*` keys used by `src/lib/firebase.js`.
 
-Example `VITE_WELCOME_EMAIL_FUNCTION_URL`:
+In **Firebase Console → Authentication → Templates → Email address verification**, customize the template and authorized domain list so links work from your GitHub Pages URL.
 
-`https://us-central1-<your-project-id>.cloudfunctions.net/sendWelcomeEmail`
+## 2) EmailJS (optional, free tier ~200 emails/month)
 
-## 2) Deploy Cloud Function
+1. Create an account at [https://www.emailjs.com/](https://www.emailjs.com/).
+2. Add an **email service** (e.g. Gmail) and note **Service ID**.
+3. Create two **templates**:
+   - **Welcome**: include variables such as `{{to_email}}`, `{{to_name}}`, `{{user_role}}`, `{{message}}`, `{{from_name}}` — set “To” field to `{{to_email}}` in the template UI.
+   - **Admin notify**: `{{to_email}}` = your inbox, plus `{{user_email}}`, `{{user_name}}`, `{{user_role}}`, `{{message}}`, `{{from_name}}`.
+4. Copy **Public Key** (User ID), template IDs, and service ID into `.env`:
 
-From repo root:
+- `VITE_EMAILJS_PUBLIC_KEY`
+- `VITE_EMAILJS_SERVICE_ID`
+- `VITE_EMAILJS_WELCOME_TEMPLATE_ID`
+- `VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID`
+- `VITE_ADMIN_NOTIFY_EMAIL` — inbox that receives “new signup” alerts (defaults in code if unset).
 
-```bash
-cd functions
-npm install
-```
+## 3) GitHub Actions / Pages
 
-Set required Firebase function secrets:
+Add the same variables as **repository secrets** so the deploy workflow can write `.env` before `npm run build`. Names match the `VITE_*` keys above (see `.github/workflows/deploy.yml`).
 
-```bash
-firebase functions:secrets:set SMTP_HOST
-firebase functions:secrets:set SMTP_PORT
-firebase functions:secrets:set SMTP_USER
-firebase functions:secrets:set SMTP_PASS
-firebase functions:secrets:set SMTP_FROM
-```
+## 4) Optional: Cloud Function welcome (Blaze + SMTP)
 
-Deploy:
+If you deploy `functions/` with SMTP secrets and set `VITE_WELCOME_EMAIL_FUNCTION_URL`, you can extend the client later to call that endpoint; the EmailJS path covers free welcome/admin mail without Firebase billing for Functions.
 
-```bash
-firebase deploy --only functions
-```
+## 5) Notes
 
-## 3) Firebase Console Email Template
-
-In Firebase Console:
-
-- Authentication -> Templates -> Email address verification
-- Customize subject/body and support email
-- Use production domain links
-
-## 4) Notes
-
-- Welcome email sending is idempotent; function sets custom claim `welcomeEmailSent=true`.
-- If SMTP temporarily fails, user can still log in; email send is retried on next login until successful.
-- For higher deliverability and analytics, use SES/SendGrid/Postmark SMTP.
+- **Resend verification**: On failed login due to unverified email, use **Resend verification email** (password required) to trigger another Firebase message.
+- Welcome/admin EmailJS sends are retried on later logins until at least one send succeeds (localStorage flag).
+- For deliverability at scale, consider SendGrid/Postmark/SES later; EmailJS is fine for early traffic.

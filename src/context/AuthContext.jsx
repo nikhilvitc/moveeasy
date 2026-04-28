@@ -7,6 +7,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "../lib/firebase";
+import { sendSignupEmails } from "../lib/emailService";
 
 const AuthContext = createContext(null);
 const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
@@ -51,22 +52,17 @@ function normalizeFirebaseError(error) {
   return error?.message || "Authentication failed. Please try again.";
 }
 
-async function triggerWelcomeEmail({ email, name, role, idToken }) {
-  const endpoint = import.meta.env.VITE_WELCOME_EMAIL_FUNCTION_URL;
-  if (!endpoint || !idToken) return;
-  try {
-    await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ email, name, role }),
-    });
-  } catch {
-    // Keep login success even if email dispatch endpoint is temporarily unavailable.
-  }
+const postVerifyEmailsKey = (email) => `moveasy_post_verify_emails:${String(email).toLowerCase().trim()}`;
+
+function queuePostVerifyEmails({ email, name, role }) {
+  const key = postVerifyEmailsKey(email);
+  if (typeof localStorage === "undefined" || localStorage.getItem(key)) return;
+  void sendSignupEmails({ email, name, role }).then((ok) => {
+    if (ok) localStorage.setItem(key, "1");
+  });
 }
+
+// Email sending is now handled by emailService.js via EmailJS
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -102,7 +98,14 @@ export function AuthProvider({ children }) {
     }
     try {
       const cred = await signInWithEmailAndPassword(auth, e, password);
-      // Skip email verification check — Spark plan doesn't reliably deliver emails
+      if (!cred.user.emailVerified) {
+        await signOut(auth);
+        return {
+          success: false,
+          error: "Please verify your email first. Check your inbox and spam for a message from Firebase / Google.",
+          unverified: true,
+        };
+      }
       const users = getUsers();
       const profile = users[e] || {};
       if (!users[e]) {
@@ -112,9 +115,28 @@ export function AuthProvider({ children }) {
       const u = { email: e, role: users[e]?.role || "customer", name: users[e]?.name || e.split("@")[0] };
       setUser(u);
       localStorage.setItem("moveasy_session", JSON.stringify(u));
-      const idToken = await cred.user.getIdToken();
-      await triggerWelcomeEmail({ email: u.email, name: u.name, role: u.role, idToken });
+      queuePostVerifyEmails({ email: u.email, name: u.name, role: u.role });
       return { success: true, role: u.role };
+    } catch (error) {
+      return { success: false, error: normalizeFirebaseError(error) };
+    }
+  };
+
+  const resendVerificationEmail = async (email, password) => {
+    const e = email.toLowerCase().trim();
+    if (ADMIN_EMAILS.includes(e)) return { success: false, error: "Use admin sign-in for this address." };
+    if (!isFirebaseConfigured) {
+      return { success: false, error: "Firebase is not configured." };
+    }
+    try {
+      const cred = await signInWithEmailAndPassword(auth, e, password);
+      if (cred.user.emailVerified) {
+        await signOut(auth);
+        return { success: false, error: "This account is already verified. Sign in normally." };
+      }
+      await sendEmailVerification(cred.user);
+      await signOut(auth);
+      return { success: true, info: "We sent another verification email. Check spam if you do not see it." };
     } catch (error) {
       return { success: false, error: normalizeFirebaseError(error) };
     }
@@ -136,20 +158,19 @@ export function AuthProvider({ children }) {
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, e, password);
-      // Save user profile locally
       users[e] = {
         name: name || e.split("@")[0],
         role: normalizedRole,
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
       };
       saveUsers(users);
-      // Log user in immediately — no email verification gate
-      const u = { email: e, role: normalizedRole, name: name || e.split("@")[0] };
-      setUser(u);
-      localStorage.setItem("moveasy_session", JSON.stringify(u));
-      const idToken = await cred.user.getIdToken();
-      await triggerWelcomeEmail({ email: u.email, name: u.name, role: u.role, idToken });
-      return { success: true, role: normalizedRole };
+      await sendEmailVerification(cred.user);
+      await signOut(auth);
+      return {
+        success: true,
+        requiresVerification: true,
+        info: "We sent a verification link to your email (from Firebase). Open it, then return here and sign in.",
+      };
     } catch (error) {
       return { success: false, error: normalizeFirebaseError(error) };
     }
@@ -266,6 +287,7 @@ export function AuthProvider({ children }) {
       loading,
       login,
       signup,
+      resendVerificationEmail,
       logout,
       requestSeller,
       approveSeller,
