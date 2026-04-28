@@ -10,19 +10,10 @@ import { auth, isFirebaseConfigured } from "../lib/firebase";
 import { sendSignupEmails } from "../lib/emailService";
 
 const AuthContext = createContext(null);
-const ADMIN_EMAILS = ["jiyanshudhaka20@gmail.com"];
-
-// Qodo Security Fix: SHA-256 Hash Function for Passwords
-async function hashPassword(password) {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Pre-computed SHA-256 hash of "moveasy_admin_2026"
-// The plain text password is no longer exposed in the public code!
-const ADMIN_SECRET_HASH = "5da9364841af9a59dd4427b956a812751a68ab9cb14f7a91355caa7fe1d5d6c9";
+const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "")
+  .split(",")
+  .map((e) => e.toLowerCase().trim())
+  .filter(Boolean);
 
 function getUsers() {
   try { return JSON.parse(localStorage.getItem("moveasy_users") || "{}"); } catch { return {}; }
@@ -71,24 +62,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const saved = localStorage.getItem("moveasy_session");
     if (saved) {
-      try { setUser(JSON.parse(saved)); } catch { localStorage.removeItem("moveasy_session"); }
+      try {
+        const parsed = JSON.parse(saved);
+        // Never trust persisted admin role from localStorage.
+        if (parsed?.role === "admin") {
+          localStorage.removeItem("moveasy_session");
+        } else {
+          setUser(parsed);
+        }
+      } catch {
+        localStorage.removeItem("moveasy_session");
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     const e = email.toLowerCase().trim();
-    const hashedSubmission = await hashPassword(password);
-
-    if (ADMIN_EMAILS.includes(e)) {
-      if (hashedSubmission === ADMIN_SECRET_HASH) {
-        const u = { email: e, role: "admin", name: "Admin" };
-        setUser(u);
-        localStorage.setItem("moveasy_session", JSON.stringify(u));
-        return { success: true, role: "admin" };
-      }
-      return { success: false, error: "Invalid admin credentials" };
-    }
     
     if (!isFirebaseConfigured) {
       return {
@@ -98,6 +88,18 @@ export function AuthProvider({ children }) {
     }
     try {
       const cred = await signInWithEmailAndPassword(auth, e, password);
+      const isAdmin = ADMIN_EMAILS.includes(e);
+      if (isAdmin) {
+        if (!cred.user.emailVerified) {
+          await signOut(auth);
+          return { success: false, error: "Admin email must be verified before sign-in." };
+        }
+        const u = { email: e, role: "admin", name: "Admin" };
+        setUser(u);
+        localStorage.removeItem("moveasy_session");
+        return { success: true, role: "admin" };
+      }
+
       if (!cred.user.emailVerified) {
         await signOut(auth);
         return {
@@ -271,7 +273,7 @@ export function AuthProvider({ children }) {
   };
 
   const refreshRole = () => {
-    if (!user || ADMIN_EMAILS.includes(user.email)) return;
+    if (!user || user.role === "admin") return;
     const users = getUsers();
     const u = users[user.email];
     if (u && u.role !== user.role) {

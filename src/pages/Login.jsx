@@ -31,6 +31,10 @@ export default function Login() {
       setError("Admin mode supports sign in only.");
       return;
     }
+    if (selectedAccountType === "admin" && ADMIN_EMAILS.length === 0) {
+      setError("Admin login is not configured. Set VITE_ADMIN_EMAILS in environment.");
+      return;
+    }
     if (selectedAccountType !== "admin" && isAdminEmail) {
       setError("You entered admin email in customer/seller mode. Select Admin card to continue.");
       return;
@@ -106,8 +110,7 @@ export default function Login() {
                   setInfo("");
                   if (card.id === "admin") {
                     setIsSignup(false);
-                    setEmail("jiyanshudhaka20@gmail.com");
-                    setInfo("Admin mode selected. Use admin credentials to sign in.");
+                    setInfo("Admin mode selected. Enter your admin credentials to sign in.");
                     return;
                   }
                   setIsSignup(true);
