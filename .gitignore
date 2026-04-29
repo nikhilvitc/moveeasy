@@ -4,6 +4,7 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+<<<<<<< HEAD
 firebase-debug.log*
 firebase-debug.*.log*
 
@@ -67,3 +68,41 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+=======
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.opencode
+openspec
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# Environment
+.env
+.env.local
+
+# Local dev scripts
+build-production.js
+restart.bat
+
+# Playwright
+playwright-report/
+test-results/
+>>>>>>> a15c2adb624b7692de7ee8fe608ac5841afc11f8
