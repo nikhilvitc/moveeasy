@@ -1,20 +1,9 @@
-import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  // Smart scroller that safely handles React HashRouter conflicts
-  const scrollTo = (id) => {
-    if (window.location.hash && window.location.hash !== "#/") {
-      navigate("/");
-      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }), 300);
-    } else {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   return (
     <nav className="sticky top-0 z-50 flex items-center justify-between px-4 md:px-8 py-4 bg-white border-b border-gray-100 shadow-sm">
@@ -27,11 +16,12 @@ export default function Navbar() {
 
       {/* CENTER LINKS */}
       <div className="hidden lg:flex items-center gap-8 text-[15px] font-semibold text-gray-600">
-        <span onClick={() => scrollTo("services")} className="cursor-pointer hover:text-black transition-colors">Services</span>
-        <span onClick={() => scrollTo("guarantee")} className="cursor-pointer hover:text-black transition-colors">Guarantee</span>
-        <span onClick={() => scrollTo("listings")} className="cursor-pointer hover:text-black transition-colors">Listings</span>
+        <span onClick={() => navigate("/services")} className="cursor-pointer hover:text-black transition-colors">Services</span>
+        <span onClick={() => navigate("/guarantee")} className="cursor-pointer hover:text-black transition-colors">Guarantee</span>
+        <span onClick={() => navigate("/map")} className="cursor-pointer hover:text-black transition-colors">Listings</span>
+        <span onClick={() => navigate("/contact")} className="cursor-pointer hover:text-black transition-colors">Contact</span>
         
-        {/* NEW EXPLORE MAP BUTTON */}
+        {/* EXPLORE MAP BUTTON */}
          <button 
            onClick={() => navigate("/map")} 
            className="cursor-pointer font-bold text-blue-700 bg-blue-50 px-5 py-1.5 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-2 border border-blue-200"
@@ -43,7 +33,7 @@ export default function Navbar() {
       {/* RIGHT SIDE (AUTH & ACTIONS) */}
       <div className="flex items-center gap-4">
         <button 
-          onClick={() => navigate("/map")}
+          onClick={() => navigate("/contact")}
           className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-black rounded-full hover:bg-gray-50 transition-colors">
           Book A Consultation
         </button>

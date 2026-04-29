@@ -1,11 +1,13 @@
 // src/components/sections/GuaranteeEnrollCTA.jsx
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useInView } from "react-intersection-observer";
 import secureDepositImg from "../../assets/images/guarentee-secure-deposit.png";
 
 const EASE = [0.22, 1, 0.36, 1];
 
 export default function GuaranteeEnrollCTA() {
+  const navigate = useNavigate();
   const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
 
   return (
@@ -70,6 +72,7 @@ export default function GuaranteeEnrollCTA() {
               className="mt-9 flex flex-col items-center gap-3"
             >
               <button
+                onClick={() => navigate('/checkout')}
                 className="
                   px-10 sm:px-12 py-[14px] sm:py-[16px]
                   text-[14.5px] sm:text-[15px] font-semibold uppercase tracking-[0.08em]

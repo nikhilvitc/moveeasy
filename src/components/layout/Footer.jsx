@@ -1,33 +1,21 @@
 // src/components/layout/Footer.jsx
 import logoSvg from "../../assets/logo/moveasy.svg";
-// ─────────────────────────────────────────────────────────────────────────────
-// Footer — exactly matches Figma design
-//
-// Desktop layout:
-//   Left  : MovEASY logo | copyright text below
-//   Right : legal nav links (Terms of Service underlined, Privacy Policy, etc.)
-//
-// Mobile layout:
-//   Logo + copyright stacked
-//   Links wrap below in two rows
-//
-// Border: subtle top border separating from page content
-// ─────────────────────────────────────────────────────────────────────────────
-
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 
 const EASE = [0.22, 1, 0.36, 1];
 
 const FOOTER_LINKS = [
-  { label: "Terms of Service", href: "#",   underline: true },
-  { label: "Privacy Policy",   href: "#",   underline: false },
-  { label: "Cookie Policy",    href: "#",   underline: false },
-  { label: "Support",          href: "#",   underline: false },
-  { label: "Contact",          href: "#",   underline: false },
+  { label: "Terms of Service", route: "/terms",   underline: true },
+  { label: "Privacy Policy",   route: "/privacy", underline: false },
+  { label: "Services",         route: "/services", underline: false },
+  { label: "Support",          route: "/contact", underline: false },
+  { label: "Contact",          route: "/contact", underline: false },
 ];
 
 export default function Footer() {
+  const navigate = useNavigate();
   const { ref, inView } = useInView({ threshold: 0.3, triggerOnce: true });
 
   return (
@@ -48,13 +36,13 @@ export default function Footer() {
         >
           {/* ── Left: Logo + copyright ─────────────────────────────── */}
           <div className="flex flex-col gap-1.5">
-            <a href="/" className="inline-block">
+            <span onClick={() => navigate("/")} className="inline-block cursor-pointer">
               <img
                 src={logoSvg}
                 alt="MovEASY"
                 className="h-8 w-auto"
               />
-            </a>
+            </span>
             <p className="text-[11.5px] text-gray-400 uppercase tracking-wide font-medium">
               © 2024 Moveazy Architectural Relocation. All Rights Reserved.
             </p>
@@ -65,21 +53,22 @@ export default function Footer() {
             aria-label="Footer navigation"
             className="flex flex-wrap items-center gap-x-6 gap-y-2"
           >
-            {FOOTER_LINKS.map(({ label, href, underline }) => (
-              <a
+            {FOOTER_LINKS.map(({ label, route, underline }) => (
+              <span
                 key={label}
-                href={href}
+                onClick={() => navigate(route)}
                 className={`
                   text-[12px] sm:text-[12.5px]
                   font-medium text-gray-500
                   uppercase tracking-wide
                   hover:text-gray-900
                   transition-colors duration-150
+                  cursor-pointer
                   ${underline ? "underline underline-offset-2" : ""}
                 `}
               >
                 {label}
-              </a>
+              </span>
             ))}
           </nav>
 

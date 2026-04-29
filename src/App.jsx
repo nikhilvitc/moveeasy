@@ -7,6 +7,13 @@ import MapView from "./components/MapView";
 import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import Services from "./pages/Services";
+import Guarantee from "./pages/Guarantee";
+import Listings from "./pages/Listings";
+import Contact from "./pages/Contact";
+import Checkout from "./pages/Checkout";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 function RoleRoute({ children, role }) {
   const { user, loading } = useAuth();
@@ -23,6 +30,14 @@ function AppRoutes() {
       <Route path="/v2" element={<HomeV2 />} />
       <Route path="/login" element={<Login />} />
       <Route path="/map" element={<MapView />} />
+      <Route path="/services" element={<Services />} />
+      <Route path="/guarantee" element={<Guarantee />} />
+      <Route path="/listings" element={<Listings />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/checkout" element={<Checkout />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/support" element={<Navigate to="/contact" replace />} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
       <Route path="/seller" element={<RoleRoute role="seller"><SellerDashboard /></RoleRoute>} />
       <Route path="/customer" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />

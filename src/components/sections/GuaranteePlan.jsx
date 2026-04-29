@@ -120,7 +120,7 @@ export default function GuaranteePlan() {
               className="mt-9"
             >
               <button 
-                onClick={() => navigate('/map')}
+                onClick={() => navigate('/guarantee')}
                 className="
                 px-10 py-[14px]
                 text-[13.5px] font-semibold tracking-widest uppercase

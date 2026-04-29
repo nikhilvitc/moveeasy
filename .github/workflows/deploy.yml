@@ -36,6 +36,7 @@ jobs:
           echo "VITE_EMAILJS_WELCOME_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_WELCOME_TEMPLATE_ID }}" >> .env
           echo "VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID }}" >> .env
           echo "VITE_ADMIN_NOTIFY_EMAIL=${{ secrets.VITE_ADMIN_NOTIFY_EMAIL }}" >> .env
+          echo "VITE_ADMIN_EMAILS=${{ secrets.VITE_ADMIN_EMAILS }}" >> .env
 
       - run: npm run build
         env:
