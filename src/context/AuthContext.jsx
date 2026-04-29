@@ -2,18 +2,41 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { gmailSignupErrorMessage, isGmailAddress } from "../lib/emailPolicy";
 import {
   createUserWithEmailAndPassword,
+  onAuthStateChanged,
   sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { auth, isFirebaseConfigured } from "../lib/firebase";
-import { sendSignupEmails } from "../lib/emailService";
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { auth, db, isFirebaseConfigured } from "../lib/firebase";
+import { triggerVerifiedOnboardingEmails } from "../lib/emailService";
+import { createProfileAfterSignup, getProfileByEmail, getProfileForUser } from "../lib/profileService";
 
 const AuthContext = createContext(null);
-const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "")
+const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
   .split(",")
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
+
+function getCachedSessionUser() {
+  if (isFirebaseConfigured) return null;
+  try {
+    const cached = sessionStorage.getItem("moveasy_session_user");
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    sessionStorage.removeItem("moveasy_session_user");
+    return null;
+  }
+}
+
+function ensureLocalAccounts() {
+  const users = getUsers();
+  for (const adminEmail of ADMIN_EMAILS) {
+    users[adminEmail] = { ...(users[adminEmail] || {}), name: users[adminEmail]?.name || "MovEasy Admin", role: "admin" };
+  }
+  saveUsers(users);
+  return users;
+}
 
 function getUsers() {
   try { return JSON.parse(localStorage.getItem("moveasy_users") || "{}"); } catch { return {}; }
@@ -31,6 +54,18 @@ function normalizeSellerBadgeStatus(value) {
   return "none";
 }
 
+function isE2EAuthBypassEnabled() {
+  return import.meta.env.MODE !== "production" && localStorage.getItem("moveasy_e2e_auth_bypass") === "1";
+}
+
+function getE2EVerifiedAccounts() {
+  try { return JSON.parse(localStorage.getItem("moveasy_e2e_verified") || "{}"); } catch { return {}; }
+}
+
+function saveE2EVerifiedAccounts(value) {
+  localStorage.setItem("moveasy_e2e_verified", JSON.stringify(value));
+}
+
 function normalizeFirebaseError(error) {
   const code = error?.code || "";
   if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
@@ -43,63 +78,76 @@ function normalizeFirebaseError(error) {
   return error?.message || "Authentication failed. Please try again.";
 }
 
-const postVerifyEmailsKey = (email) => `moveasy_post_verify_emails:${String(email).toLowerCase().trim()}`;
-
-function queuePostVerifyEmails({ email, name, role }) {
-  const key = postVerifyEmailsKey(email);
-  if (typeof localStorage === "undefined" || localStorage.getItem(key)) return;
-  void sendSignupEmails({ email, name, role }).then((ok) => {
-    if (ok) localStorage.setItem(key, "1");
-  });
-}
-
-// Email sending is now handled by emailService.js via EmailJS
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => getCachedSessionUser());
+  const [loading, setLoading] = useState(() => isFirebaseConfigured);
+  const [pendingSellerBadgeApplications, setPendingSellerBadgeApplications] = useState([]);
+
+  const loadPendingSellerBadgeApplications = async () => {
+    if (!isFirebaseConfigured) return;
+    const badgeQuery = query(collection(db, "userProfiles"), where("sellerBadgeStatus", "==", "pending"));
+    const snap = await getDocs(badgeQuery);
+    setPendingSellerBadgeApplications(snap.docs.map((profileDoc) => {
+      const data = profileDoc.data();
+      return { uid: profileDoc.id, email: data.email, name: data.name || String(data.email || "seller").split("@")[0], application: data.sellerBadgeApplication || null };
+    }));
+  };
 
   useEffect(() => {
-    const saved = localStorage.getItem("moveasy_session");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Never trust persisted admin role from localStorage.
-        if (parsed?.role === "admin") {
-          localStorage.removeItem("moveasy_session");
-        } else {
-          setUser(parsed);
-        }
-      } catch {
-        localStorage.removeItem("moveasy_session");
-      }
+    if (!isFirebaseConfigured) {
+      ensureLocalAccounts();
+      setLoading(false);
+      return undefined;
     }
-    setLoading(false);
+    return onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser || !firebaseUser.emailVerified) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      try {
+        const profile = await getProfileForUser(firebaseUser);
+        setUser({ email: profile.email, role: profile.role || "customer", name: profile.name });
+        if (profile.role === "admin") loadPendingSellerBadgeApplications();
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    });
   }, []);
 
   const login = async (email, password) => {
     const e = email.toLowerCase().trim();
+
+    if (isE2EAuthBypassEnabled()) {
+      const users = getUsers();
+      const verified = getE2EVerifiedAccounts();
+      if (!users[e]) return { success: false, error: "Invalid email or password." };
+      if (!verified[e]) {
+        return {
+          success: false,
+          error: "Please verify your email first. Check your inbox and spam for a message from Firebase / Google.",
+          unverified: true,
+        };
+      }
+      const u = { email: e, role: users[e].role || "customer", name: users[e].name || e.split("@")[0] };
+      setUser(u);
+      return { success: true, role: u.role };
+    }
     
     if (!isFirebaseConfigured) {
-      return {
-        success: false,
-        error: "Email verification is not configured. Add Firebase env keys to enable real mailbox verification.",
-      };
+      const users = ensureLocalAccounts();
+      const local = users[e];
+      if (!local || local.password !== password) return { success: false, error: "Invalid email or password." };
+      const u = { email: e, role: local.role || "customer", name: local.name || e.split("@")[0] };
+      setUser(u);
+      sessionStorage.setItem("moveasy_session_user", JSON.stringify(u));
+      return { success: true, role: u.role };
     }
     try {
       const cred = await signInWithEmailAndPassword(auth, e, password);
-      const isAdmin = ADMIN_EMAILS.includes(e);
-      if (isAdmin) {
-        if (!cred.user.emailVerified) {
-          await signOut(auth);
-          return { success: false, error: "Admin email must be verified before sign-in." };
-        }
-        const u = { email: e, role: "admin", name: "Admin" };
-        setUser(u);
-        localStorage.removeItem("moveasy_session");
-        return { success: true, role: "admin" };
-      }
-
       if (!cred.user.emailVerified) {
         await signOut(auth);
         return {
@@ -108,17 +156,17 @@ export function AuthProvider({ children }) {
           unverified: true,
         };
       }
-      const users = getUsers();
-      const profile = users[e] || {};
-      if (!users[e]) {
-        users[e] = { name: profile.name || e.split("@")[0], role: profile.role || "customer" };
-        saveUsers(users);
-      }
-      const u = { email: e, role: users[e]?.role || "customer", name: users[e]?.name || e.split("@")[0] };
+      const profile = await getProfileForUser(cred.user);
+      const u = { email: e, role: profile.role || "customer", name: profile.name || e.split("@")[0] };
       setUser(u);
-      localStorage.setItem("moveasy_session", JSON.stringify(u));
-      queuePostVerifyEmails({ email: u.email, name: u.name, role: u.role });
-      return { success: true, role: u.role };
+      const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
+      return {
+        success: true,
+        role: u.role,
+        emailWarning: onboardingEmail.ok || onboardingEmail.alreadySent
+          ? ""
+          : onboardingEmail.error || "Welcome email is queued for retry.",
+      };
     } catch (error) {
       return { success: false, error: normalizeFirebaseError(error) };
     }
@@ -126,7 +174,12 @@ export function AuthProvider({ children }) {
 
   const resendVerificationEmail = async (email, password) => {
     const e = email.toLowerCase().trim();
-    if (ADMIN_EMAILS.includes(e)) return { success: false, error: "Use admin sign-in for this address." };
+    if (isE2EAuthBypassEnabled()) {
+      const verified = getE2EVerifiedAccounts();
+      verified[e] = true;
+      saveE2EVerifiedAccounts(verified);
+      return { success: true, info: "We sent another verification email. Check spam if you do not see it." };
+    }
     if (!isFirebaseConfigured) {
       return { success: false, error: "Firebase is not configured." };
     }
@@ -146,26 +199,40 @@ export function AuthProvider({ children }) {
 
   const signup = async (email, password, name, role = "customer") => {
     const e = email.toLowerCase().trim();
-    if (ADMIN_EMAILS.includes(e)) return { success: false, error: "This email is reserved." };
     if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
-    if (!isFirebaseConfigured) {
-      return {
-        success: false,
-        error: "Firebase email verification is not configured. Add VITE_FIREBASE_* keys first.",
-      };
-    }
     const users = getUsers();
-    if (users[e]) return { success: false, error: "Account already exists. Please login." };
     const normalizedRole = role === "seller" ? "seller" : "customer";
-
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, e, password);
+    if (isE2EAuthBypassEnabled()) {
+      if (users[e]) return { success: false, error: "Account already exists. Please login." };
       users[e] = {
         name: name || e.split("@")[0],
         role: normalizedRole,
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
       };
       saveUsers(users);
+      return {
+        success: true,
+        requiresVerification: true,
+        info: "We sent a verification link to your email (from Firebase). Open it, then return here and sign in.",
+      };
+    }
+    if (!isFirebaseConfigured) {
+      if (users[e]) return { success: false, error: "Account already exists. Please login." };
+      users[e] = {
+        name: name || e.split("@")[0],
+        role: normalizedRole,
+        password,
+        sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
+      };
+      saveUsers(users);
+      const u = { email: e, role: normalizedRole, name: users[e].name };
+      setUser(u);
+      sessionStorage.setItem("moveasy_session_user", JSON.stringify(u));
+      return { success: true, role: normalizedRole };
+    }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, e, password);
+      await createProfileAfterSignup({ firebaseUser: cred.user, name: name || e.split("@")[0], role: normalizedRole });
       await sendEmailVerification(cred.user);
       await signOut(auth);
       return {
@@ -179,6 +246,7 @@ export function AuthProvider({ children }) {
   };
 
   const getPendingSellerBadgeApplications = () => {
+    if (isFirebaseConfigured) return pendingSellerBadgeApplications;
     const users = getUsers();
     return Object.entries(users)
       .filter(([, value]) => (value.role || "customer") === "seller" && normalizeSellerBadgeStatus(value.sellerBadgeStatus) === "pending")
@@ -189,8 +257,20 @@ export function AuthProvider({ children }) {
       }));
   };
 
-  const submitSellerBadgeApplication = ({ phone, businessName, gst }) => {
+  const submitSellerBadgeApplication = async ({ phone, businessName, gst }) => {
     if (!user?.email) return { success: false, error: "Not signed in." };
+    if (isFirebaseConfigured) {
+      const profile = await getProfileByEmail(user.email);
+      if (!profile || profile.role !== "seller") return { success: false, error: "Only seller accounts can request a verified badge." };
+      if (normalizeSellerBadgeStatus(profile.sellerBadgeStatus) === "verified") return { success: false, error: "You are already verified." };
+      if (!String(phone || "").trim() || !String(businessName || "").trim()) return { success: false, error: "Business name and phone are required." };
+      await updateDoc(doc(db, "userProfiles", profile.uid), {
+        sellerBadgeStatus: "pending",
+        sellerBadgeApplication: { phone: String(phone).trim(), businessName: String(businessName).trim(), gst: String(gst || "").trim(), submittedAt: new Date().toISOString() },
+        updatedAt: serverTimestamp(),
+      });
+      return { success: true };
+    }
     const users = getUsers();
     const row = users[user.email];
     if (!row || (row.role || "customer") !== "seller") {
@@ -216,8 +296,15 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
-  const approveSellerBadge = (email) => {
+  const approveSellerBadge = async (email) => {
     const e = String(email).toLowerCase().trim();
+    if (isFirebaseConfigured) {
+      const profile = await getProfileByEmail(e);
+      if (!profile) return false;
+      await updateDoc(doc(db, "userProfiles", profile.uid), { sellerBadgeStatus: "verified", sellerBadgeVerifiedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      await loadPendingSellerBadgeApplications();
+      return true;
+    }
     const users = getUsers();
     if (!users[e]) return false;
     users[e] = {
@@ -229,8 +316,15 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  const rejectSellerBadge = (email) => {
+  const rejectSellerBadge = async (email) => {
     const e = String(email).toLowerCase().trim();
+    if (isFirebaseConfigured) {
+      const profile = await getProfileByEmail(e);
+      if (!profile) return false;
+      await updateDoc(doc(db, "userProfiles", profile.uid), { sellerBadgeStatus: "rejected", sellerBadgeRejectedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      await loadPendingSellerBadgeApplications();
+      return true;
+    }
     const users = getUsers();
     if (!users[e]) return false;
     users[e] = {
@@ -250,8 +344,13 @@ export function AuthProvider({ children }) {
     saveSellerRequests(requests);
   };
 
-  const approveSeller = (email) => {
+  const approveSeller = async (email) => {
     const e = String(email).toLowerCase().trim();
+    if (isFirebaseConfigured) {
+      const profile = await getProfileByEmail(e);
+      if (profile) await setDoc(doc(db, "userRoles", profile.uid), { uid: profile.uid, email: e, role: "seller", updatedAt: serverTimestamp() }, { merge: true });
+      return;
+    }
     const users = getUsers();
     if (users[e]) { users[e].role = "seller"; saveUsers(users); }
     const requests = getSellerRequests();
@@ -266,20 +365,25 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     setUser(null);
-    localStorage.removeItem("moveasy_session");
+    sessionStorage.removeItem("moveasy_session_user");
     if (isFirebaseConfigured) {
       try { await signOut(auth); } catch { /* noop */ }
     }
   };
 
   const refreshRole = () => {
-    if (!user || user.role === "admin") return;
+    if (!user) return;
+    if (isFirebaseConfigured) {
+      auth.currentUser && getProfileForUser(auth.currentUser).then((profile) => {
+        if (profile.role !== user.role) setUser({ email: profile.email, role: profile.role, name: profile.name });
+      }).catch(() => undefined);
+      return;
+    }
     const users = getUsers();
     const u = users[user.email];
     if (u && u.role !== user.role) {
       const updated = { ...user, role: u.role };
       setUser(updated);
-      localStorage.setItem("moveasy_session", JSON.stringify(updated));
     }
   };
 
@@ -300,7 +404,6 @@ export function AuthProvider({ children }) {
       submitSellerBadgeApplication,
       approveSellerBadge,
       rejectSellerBadge,
-      ADMIN_EMAILS,
     }}>
       {children}
     </AuthContext.Provider>

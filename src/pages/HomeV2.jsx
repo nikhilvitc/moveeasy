@@ -104,7 +104,7 @@ export default function HomeV2() {
 
         <section>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", gap: "12px", flexWrap: "wrap" }}>
-            <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 500 }}>Homes we think you’ll love</h2>
+            <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 500 }}>Homes we think you'll love</h2>
             <button type="button" onClick={() => navigate("/map")} style={{ border: "none", background: "none", color: palette.ink, textDecoration: "underline", fontSize: "14px" }}>
               View all on map
             </button>

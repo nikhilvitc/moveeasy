@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { addAssignment, getAllUsers, getAssignments, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
-import { ingestBrokerListings, ingestPartnerListings } from "../lib/externalFeeds";
+import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
+import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
+import { isFirebaseConfigured } from "../lib/firebase";
+import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData } from "../lib/firestoreStore";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -14,6 +16,11 @@ const DEFAULT_FORM = {
   seller: "",
   sellerEmail: "",
   contact: "",
+  image: "",
+  imagesText: "",
+  source: "manual",
+  sourceUrl: "",
+  description: "",
   monthlyRent: 25000,
   availability: "Immediate",
   propertyType: "Apartment",
@@ -50,6 +57,11 @@ function listingToForm(listing) {
     seller: listing.seller || "",
     sellerEmail: listing.sellerEmail || "",
     contact: listing.contact || "",
+    image: listing.image || listing.images?.[0] || "",
+    imagesText: Array.isArray(listing.images) ? listing.images.join("\n") : "",
+    source: listing.source || "manual",
+    sourceUrl: listing.sourceUrl || "",
+    description: listing.description || "",
     monthlyRent: Number(listing.monthlyRent || 25000),
     availability: listing.availability || "Immediate",
     propertyType: listing.propertyType || "Apartment",
@@ -77,42 +89,68 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [pinPosition, setPinPosition] = useState([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
-  const [assignment, setAssignment] = useState({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
   const [feedJson, setFeedJson] = useState("");
   const [importBrokerName, setImportBrokerName] = useState("");
   const [importSourceName, setImportSourceName] = useState("manual-transfer");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("customer");
   const [newUserName, setNewUserName] = useState("");
+  const [listingsState, setListingsState] = useState([]);
+  const [usersState, setUsersState] = useState([]);
+  const [sellerReqsState, setSellerReqsState] = useState([]);
+  const [photoFiles, setPhotoFiles] = useState([]);
 
-  const listings = useMemo(() => getListings(), [refreshTick]);
-  const assignments = useMemo(() => getAssignments(), [refreshTick]);
-  const users = useMemo(() => getAllUsers(), [refreshTick]);
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      if (isFirebaseConfigured) {
+        const [remoteListings, remoteUsers, remoteSellerReqs] = await Promise.all([getListingsData(), getAllUsersData(), getSellerRequestsData()]);
+        if (!alive) return;
+        setListingsState(remoteListings);
+        setUsersState(remoteUsers);
+        setSellerReqsState(remoteSellerReqs);
+      } else {
+        setListingsState(getListings());
+        setUsersState(getAllUsers());
+        setSellerReqsState(getSellerRequests().filter((r) => r.status === "pending"));
+      }
+    }
+    load().catch(() => undefined);
+    return () => { alive = false; };
+  }, [refreshTick]);
 
-  const customers = users.filter((u) => u.role === "customer");
-  const sellers = users.filter((u) => u.role === "seller");
-  const sellerReqs = useMemo(() => getSellerRequests().filter((r) => r.status === "pending"), [refreshTick]);
+  const listings = listingsState;
+  const users = usersState;
+
+  const sellerReqs = sellerReqsState;
   const pendingSellerBadgeApps = useMemo(() => {
     if (typeof getPendingSellerBadgeApplications === 'function') {
       return getPendingSellerBadgeApplications();
     }
     return [];
-  }, [refreshTick, getPendingSellerBadgeApplications]);
+  }, [getPendingSellerBadgeApplications]);
 
-  const handleSubmitListing = (e) => {
+  const handleSubmitListing = async (e) => {
     e.preventDefault();
+    const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, editingId || crypto.randomUUID()) : [];
+    const manualImages = String(form.imagesText || form.image || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+    const allImages = [...uploadedImages, ...manualImages];
     const payload = {
       ...form,
-      id: editingId || Date.now(),
+      id: editingId || String(Date.now()),
       lat: Number(pinPosition?.[0] ?? form.lat),
       lng: Number(pinPosition?.[1] ?? form.lng),
       preferredTenants: toList(form.preferredTenants, ["Family"]),
       parking: toList(form.parking, ["2 Wheeler"]),
+      images: allImages,
+      image: form.image || allImages[0] || "",
       updatedAt: new Date().toISOString(),
     };
-    upsertListing(payload);
+    if (isFirebaseConfigured) await upsertListingData(payload, user);
+    else upsertListing(payload);
     setEditingId(null);
     setForm(DEFAULT_FORM);
+    setPhotoFiles([]);
     setPinPosition([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
     setRefreshTick((v) => v + 1);
   };
@@ -125,13 +163,14 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = (id) => {
-    removeListing(id);
+  const handleDelete = async (id) => {
+    if (isFirebaseConfigured) await removeListingData(id);
+    else removeListing(id);
     setRefreshTick((v) => v + 1);
   };
 
-  const handleApprove = (email) => {
-    approveSeller(email);
+  const handleApprove = async (email) => {
+    await approveSeller(email);
     setRefreshTick((v) => v + 1);
   };
 
@@ -140,43 +179,40 @@ export default function AdminDashboard() {
     setRefreshTick((v) => v + 1);
   };
 
-  const handleApproveSellerBadge = (email) => {
-    approveSellerBadge(email);
+  const handleApproveSellerBadge = async (email) => {
+    await approveSellerBadge(email);
     setRefreshTick((v) => v + 1);
   };
 
-  const handleRejectSellerBadge = (email) => {
-    rejectSellerBadge(email);
+  const handleRejectSellerBadge = async (email) => {
+    await rejectSellerBadge(email);
     setRefreshTick((v) => v + 1);
   };
 
-  const handleRemoveUser = (email) => {
-    removeUserLocally(email);
+  const handleRemoveUser = async (email) => {
+    if (isFirebaseConfigured) await removeUserProfileData(email);
+    else removeUserLocally(email);
     setRefreshTick((v) => v + 1);
   };
 
-  const handleAddUser = (e) => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
     if (!newUserEmail.trim()) return;
-    addUserLocally(newUserEmail, newUserName, newUserRole);
+    if (isFirebaseConfigured) await addUserProfileData(newUserEmail, newUserName, newUserRole);
+    else addUserLocally(newUserEmail, newUserName, newUserRole);
     setNewUserEmail("");
     setNewUserName("");
     setRefreshTick((v) => v + 1);
   };
 
-  const handleAssign = (e) => {
-    e.preventDefault();
-    if (!assignment.listingId || !assignment.customerEmail || !assignment.sellerEmail) return;
-    addAssignment({ ...assignment, listingId: Number(assignment.listingId), createdBy: user?.email });
-    setAssignment({ listingId: "", customerEmail: "", sellerEmail: "", notes: "" });
-    setRefreshTick((v) => v + 1);
-  };
-
-  const handleFeedImport = () => {
+  const handleFeedImport = async () => {
     if (!feedJson.trim()) return;
     try {
       const parsed = JSON.parse(feedJson);
-      const result = ingestPartnerListings(parsed, "partner-import");
+      const rows = normalizePartnerListings(parsed, "partner-import");
+      if (isFirebaseConfigured) await Promise.all(rows.map((row) => upsertListingData(row, user)));
+      else ingestPartnerListings(parsed, "partner-import");
+      const result = { imported: rows.length };
       alert("Imported " + result.imported + " listings");
       setFeedJson("");
       setRefreshTick((v) => v + 1);
@@ -185,7 +221,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleBrokerImport = () => {
+  const handleBrokerImport = async () => {
     if (!importBrokerName.trim()) {
       alert("Enter broker name first");
       return;
@@ -194,16 +230,19 @@ export default function AdminDashboard() {
       alert("Paste broker listing export data first");
       return;
     }
-    const result = ingestBrokerListings({
+    const rows = normalizeBrokerListings({ brokerName: importBrokerName.trim(), rawInput: feedJson });
+    if (isFirebaseConfigured) await Promise.all(rows.map((row) => upsertListingData({ ...row, source: `${importSourceName || "manual-transfer"}:${importBrokerName.trim()}` }, user)));
+    else ingestBrokerListings({
       brokerName: importBrokerName.trim(),
       rawInput: feedJson,
       sourceName: importSourceName || "manual-transfer",
     });
-    if (!result.imported) {
+    const imported = rows.length;
+    if (!imported) {
       alert("No listings imported.");
       return;
     }
-    alert("Imported " + result.imported + " listings for broker " + importBrokerName.trim());
+    alert("Imported " + imported + " listings for broker " + importBrokerName.trim());
     setFeedJson("");
     setRefreshTick((v) => v + 1);
   };
@@ -301,6 +340,13 @@ export default function AdminDashboard() {
             <input placeholder="Address" required value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
             <input placeholder="Seller name" required value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
             <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
+            <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
+            <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
+            <input type="file" accept="image/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} />
+            <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
+            <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
+            <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: "span 2", minHeight: "70px" }} />
+            <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: "span 2", minHeight: "70px" }} />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>
           <div style={{ marginTop: "12px", fontSize: "12px" }}>
@@ -354,7 +400,7 @@ export default function AdminDashboard() {
             <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{l.title}</div>
-                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller}</div>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}</div>
               </div>
               <div style={{ fontWeight: 700, color: "#16a34a", marginRight: "16px" }}>{l.price}</div>
               <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", marginRight: "8px" }}>Edit</button>

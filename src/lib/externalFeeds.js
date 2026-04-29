@@ -3,11 +3,18 @@ import { upsertListing } from "./store";
 // This module is intentionally legal-safe: it ingests partner-provided feed JSON.
 // Do not scrape third-party portals without written permission and API terms.
 export function ingestPartnerListings(feedRows = [], sourceName = "partner-feed") {
-  if (!Array.isArray(feedRows)) return { imported: 0 };
+  const normalizedRows = normalizePartnerListings(feedRows, sourceName);
+  for (const row of normalizedRows) upsertListing(row);
+  return { imported: normalizedRows.length };
+}
+
+export function normalizePartnerListings(feedRows = [], sourceName = "partner-feed") {
+  if (!Array.isArray(feedRows)) return [];
   let imported = 0;
+  const rows = [];
   for (const row of feedRows) {
     if (!row?.title || !row?.lat || !row?.lng) continue;
-    upsertListing({
+    rows.push({
       id: row.id || Date.now() + imported,
       title: row.title,
       price: row.priceLabel || `₹ ${row.monthlyRent || 0}`,
@@ -24,12 +31,15 @@ export function ingestPartnerListings(feedRows = [], sourceName = "partner-feed"
       propertyType: row.propertyType || "Apartment",
       furnishing: row.furnishing || "Semi",
       parking: row.parking || ["2 Wheeler"],
+      image: row.image || row.photo || row.images?.[0] || "",
+      images: Array.isArray(row.images) ? row.images : String(row.images || row.photos || "").split(/[|;]/).map((item) => item.trim()).filter(Boolean),
+      description: row.description || row.details || "",
       source: sourceName,
       sourceUrl: row.sourceUrl || "",
     });
     imported += 1;
   }
-  return { imported };
+  return rows;
 }
 
 function parseSeparatedText(text) {
@@ -101,6 +111,9 @@ function normalizeRows(rawRows, brokerName) {
       availability: pickValue(row, ["availability"], "Immediate"),
       propertyType: pickValue(row, ["propertytype", "proptype"], "Apartment"),
       furnishing: pickValue(row, ["furnishing"], "Semi"),
+      image: pickValue(row, ["image", "photo", "thumbnail"]),
+      images: pickValue(row, ["images", "photos", "gallery"]),
+      description: pickValue(row, ["description", "details", "summary"]),
     }))
     .filter((row) => row.title && Number.isFinite(row.lat) && Number.isFinite(row.lng))
     .filter((row) => {
@@ -111,6 +124,12 @@ function normalizeRows(rawRows, brokerName) {
 }
 
 export function ingestBrokerListings({ brokerName, rawInput, sourceName = "broker-import" }) {
+  const normalized = normalizeBrokerListings({ brokerName, rawInput });
+  const result = ingestPartnerListings(normalized, `${sourceName}:${brokerName || "unknown-broker"}`);
+  return { imported: result.imported, parsed: normalized.parsed || 0 };
+}
+
+export function normalizeBrokerListings({ brokerName, rawInput }) {
   if (!rawInput || !String(rawInput).trim()) return { imported: 0, parsed: 0 };
   let rows = [];
   try {
@@ -120,6 +139,6 @@ export function ingestBrokerListings({ brokerName, rawInput, sourceName = "broke
     rows = parseSeparatedText(rawInput);
   }
   const normalized = normalizeRows(rows, brokerName);
-  const result = ingestPartnerListings(normalized, `${sourceName}:${brokerName || "unknown-broker"}`);
-  return { imported: result.imported, parsed: rows.length };
+  normalized.parsed = rows.length;
+  return normalized;
 }

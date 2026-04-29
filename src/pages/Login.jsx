@@ -11,7 +11,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [isSignup, setIsSignup] = useState(false);
-  const { login, signup, resendVerificationEmail, ADMIN_EMAILS } = useAuth();
+  const { login, signup, resendVerificationEmail } = useAuth();
   const [resendBusy, setResendBusy] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
   const navigate = useNavigate();
@@ -31,18 +31,6 @@ export default function Login() {
       setError("Admin mode supports sign in only.");
       return;
     }
-    if (selectedAccountType === "admin" && ADMIN_EMAILS.length === 0) {
-      setError("Admin login is not configured. Set VITE_ADMIN_EMAILS in environment.");
-      return;
-    }
-    if (selectedAccountType !== "admin" && isAdminEmail) {
-      setError("You entered admin email in customer/seller mode. Select Admin card to continue.");
-      return;
-    }
-    if (selectedAccountType === "admin" && !isAdminEmail) {
-      setError("Admin mode requires the reserved admin email.");
-      return;
-    }
 
     let result;
     if (isSignup) {
@@ -57,6 +45,11 @@ export default function Login() {
         setPassword("");
         setInfo(result.info || "Verification email sent. Please verify your email before login.");
         return;
+      }
+      if (result.emailWarning) {
+        sessionStorage.setItem("moveasy_onboarding_email_warning", result.emailWarning);
+      } else {
+        sessionStorage.removeItem("moveasy_onboarding_email_warning");
       }
       const r = result.role || "customer";
       if (r === "admin") navigate("/admin");
@@ -87,8 +80,6 @@ export default function Login() {
   const inp = { width: "100%", padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "12px", fontSize: "14px", boxSizing: "border-box" };
   const lbl = { fontSize: "13px", fontWeight: 600, color: "#334155", display: "block", marginBottom: "4px" };
   const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
-  const normalizedEmail = email.toLowerCase().trim();
-  const isAdminEmail = ADMIN_EMAILS.includes(normalizedEmail);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #fff1f2 0%, #fecdd3 100%)" }}>
@@ -110,12 +101,10 @@ export default function Login() {
                   setInfo("");
                   if (card.id === "admin") {
                     setIsSignup(false);
-                    setInfo("Admin mode selected. Enter your admin credentials to sign in.");
                     return;
                   }
                   setIsSignup(true);
                   setSignupRole(card.id === "seller" ? "seller" : "customer");
-                  setInfo(`${card.title} mode selected. Complete signup to create a ${card.title.toLowerCase()} account.`);
                 }}
                 style={{
                   border: active ? "1px solid #EF4444" : "1px solid #e2e8f0",
@@ -200,9 +189,9 @@ export default function Login() {
         </form>
 
         {selectedAccountType === "admin" ? (
-          <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
-            Admin mode is sign-in only.
-          </p>
+          <div style={{ marginTop: "14px", padding: "12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#334155", lineHeight: 1.6 }}>
+            <strong>Note:</strong> Only authorized staff emails can sign in as Admin.
+          </div>
         ) : (
           <p style={{ textAlign: "center", margin: "16px 0 0", fontSize: "13px", color: "#64748b" }}>
             {isSignup ? "Already have an account? " : "No account? "}
@@ -220,15 +209,6 @@ export default function Login() {
           </p>
         )}
 
-        <div style={{ marginTop: "20px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-          <p style={{ fontSize: "12px", fontWeight: 700, color: "#166534", margin: "0 0 4px" }}>Roles available:</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Admin login: reserved admin email + password</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Seller/Broker login: signup with Seller account type</p>
-          <p style={{ fontSize: "11px", color: "#166534", margin: "2px 0" }}>- Customer login: signup with Customer account type</p>
-          <p style={{ fontSize: "11px", color: "#14532d", margin: "8px 0 0", lineHeight: 1.45 }}>
-            New accounts use <strong>@gmail.com</strong> or <strong>@googlemail.com</strong>. Firebase sends a <strong>free verification link</strong> to your inbox; you must open it before sign-in. Optional welcome + admin alerts use <strong>EmailJS</strong> (free tier) when configured in GitHub Secrets — see docs.
-          </p>
-        </div>
       </div>
     </div>
   );

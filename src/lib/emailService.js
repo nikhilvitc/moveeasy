@@ -1,86 +1,72 @@
 // src/lib/emailService.js
-// ─────────────────────────────────────────────────────────────────────────────
-// EmailJS integration — sends real emails from the browser (no backend needed).
-// Free tier: 200 emails/month.
-//
-// Uses the EmailJS REST API directly — zero npm dependencies.
-// ─────────────────────────────────────────────────────────────────────────────
+// Server-side onboarding email trigger.
+// Firebase verification remains built in; welcome/admin emails are delivered by Cloud Functions
+// with idempotency, retries, and Firestore delivery logs.
 
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "";
+const ONBOARDING_EMAIL_FUNCTION_URL = import.meta.env.VITE_ONBOARDING_EMAIL_FUNCTION_URL || import.meta.env.VITE_WELCOME_EMAIL_FUNCTION_URL || "";
 const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || "";
-const EMAILJS_WELCOME_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_WELCOME_TEMPLATE_ID || "";
-const EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID || "";
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_NOTIFY_EMAIL || "jiyanshudhaka20@gmail.com";
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "";
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "";
 
-const EMAILJS_API = "https://api.emailjs.com/api/v1.0/email/send";
+export function isOnboardingEmailConfigured() {
+  return Boolean(ONBOARDING_EMAIL_FUNCTION_URL || (EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY));
+}
 
-async function sendEmail(templateId, templateParams) {
-  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !templateId) {
-    console.warn("[EmailService] EmailJS not configured — skipping email.");
-    return false;
+async function triggerEmailJsOnboarding({ email, name, role }) {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    return { ok: false, skipped: true, error: "Onboarding email service is not configured." };
   }
+
+  const templateParams = {
+    to_email: String(email || ""),
+    to_name: String(name || "MovEasy user"),
+    role: role === "seller" ? "seller" : "customer",
+  };
+
   try {
-    const res = await fetch(EMAILJS_API, {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id: EMAILJS_SERVICE_ID,
-        template_id: templateId,
-        user_id: EMAILJS_PUBLIC_KEY,
-        template_params: templateParams,
-      }),
+      body: JSON.stringify({ service_id: EMAILJS_SERVICE_ID, template_id: EMAILJS_TEMPLATE_ID, user_id: EMAILJS_PUBLIC_KEY, template_params: templateParams }),
     });
     if (!res.ok) {
-      console.error("[EmailService] Failed:", res.status, await res.text());
-      return false;
+      return { ok: false, retryable: res.status === 429 || res.status >= 500, error: res.status === 429 ? "Welcome email is rate-limited. Please try again later." : `Welcome email service returned ${res.status}` };
     }
-    return true;
-  } catch (err) {
-    console.error("[EmailService] Error:", err);
-    return false;
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, retryable: true, error: error instanceof Error ? error.message : "Could not send welcome email." };
   }
 }
 
-/**
- * Send a welcome email to a newly registered user.
- */
-export async function sendWelcomeEmail({ email, name, role }) {
-  return sendEmail(EMAILJS_WELCOME_TEMPLATE_ID, {
-    to_email: email,
-    to_name: name || email.split("@")[0],
-    user_role: role === "seller" ? "Seller / Broker" : "Customer",
-    from_name: "MovEazy Team",
-    message: `Welcome to MovEazy! Your ${role === "seller" ? "Seller" : "Customer"} account has been created successfully. You can now explore properties, connect with brokers, and manage your move — all in one place.`,
-  });
-}
+export async function triggerVerifiedOnboardingEmails({ firebaseUser, profile }) {
+  if (!ONBOARDING_EMAIL_FUNCTION_URL) {
+    return triggerEmailJsOnboarding({ email: firebaseUser.email, name: profile?.name || firebaseUser.displayName || firebaseUser.email?.split("@")[0], role: profile?.role || "customer" });
+  }
 
-/**
- * Notify admin when a new user signs up.
- */
-export async function sendAdminNotification({ email, name, role }) {
-  return sendEmail(EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID, {
-    to_email: ADMIN_EMAIL,
-    to_name: "Admin",
-    user_email: email,
-    user_name: name || email.split("@")[0],
-    user_role: role === "seller" ? "Seller / Broker" : "Customer",
-    from_name: "MovEazy System",
-    message: `New ${role} signup: ${name} (${email}) just registered on MovEazy.`,
-  });
-}
-
-/**
- * Send both welcome + admin notification in parallel.
- * Returns true if at least one EmailJS send succeeded (so caller can avoid duplicate retries).
- */
-export async function sendSignupEmails({ email, name, role }) {
   try {
-    const [w, a] = await Promise.all([
-      sendWelcomeEmail({ email, name, role }),
-      sendAdminNotification({ email, name, role }),
-    ]);
-    return !!(w || a);
-  } catch {
-    return false;
+    const token = await firebaseUser.getIdToken(true);
+    const res = await fetch(ONBOARDING_EMAIL_FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        retryable: res.status >= 500 || res.status === 202,
+        error: data.error || `Onboarding email service returned ${res.status}`,
+      };
+    }
+    return { ok: true, ...data };
+  } catch (error) {
+    return {
+      ok: false,
+      retryable: true,
+      error: error instanceof Error ? error.message : "Could not reach onboarding email service.",
+    };
   }
 }

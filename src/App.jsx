@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
@@ -14,6 +15,20 @@ import Contact from "./pages/Contact";
 import Checkout from "./pages/Checkout";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+
+function OnboardingEmailWarning() {
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    setMessage(sessionStorage.getItem("moveasy_onboarding_email_warning") || "");
+  }, []);
+  if (!message) return null;
+  return (
+    <div style={{ position: "fixed", left: "16px", right: "16px", bottom: "16px", zIndex: 9999, maxWidth: "720px", margin: "0 auto", background: "#fffbeb", color: "#92400e", border: "1px solid #f59e0b", borderRadius: "10px", padding: "12px 14px", boxShadow: "0 12px 30px rgba(15,23,42,0.18)", fontSize: "13px" }}>
+      <strong>Onboarding email notice:</strong> {message} The app will retry from the backend queue.
+      <button type="button" onClick={() => { sessionStorage.removeItem("moveasy_onboarding_email_warning"); setMessage(""); }} style={{ float: "right", marginLeft: "12px", border: "none", background: "transparent", color: "#92400e", fontWeight: 800, cursor: "pointer" }}>×</button>
+    </div>
+  );
+}
 
 function RoleRoute({ children, role }) {
   const { user, loading } = useAuth();
@@ -50,6 +65,7 @@ export default function App() {
     <HashRouter>
       <AuthProvider>
         <AppRoutes />
+        <OnboardingEmailWarning />
       </AuthProvider>
     </HashRouter>
   );

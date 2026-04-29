@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { isFirebaseConfigured } from "../lib/firebase";
+import { getAssignmentsData, getListingsData, removeListingData, uploadListingFiles, upsertListingData } from "../lib/firestoreStore";
+import { getProfileByEmail } from "../lib/profileService";
 
-function readUserRow(email) {
+async function readUserRow(email) {
   if (!email) return null;
+  if (isFirebaseConfigured) return getProfileByEmail(email);
   try {
     const users = JSON.parse(localStorage.getItem("moveasy_users") || "{}");
     return users[email] || null;
@@ -33,42 +37,56 @@ export default function SellerDashboard() {
   const [sellerRow, setSellerRow] = useState(null);
   const [badgeForm, setBadgeForm] = useState({ businessName: "", phone: "", gst: "" });
   const [badgeMsg, setBadgeMsg] = useState("");
+  const [photoFiles, setPhotoFiles] = useState([]);
 
   useEffect(() => {
-    const all = getListings();
-    setListings(all.filter((l) => l.sellerEmail === user?.email));
-    setMyAssignments(getAssignments().filter((a) => a.sellerEmail === user?.email));
-    setSellerRow(readUserRow(user?.email));
+    let alive = true;
+    async function load() {
+      const [allListings, allAssignments, row] = isFirebaseConfigured
+        ? await Promise.all([getListingsData(), getAssignmentsData(), readUserRow(user?.email)])
+        : [getListings(), getAssignments(), await readUserRow(user?.email)];
+      if (!alive) return;
+      setListings(allListings.filter((l) => l.sellerEmail === user?.email));
+      setMyAssignments(allAssignments.filter((a) => a.sellerEmail === user?.email));
+      setSellerRow(row);
+    }
+    load().catch(() => undefined);
+    return () => { alive = false; };
   }, [user]);
 
-  const handleBadgeSubmit = (e) => {
+  const handleBadgeSubmit = async (e) => {
     e.preventDefault();
     setBadgeMsg("");
-    const res = submitSellerBadgeApplication(badgeForm);
+    const res = await submitSellerBadgeApplication(badgeForm);
     if (!res.success) {
       setBadgeMsg(res.error || "Could not submit");
       return;
     }
     setBadgeForm({ businessName: "", phone: "", gst: "" });
-    setSellerRow(readUserRow(user?.email));
+    setSellerRow(await readUserRow(user?.email));
     setBadgeMsg("Application submitted. Admin will review for a verified badge.");
   };
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     if (!pinPosition) { alert("Please click on the map to set property location"); return; }
-    const newItem = { ...form, id: Date.now(), seller: user?.name || "Seller", sellerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || 0, availability: "Immediate", propertyType: "Apartment", furnishing: "Semi", preferredTenants: ["Family"], parking: ["2 Wheeler"] };
-    upsertListing(newItem);
-    const all = getListings();
+    const id = String(Date.now());
+    const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, id) : [];
+    const newItem = { ...form, id, seller: user?.name || "Seller", sellerEmail: user?.email, ownerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || 0, availability: "Immediate", propertyType: "Apartment", furnishing: "Semi", preferredTenants: ["Family"], parking: ["2 Wheeler"], images: uploadedImages, image: uploadedImages[0] || "" };
+    if (isFirebaseConfigured) await upsertListingData(newItem, user);
+    else upsertListing(newItem);
+    const all = isFirebaseConfigured ? await getListingsData() : getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
     setForm({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
     setPinPosition(null);
+    setPhotoFiles([]);
     setShowAdd(false);
   };
 
-  const handleDelete = (id) => {
-    removeListing(id);
-    const all = getListings();
+  const handleDelete = async (id) => {
+    if (isFirebaseConfigured) await removeListingData(id);
+    else removeListing(id);
+    const all = isFirebaseConfigured ? await getListingsData() : getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
   };
 
@@ -134,6 +152,7 @@ export default function SellerDashboard() {
               <select value={form.bhk} onChange={(e) => setForm({ ...form, bhk: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}><option>1RK</option><option>1BHK</option><option>2BHK</option><option>3BHK</option><option>4BHK</option></select>
               <input placeholder="Address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input type="file" accept="image/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center" }}>{pinPosition ? "Pin set" : "Click map below"}</div>
               <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2" }}>Save</button>
             </form>
@@ -148,6 +167,7 @@ export default function SellerDashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
           {listings.map((l) => (
             <div key={l.id} style={{ background: "white", borderRadius: "12px", padding: "16px" }}>
+              {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px", marginBottom: "10px" }} />}
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                 <span style={{ background: "#dbeafe", color: "#1e40af", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>{l.bhk}</span>
                 <span style={{ fontWeight: 800, color: "#16a34a" }}>{l.price}</span>

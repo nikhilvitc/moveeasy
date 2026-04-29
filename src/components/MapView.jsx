@@ -5,6 +5,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
 import { useAuth } from "../context/AuthContext";
+import { isFirebaseConfigured } from "../lib/firebase";
+import { getListingsData } from "../lib/firestoreStore";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -61,44 +63,25 @@ function ToggleOption({ label, active, onClick }) {
   );
 }
 
-const BANGALORE_AREAS = [
-  { name: "Indiranagar", lat: 12.9784, lng: 77.6408 },
-  { name: "HSR Layout", lat: 12.9116, lng: 77.6474 },
-  { name: "Koramangala", lat: 12.9352, lng: 77.6245 },
-  { name: "Whitefield", lat: 12.9698, lng: 77.7500 },
-  { name: "Electronic City", lat: 12.8440, lng: 77.6614 },
-  { name: "JP Nagar", lat: 12.9063, lng: 77.5857 },
-  { name: "Marathahalli", lat: 12.9591, lng: 77.6974 },
-  { name: "BTM Layout", lat: 12.9166, lng: 77.6101 },
-  { name: "Jayanagar", lat: 12.9250, lng: 77.5938 },
-  { name: "Hebbal", lat: 13.0358, lng: 77.5970 },
-  { name: "Yelahanka", lat: 13.1007, lng: 77.5963 },
-  { name: "Banashankari", lat: 12.9255, lng: 77.5468 },
-  { name: "MG Road", lat: 12.9756, lng: 77.6068 },
-  { name: "Rajajinagar", lat: 12.9900, lng: 77.5520 },
-  { name: "Sarjapur Road", lat: 12.9100, lng: 77.6850 },
-];
-
 export default function MapView() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const listings = useMemo(() => getListings(), []);
+  const [listings, setListings] = useState([]);
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
   const [filters, setFilters] = useState(getFiltersInitialState());
-  const [areaSearch, setAreaSearch] = useState("");
-  const [activeArea, setActiveArea] = useState(null);
 
-  const filteredListings = useMemo(() => {
-    let result = applyListingFilters(listings, filters);
-    if (activeArea) {
-      result = result.filter((l) =>
-        l.address.toLowerCase().includes(activeArea.toLowerCase()) ||
-        l.title.toLowerCase().includes(activeArea.toLowerCase())
-      );
+  useEffect(() => {
+    let alive = true;
+    async function loadListings() {
+      const rows = isFirebaseConfigured ? await getListingsData() : getListings();
+      if (alive) setListings(rows);
     }
-    return result;
-  }, [listings, filters, activeArea]);
+    loadListings().catch(() => setListings(getListings()));
+    return () => { alive = false; };
+  }, []);
+
+  const filteredListings = useMemo(() => applyListingFilters(listings, filters), [listings, filters]);
 
   const toggleFilter = (key, value) => {
     setFilters((prev) => {
@@ -107,22 +90,6 @@ export default function MapView() {
       return { ...prev, [key]: next };
     });
   };
-
-  const handleAreaSelect = (area) => {
-    setActiveArea(area.name);
-    setAreaSearch(area.name);
-    setMapState({ center: [area.lat, area.lng], zoom: 15 });
-  };
-
-  const clearArea = () => {
-    setActiveArea(null);
-    setAreaSearch("");
-    setMapState({ center: [12.9716, 77.5946], zoom: 12 });
-  };
-
-  const filteredAreas = areaSearch
-    ? BANGALORE_AREAS.filter((a) => a.name.toLowerCase().includes(areaSearch.toLowerCase()))
-    : [];
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -146,53 +113,6 @@ export default function MapView() {
             <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
           </div>
           <div style={{ fontSize: "12px", color: "#64748b" }}>{filteredListings.length} properties</div>
-        </div>
-
-        {/* Area Search Bar */}
-        <div style={{ position: "relative", marginBottom: "4px" }}>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <input
-              type="text"
-              value={areaSearch}
-              onChange={(e) => { setAreaSearch(e.target.value); if (!e.target.value) clearArea(); }}
-              placeholder="🔍 Search area — Indiranagar, HSR Layout, Koramangala..."
-              style={{ flex: 1, padding: "8px 14px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "13px", outline: "none" }}
-            />
-            {activeArea && (
-              <button onClick={clearArea} style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: "8px", padding: "6px 12px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                ✕ Clear
-              </button>
-            )}
-          </div>
-          {/* Autocomplete dropdown */}
-          {areaSearch && !activeArea && filteredAreas.length > 0 && (
-            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid #e2e8f0", borderRadius: "8px", marginTop: "4px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: "200px", overflowY: "auto" }}>
-              {filteredAreas.map((a) => (
-                <div key={a.name} onClick={() => handleAreaSelect(a)} style={{ padding: "10px 14px", cursor: "pointer", fontSize: "13px", fontWeight: 600, borderBottom: "1px solid #f1f5f9" }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "white"}
-                >
-                  📍 {a.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Quick area buttons */}
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
-          {BANGALORE_AREAS.slice(0, 8).map((a) => (
-            <button
-              key={a.name}
-              onClick={() => handleAreaSelect(a)}
-              style={{
-                padding: "4px 10px", fontSize: "11px", fontWeight: 600, borderRadius: "20px", cursor: "pointer", border: activeArea === a.name ? "1px solid #dc2626" : "1px solid #e2e8f0",
-                background: activeArea === a.name ? "#fee2e2" : "#f8fafc", color: activeArea === a.name ? "#b91c1c" : "#475569",
-              }}
-            >
-              {a.name}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -251,6 +171,7 @@ export default function MapView() {
               <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
                 <Popup>
                   <div style={{ minWidth: "180px" }}>
+                    {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "90px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
                     <div style={{ fontWeight: 700, fontSize: "14px" }}>{l.title}</div>
                     <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
                     <div style={{ fontWeight: 800, color: "#16a34a", fontSize: "16px", margin: "4px 0" }}>{l.price}</div>
@@ -289,6 +210,7 @@ export default function MapView() {
                 transition: "all 0.2s",
               }}
             >
+              {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "110px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }} />}
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                 <span style={{ background: bhkColors[l.bhk] || "#6b7280", color: "white", padding: "1px 6px", borderRadius: "8px", fontSize: "10px", fontWeight: 700 }}>{l.bhk}</span>
                 <span style={{ fontWeight: 700, color: "#16a34a", fontSize: "12px" }}>{l.price}</span>

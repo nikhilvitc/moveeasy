@@ -96,6 +96,9 @@ function normalizeListing(listing) {
     seller: listing.seller ?? "Unknown broker",
     sellerEmail: listing.sellerEmail ?? "",
     company: listing.company ?? "",
+    image: listing.image ?? listing.images?.[0] ?? "",
+    images: Array.isArray(listing.images) ? listing.images : (listing.image ? [listing.image] : []),
+    description: listing.description ?? "",
     lat: Number(listing.lat ?? coordinates?.[0] ?? 12.9716),
     lng: Number(listing.lng ?? coordinates?.[1] ?? 77.5946),
     availability: listing.availability ?? "Immediate",
@@ -119,7 +122,13 @@ export function ensureListingsInitialized() {
   const existing = readJson(KEYS.listings, null);
   if (existing && Array.isArray(existing) && existing.length) {
     const hasValidRent = existing.some((item) => Number(item?.monthlyRent || 0) > 0);
-    if (hasValidRent) return;
+    if (hasValidRent) {
+      const existingIds = new Set(existing.map((item) => item?.id));
+      const additions = seedListings.filter((item) => !existingIds.has(item.id)).map(normalizeListing);
+      if (!additions.length) return;
+      writeJson(KEYS.listings, [...existing.map(normalizeListing), ...additions]);
+      return;
+    }
   }
   const normalized = seedListings.map(normalizeListing);
   writeJson(KEYS.listings, normalized);
