@@ -70,3 +70,37 @@ export async function triggerVerifiedOnboardingEmails({ firebaseUser, profile })
     };
   }
 }
+
+export async function triggerVisitNotificationEmail({ customerEmail, customerPhone, sellerEmail, visitTime, notes, listingId }) {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    console.warn("EmailJS not configured, skipping visit notification.");
+    return { ok: false };
+  }
+
+  const templateParams = {
+    customer_email: customerEmail,
+    customer_phone: customerPhone,
+    seller_email: sellerEmail,
+    admin_email: "moveasy.official@gmail.com", // Assuming an admin email or default routing
+    visit_time: visitTime,
+    notes: notes,
+    listing_id: listingId,
+  };
+
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        service_id: EMAILJS_SERVICE_ID, 
+        template_id: EMAILJS_TEMPLATE_ID, 
+        user_id: EMAILJS_PUBLIC_KEY, 
+        template_params: templateParams 
+      }),
+    });
+    return { ok: res.ok };
+  } catch (error) {
+    console.error("Failed to send visit notification email", error);
+    return { ok: false };
+  }
+}

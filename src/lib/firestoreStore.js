@@ -81,6 +81,25 @@ export async function addUserProfileData(email, name, role) {
   ]);
 }
 
+export async function updateUserProfileData(email, updates) {
+  const normalized = String(email || "").toLowerCase().trim();
+  if (!normalized) return;
+  const existing = await getProfileByEmail(normalized);
+  if (!existing) return;
+  
+  const profileUpdates = { updatedAt: serverTimestamp() };
+  if (updates.name !== undefined) profileUpdates.name = updates.name;
+  if (updates.phone !== undefined) profileUpdates.phone = updates.phone;
+
+  const promises = [setDoc(doc(db, "userProfiles", existing.uid), profileUpdates, { merge: true })];
+
+  if (updates.role !== undefined) {
+    promises.push(setDoc(doc(db, "userRoles", existing.uid), { role: updates.role, updatedAt: serverTimestamp() }, { merge: true }));
+  }
+
+  await Promise.all(promises);
+}
+
 export async function removeUserProfileData(email) {
   const profile = await getProfileByEmail(email);
   if (!profile) return;

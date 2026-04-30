@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { addVisitRequestData } from "../lib/firestoreStore";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { triggerVisitNotificationEmail } from "../lib/emailService";
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -44,6 +45,14 @@ export default function PropertyModal({ property, onClose }) {
         visitTime: visitForm.time,
         notes: visitForm.notes
       });
+      triggerVisitNotificationEmail({
+        customerEmail: user.email,
+        customerPhone: visitForm.phone,
+        sellerEmail: property.sellerEmail || property.ownerEmail || "",
+        visitTime: visitForm.time,
+        notes: visitForm.notes,
+        listingId: property.id
+      });
     }
     setVisitSuccess("Visit scheduled successfully! The seller has been notified.");
     setTimeout(() => {
@@ -62,6 +71,20 @@ export default function PropertyModal({ property, onClose }) {
     display: "flex",
     alignItems: "center",
     gap: "6px"
+  };
+
+  const [isSaved, setIsSaved] = useState(false);
+  const [shareText, setShareText] = useState("↗ Share");
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShareText("✓ Copied!");
+    setTimeout(() => setShareText("↗ Share"), 2000);
+  };
+
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -93,14 +116,17 @@ export default function PropertyModal({ property, onClose }) {
             <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
               <div style={{ fontSize: "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
               <div style={{ display: "flex", gap: "16px", color: "#475569", fontWeight: 600, fontSize: "14px" }}>
-                <span style={{ color: "#0f172a", borderBottom: "2px solid #0f172a", paddingBottom: "16px", marginBottom: "-17px" }}>Overview</span>
-                <span style={{ cursor: "pointer" }}>Facts & Features</span>
-                <span style={{ cursor: "pointer" }}>Neighborhood</span>
+                <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
+                <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer" }}>Facts & Features</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: "12px" }}>
-              <button style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>♡ Save</button>
-              <button style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>↗ Share</button>
+              <button onClick={() => setIsSaved(!isSaved)} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#334155" }}>
+                {isSaved ? "♥ Saved" : "♡ Save"}
+              </button>
+              <button onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
+                {shareText}
+              </button>
               <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "8px", padding: "6px 12px", fontWeight: 700, fontSize: "14px", cursor: "pointer", color: "#475569" }}>Close ×</button>
             </div>
           </div>
@@ -131,7 +157,7 @@ export default function PropertyModal({ property, onClose }) {
             <div style={{ display: "flex", flexWrap: "wrap", padding: "32px", gap: "40px", maxWidth: "1000px", margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
               
               {/* Left Column (Details) */}
-              <div style={{ flex: "1 1 500px", minWidth: 0 }}>
+              <div id="overview" style={{ flex: "1 1 500px", minWidth: 0 }}>
                 {property.badge && (
                   <div style={{ background: "#fef2f2", color: "#e11d48", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 700, display: "inline-block", marginBottom: "12px" }}>
                     {property.badge.toUpperCase()}
@@ -155,7 +181,7 @@ export default function PropertyModal({ property, onClose }) {
                   </p>
                 </div>
 
-                <div style={{ marginBottom: "32px" }}>
+                <div id="facts" style={{ marginBottom: "32px" }}>
                   <h2 style={{ margin: "0 0 16px", fontSize: "18px", color: "#0f172a" }}>Facts, features & policies</h2>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px" }}>

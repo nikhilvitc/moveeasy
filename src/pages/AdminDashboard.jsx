@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData } from "../lib/firestoreStore";
+import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData, updateUserProfileData } from "../lib/firestoreStore";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -97,6 +97,8 @@ export default function AdminDashboard() {
   const [newUserName, setNewUserName] = useState("");
   const [listingsState, setListingsState] = useState([]);
   const [usersState, setUsersState] = useState([]);
+  const [editingUserEmail, setEditingUserEmail] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({ name: "", role: "customer", phone: "" });
   const [sellerReqsState, setSellerReqsState] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
@@ -205,6 +207,20 @@ export default function AdminDashboard() {
     else addUserLocally(newUserEmail, newUserName, newUserRole);
     setNewUserEmail("");
     setNewUserName("");
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleEditUser = (u) => {
+    setEditingUserEmail(u.email);
+    setEditUserForm({ name: u.name || "", role: u.role || "customer", phone: u.phone || "" });
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (isFirebaseConfigured) {
+      await updateUserProfileData(editingUserEmail, editUserForm);
+    }
+    setEditingUserEmail(null);
     setRefreshTick((v) => v + 1);
   };
 
@@ -340,11 +356,30 @@ export default function AdminDashboard() {
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
             {users.map((u) => (
               <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email} {u.phone ? `| ${u.phone}` : ""}</div>
-                </div>
-                <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+                {editingUserEmail === u.email ? (
+                  <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input value={editUserForm.name} onChange={(e) => setEditUserForm(p => ({...p, name: e.target.value}))} placeholder="Name" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
+                    <input value={editUserForm.phone} onChange={(e) => setEditUserForm(p => ({...p, phone: e.target.value}))} placeholder="Phone" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
+                    <select value={editUserForm.role} onChange={(e) => setEditUserForm(p => ({...p, role: e.target.value}))} style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
+                      <option value="customer">Customer</option>
+                      <option value="seller">Seller</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "6px 12px" }}>Save</button>
+                    <button type="button" onClick={() => setEditingUserEmail(null)} style={{ ...btn, background: "#94a3b8", color: "white", padding: "6px 12px" }}>Cancel</button>
+                  </form>
+                ) : (
+                  <>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
+                      <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email} {u.phone ? `| ${u.phone}` : ""}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "6px 12px" }}>Edit</button>
+                      <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
