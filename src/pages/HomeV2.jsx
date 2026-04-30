@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getListings } from "../lib/store";
+import PropertyModal from "../components/PropertyModal";
 
 const palette = {
   primary: "#ff385c",
@@ -22,6 +23,7 @@ const navTabs = [
 export default function HomeV2() {
   const navigate = useNavigate();
   const listings = useMemo(() => getListings().slice(0, 8), []);
+  const [viewingProperty, setViewingProperty] = useState(null);
 
   return (
     <div style={{ minHeight: "100vh", background: palette.canvas, color: palette.ink }}>
@@ -114,7 +116,7 @@ export default function HomeV2() {
               const image = listing.image || listing.images?.[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000";
               const isVideo = image.match(/\.(mp4|webm|ogg|mov)$/i) || image.includes('video');
               return (
-                <article key={listing.id} style={{ background: "#fff", borderRadius: "14px" }}>
+                <article key={listing.id} onClick={() => setViewingProperty(listing)} style={{ background: "#fff", borderRadius: "14px", cursor: "pointer", transition: "transform 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.02)"} onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}>
                   <div style={{ position: "relative" }}>
                     {isVideo ? (
                       <video src={image} style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "14px" }} autoPlay muted loop playsInline />
@@ -142,6 +144,7 @@ export default function HomeV2() {
           </div>
         </section>
       </main>
+      {viewingProperty && <PropertyModal property={viewingProperty} onClose={() => setViewingProperty(null)} />}
     </div>
   );
 }

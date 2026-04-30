@@ -7,6 +7,7 @@ import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListing
 import { useAuth } from "../context/AuthContext";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { getListingsData, addVisitRequestData } from "../lib/firestoreStore";
+import PropertyModal from "./PropertyModal";
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -78,41 +79,8 @@ export default function MapView() {
   const [listings, setListings] = useState([]);
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
+  const [viewingProperty, setViewingProperty] = useState(null);
   const [filters, setFilters] = useState(getFiltersInitialState());
-
-  const [visitModalOpen, setVisitModalOpen] = useState(false);
-  const [visitForm, setVisitForm] = useState({ phone: "", time: "", notes: "" });
-  const [visitSuccess, setVisitSuccess] = useState("");
-
-  const handlePlanVisit = (listing) => {
-    if (!user) {
-      alert("Please log in to plan a visit.");
-      return;
-    }
-    setSelected(listing);
-    setVisitSuccess("");
-    setVisitModalOpen(true);
-  };
-
-  const submitVisit = async (e) => {
-    e.preventDefault();
-    if (isFirebaseConfigured) {
-      await addVisitRequestData({
-        listingId: selected.id,
-        customerEmail: user.email,
-        customerPhone: visitForm.phone,
-        sellerEmail: selected.sellerEmail || selected.ownerEmail || "",
-        visitTime: visitForm.time,
-        notes: visitForm.notes
-      });
-    }
-    setVisitSuccess("Visit scheduled successfully! The seller has been notified.");
-    setTimeout(() => {
-      setVisitModalOpen(false);
-      setVisitSuccess("");
-      setVisitForm({ phone: "", time: "", notes: "" });
-    }, 2000);
-  };
 
   useEffect(() => {
     let alive = true;
@@ -221,7 +189,7 @@ export default function MapView() {
                     <div style={{ fontSize: "12px" }}>{l.seller} | {l.contact}</div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
                       <a href={"tel:" + l.contact} style={{ flex: 1, padding: "4px 8px", background: "#1e3a8a", color: "white", borderRadius: "4px", textAlign: "center", textDecoration: "none", fontSize: "12px", fontWeight: 600 }}>Call</a>
-                      <button onClick={() => handlePlanVisit(l)} style={{ flex: 1, padding: "4px 8px", background: "#b91c1c", color: "white", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>Plan a Visit</button>
+                      <button onClick={() => setViewingProperty(l)} style={{ flex: 1, padding: "4px 8px", background: "#b91c1c", color: "white", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>Details</button>
                     </div>
                   </div>
                 </Popup>
@@ -245,7 +213,8 @@ export default function MapView() {
           {filteredListings.map((l) => (
             <div
               key={l.id}
-              onClick={() => setMapState({ center: [l.lat, l.lng], zoom: 17 })}
+              onClick={() => setViewingProperty(l)}
+              onMouseEnter={() => setMapState({ center: [l.lat, l.lng], zoom: 17 })}
               style={{
                 background: "white",
                 borderRadius: "8px",
@@ -269,37 +238,7 @@ export default function MapView() {
         </div>
       </div>
 
-      {visitModalOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          <div style={{ background: "white", width: "90%", maxWidth: "400px", borderRadius: "12px", padding: "20px", position: "relative" }}>
-            <button onClick={() => setVisitModalOpen(false)} style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
-            <h3 style={{ margin: "0 0 16px", fontSize: "20px" }}>Plan a Visit</h3>
-            {visitSuccess ? (
-              <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "8px", fontWeight: 600, textAlign: "center" }}>
-                {visitSuccess}
-              </div>
-            ) : (
-              <form onSubmit={submitVisit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div>
-                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Phone Number</label>
-                  <input type="tel" required placeholder="e.g. +91 9876543210" value={visitForm.phone} onChange={(e) => setVisitForm({ ...visitForm, phone: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Desired Date & Time</label>
-                  <input type="text" required placeholder="e.g. Tomorrow at 5 PM" value={visitForm.time} onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Message (Optional)</label>
-                  <textarea rows={3} placeholder="Any specific requirements?" value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
-                </div>
-                <button type="submit" style={{ width: "100%", padding: "12px", background: "#b91c1c", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }}>
-                  Schedule Visit
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+      {viewingProperty && <PropertyModal property={viewingProperty} onClose={() => setViewingProperty(null)} />}
     </div>
   );
 }
