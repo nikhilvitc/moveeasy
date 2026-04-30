@@ -112,10 +112,15 @@ export default function HomeV2() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "16px" }}>
             {listings.map((listing) => {
               const image = listing.image || listing.images?.[0] || "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000";
+              const isVideo = image.match(/\.(mp4|webm|ogg|mov)$/i) || image.includes('video');
               return (
                 <article key={listing.id} style={{ background: "#fff", borderRadius: "14px" }}>
                   <div style={{ position: "relative" }}>
-                    <img src={image} alt={listing.title} style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "14px" }} />
+                    {isVideo ? (
+                      <video src={image} style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "14px" }} autoPlay muted loop playsInline />
+                    ) : (
+                      <img src={image} alt={listing.title} style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "14px" }} />
+                    )}
                     <span style={{ position: "absolute", top: "10px", left: "10px", background: "#fff", borderRadius: "9999px", padding: "4px 10px", fontSize: "11px", fontWeight: 600 }}>
                       Guest favorite
                     </span>

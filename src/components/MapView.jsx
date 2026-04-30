@@ -6,7 +6,16 @@ import "leaflet/dist/leaflet.css";
 import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
 import { useAuth } from "../context/AuthContext";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { getListingsData } from "../lib/firestoreStore";
+import { getListingsData, addVisitRequestData } from "../lib/firestoreStore";
+
+function MediaElement({ src, alt, style }) {
+  if (!src) return null;
+  const isVideo = src.match(/\.(mp4|webm|ogg|mov)$/i) || src.includes('video');
+  if (isVideo) {
+    return <video src={src} style={style} autoPlay muted loop playsInline />;
+  }
+  return <img src={src} alt={alt} loading="lazy" style={style} />;
+}
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -70,6 +79,40 @@ export default function MapView() {
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
   const [filters, setFilters] = useState(getFiltersInitialState());
+
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [visitForm, setVisitForm] = useState({ phone: "", time: "", notes: "" });
+  const [visitSuccess, setVisitSuccess] = useState("");
+
+  const handlePlanVisit = (listing) => {
+    if (!user) {
+      alert("Please log in to plan a visit.");
+      return;
+    }
+    setSelected(listing);
+    setVisitSuccess("");
+    setVisitModalOpen(true);
+  };
+
+  const submitVisit = async (e) => {
+    e.preventDefault();
+    if (isFirebaseConfigured) {
+      await addVisitRequestData({
+        listingId: selected.id,
+        customerEmail: user.email,
+        customerPhone: visitForm.phone,
+        sellerEmail: selected.sellerEmail || selected.ownerEmail || "",
+        visitTime: visitForm.time,
+        notes: visitForm.notes
+      });
+    }
+    setVisitSuccess("Visit scheduled successfully! The seller has been notified.");
+    setTimeout(() => {
+      setVisitModalOpen(false);
+      setVisitSuccess("");
+      setVisitForm({ phone: "", time: "", notes: "" });
+    }, 2000);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -171,12 +214,15 @@ export default function MapView() {
               <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
                 <Popup>
                   <div style={{ minWidth: "180px" }}>
-                    {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "90px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
+                    {l.image && <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "90px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
                     <div style={{ fontWeight: 700, fontSize: "14px" }}>{l.title}</div>
                     <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
                     <div style={{ fontWeight: 800, color: "#16a34a", fontSize: "16px", margin: "4px 0" }}>{l.price}</div>
                     <div style={{ fontSize: "12px" }}>{l.seller} | {l.contact}</div>
-                    <a href={"tel:" + l.contact} style={{ display: "block", marginTop: "6px", padding: "4px 8px", background: "#1e3a8a", color: "white", borderRadius: "4px", textAlign: "center", textDecoration: "none", fontSize: "12px", fontWeight: 600 }}>Call Now</a>
+                    <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+                      <a href={"tel:" + l.contact} style={{ flex: 1, padding: "4px 8px", background: "#1e3a8a", color: "white", borderRadius: "4px", textAlign: "center", textDecoration: "none", fontSize: "12px", fontWeight: 600 }}>Call</a>
+                      <button onClick={() => handlePlanVisit(l)} style={{ flex: 1, padding: "4px 8px", background: "#b91c1c", color: "white", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 600 }}>Plan a Visit</button>
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -210,7 +256,7 @@ export default function MapView() {
                 transition: "all 0.2s",
               }}
             >
-              {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "110px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }} />}
+              {l.image && <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "110px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }} />}
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                 <span style={{ background: bhkColors[l.bhk] || "#6b7280", color: "white", padding: "1px 6px", borderRadius: "8px", fontSize: "10px", fontWeight: 700 }}>{l.bhk}</span>
                 <span style={{ fontWeight: 700, color: "#16a34a", fontSize: "12px" }}>{l.price}</span>
@@ -222,6 +268,38 @@ export default function MapView() {
           ))}
         </div>
       </div>
+
+      {visitModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div style={{ background: "white", width: "90%", maxWidth: "400px", borderRadius: "12px", padding: "20px", position: "relative" }}>
+            <button onClick={() => setVisitModalOpen(false)} style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>×</button>
+            <h3 style={{ margin: "0 0 16px", fontSize: "20px" }}>Plan a Visit</h3>
+            {visitSuccess ? (
+              <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "8px", fontWeight: 600, textAlign: "center" }}>
+                {visitSuccess}
+              </div>
+            ) : (
+              <form onSubmit={submitVisit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Phone Number</label>
+                  <input type="tel" required placeholder="e.g. +91 9876543210" value={visitForm.phone} onChange={(e) => setVisitForm({ ...visitForm, phone: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Desired Date & Time</label>
+                  <input type="text" required placeholder="e.g. Tomorrow at 5 PM" value={visitForm.time} onChange={(e) => setVisitForm({ ...visitForm, time: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "13px", fontWeight: 600, marginBottom: "4px", display: "block" }}>Message (Optional)</label>
+                  <textarea rows={3} placeholder="Any specific requirements?" value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box" }} />
+                </div>
+                <button type="submit" style={{ width: "100%", padding: "12px", background: "#b91c1c", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }}>
+                  Schedule Visit
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

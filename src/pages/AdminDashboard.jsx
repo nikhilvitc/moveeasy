@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData } from "../lib/firestoreStore";
+import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData } from "../lib/firestoreStore";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -99,20 +99,23 @@ export default function AdminDashboard() {
   const [usersState, setUsersState] = useState([]);
   const [sellerReqsState, setSellerReqsState] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
+  const [visitRequests, setVisitRequests] = useState([]);
 
   useEffect(() => {
     let alive = true;
     async function load() {
       if (isFirebaseConfigured) {
-        const [remoteListings, remoteUsers, remoteSellerReqs] = await Promise.all([getListingsData(), getAllUsersData(), getSellerRequestsData()]);
+        const [remoteListings, remoteUsers, remoteSellerReqs, remoteVisits] = await Promise.all([getListingsData(), getAllUsersData(), getSellerRequestsData(), getVisitsData()]);
         if (!alive) return;
         setListingsState(remoteListings);
         setUsersState(remoteUsers);
         setSellerReqsState(remoteSellerReqs);
+        setVisitRequests(remoteVisits);
       } else {
         setListingsState(getListings());
         setUsersState(getAllUsers());
         setSellerReqsState(getSellerRequests().filter((r) => r.status === "pending"));
+        setVisitRequests([]);
       }
     }
     load().catch(() => undefined);
@@ -302,6 +305,23 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {visitRequests.length > 0 && (
+          <div style={{ background: "#fffbeb", padding: "16px", borderRadius: "12px", marginBottom: "16px", border: "1px solid #fcd34d" }}>
+            <div style={{ fontSize: "18px", fontWeight: 700, color: "#b45309", marginBottom: "10px" }}>Global Visit Requests</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
+              {visitRequests.map((v) => (
+                <div key={v.id} style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid #fde68a" }}>
+                  <div style={{ fontSize: "13px", color: "#92400e" }}><strong>Time:</strong> {v.visitTime}</div>
+                  <div style={{ fontSize: "13px", color: "#92400e" }}><strong>Phone:</strong> {v.customerPhone}</div>
+                  <div style={{ fontSize: "12px", color: "#78350f", marginTop: "4px" }}>Customer: {v.customerEmail}</div>
+                  <div style={{ fontSize: "12px", color: "#78350f" }}>Seller: {v.sellerEmail}</div>
+                  <div style={{ fontSize: "12px", color: "#78350f" }}>Listing: #{v.listingId}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* User Management Section */}
         <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>User Management ({users.length} total)</div>
@@ -342,7 +362,7 @@ export default function AdminDashboard() {
             <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
             <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
             <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
-            <input type="file" accept="image/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} />
+            <input type="file" accept="image/*,video/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
             <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: "span 2", minHeight: "70px" }} />

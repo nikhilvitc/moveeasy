@@ -2,6 +2,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTime
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { getProfileByEmail } from "./profileService";
+import listingsData from "../data/listingsData";
 
 const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
   .split(",")
@@ -20,7 +21,9 @@ export async function uploadListingFiles(files = [], listingId = crypto.randomUU
 
 export async function getListingsData() {
   const snap = await getDocs(query(collection(db, "listings"), orderBy("updatedAt", "desc")));
-  return snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  const firestoreListings = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  // Always include the 50+ sample listings from the Lovable prototype
+  return [...firestoreListings, ...listingsData];
 }
 
 export async function upsertListingData(listing, actor) {
@@ -92,4 +95,24 @@ export async function getSellerRequestsData() {
 export async function addSellerRequestData(user) {
   if (!user?.email) return;
   await setDoc(doc(db, "sellerRequests", user.email), { email: user.email, name: user.name || user.email.split("@")[0], status: "pending", updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function getVisitsData() {
+  const snap = await getDocs(query(collection(db, "visits"), orderBy("createdAt", "desc")));
+  return snap.docs.map((visitDoc) => ({ id: visitDoc.id, ...visitDoc.data() }));
+}
+
+export async function addVisitRequestData({ listingId, customerEmail, customerPhone, sellerEmail, visitTime, notes }) {
+  const record = {
+    listingId: String(listingId),
+    customerEmail,
+    customerPhone: customerPhone || "",
+    sellerEmail,
+    visitTime: visitTime || "",
+    notes: notes || "",
+    status: "pending",
+    createdAt: serverTimestamp(),
+  };
+  const refDoc = await addDoc(collection(db, "visits"), record);
+  return { id: refDoc.id, ...record, createdAt: new Date().toISOString() };
 }

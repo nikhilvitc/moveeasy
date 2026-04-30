@@ -127,6 +127,9 @@ export default function Login() {
         {info && (
           <div style={{ background: "#ecfeff", color: "#155e75", padding: "10px", borderRadius: "8px", marginBottom: "16px", fontSize: "13px", textAlign: "center", border: "1px solid #a5f3fc" }}>
             {info}
+            <div style={{ marginTop: "6px", fontWeight: 600, color: "#0e7490" }}>
+              Please check your Spam/Junk folder for the verification email.
+            </div>
           </div>
         )}
 

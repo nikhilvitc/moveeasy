@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { getAssignmentsData, getListingsData, removeListingData, uploadListingFiles, upsertListingData } from "../lib/firestoreStore";
+import { getAssignmentsData, getListingsData, removeListingData, uploadListingFiles, upsertListingData, getVisitsData } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 
 async function readUserRow(email) {
@@ -38,17 +38,19 @@ export default function SellerDashboard() {
   const [badgeForm, setBadgeForm] = useState({ businessName: "", phone: "", gst: "" });
   const [badgeMsg, setBadgeMsg] = useState("");
   const [photoFiles, setPhotoFiles] = useState([]);
+  const [visitRequests, setVisitRequests] = useState([]);
 
   useEffect(() => {
     let alive = true;
     async function load() {
-      const [allListings, allAssignments, row] = isFirebaseConfigured
-        ? await Promise.all([getListingsData(), getAssignmentsData(), readUserRow(user?.email)])
-        : [getListings(), getAssignments(), await readUserRow(user?.email)];
+      const [allListings, allAssignments, row, allVisits] = isFirebaseConfigured
+        ? await Promise.all([getListingsData(), getAssignmentsData(), readUserRow(user?.email), getVisitsData()])
+        : [getListings(), getAssignments(), await readUserRow(user?.email), []];
       if (!alive) return;
       setListings(allListings.filter((l) => l.sellerEmail === user?.email));
       setMyAssignments(allAssignments.filter((a) => a.sellerEmail === user?.email));
       setSellerRow(row);
+      setVisitRequests(allVisits.filter((v) => v.sellerEmail === user?.email));
     }
     load().catch(() => undefined);
     return () => { alive = false; };
@@ -70,9 +72,10 @@ export default function SellerDashboard() {
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!pinPosition) { alert("Please click on the map to set property location"); return; }
-    const id = String(Date.now());
+    const id = form.id || String(Date.now());
     const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, id) : [];
-    const newItem = { ...form, id, seller: user?.name || "Seller", sellerEmail: user?.email, ownerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || 0, availability: "Immediate", propertyType: "Apartment", furnishing: "Semi", preferredTenants: ["Family"], parking: ["2 Wheeler"], images: uploadedImages, image: uploadedImages[0] || "" };
+    const finalImages = uploadedImages.length ? uploadedImages : (form.images || []);
+    const newItem = { ...form, id, seller: user?.name || "Seller", sellerEmail: user?.email, ownerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0, availability: form.availability || "Immediate", propertyType: form.propertyType || "Apartment", furnishing: form.furnishing || "Semi", preferredTenants: form.preferredTenants || ["Family"], parking: form.parking || ["2 Wheeler"], images: finalImages, image: finalImages[0] || "" };
     if (isFirebaseConfigured) await upsertListingData(newItem, user);
     else upsertListing(newItem);
     const all = isFirebaseConfigured ? await getListingsData() : getListings();
@@ -81,6 +84,13 @@ export default function SellerDashboard() {
     setPinPosition(null);
     setPhotoFiles([]);
     setShowAdd(false);
+  };
+
+  const handleEdit = (listing) => {
+    setForm({ ...listing });
+    setPinPosition([listing.lat, listing.lng]);
+    setShowAdd(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
@@ -140,6 +150,17 @@ export default function SellerDashboard() {
             ))}
           </div>
         )}
+        {visitRequests.length > 0 && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 700, marginBottom: "6px", color: "#b45309" }}>Plan a Visit Requests ({visitRequests.length})</div>
+            {visitRequests.map((v) => (
+              <div key={v.id} style={{ fontSize: "12px", marginBottom: "6px", color: "#92400e" }}>
+                <strong>Time:</strong> {v.visitTime} | <strong>Phone:</strong> {v.customerPhone} <br/>
+                Customer: {v.customerEmail} | Listing #{v.listingId}
+              </div>
+            ))}
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700 }}>My Listings ({listings.length})</div>
           <button onClick={() => setShowAdd(!showAdd)} style={{ ...btn, background: "#1e3a8a", color: "white" }}>{showAdd ? "Cancel" : "+ Add Listing"}</button>
@@ -152,7 +173,7 @@ export default function SellerDashboard() {
               <select value={form.bhk} onChange={(e) => setForm({ ...form, bhk: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}><option>1RK</option><option>1BHK</option><option>2BHK</option><option>3BHK</option><option>4BHK</option></select>
               <input placeholder="Address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
-              <input type="file" accept="image/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input type="file" accept="image/*,video/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center" }}>{pinPosition ? "Pin set" : "Click map below"}</div>
               <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2" }}>Save</button>
             </form>
@@ -174,7 +195,10 @@ export default function SellerDashboard() {
               </div>
               <div style={{ fontWeight: 700, fontSize: "15px" }}>{l.title}</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
-              <button onClick={() => handleDelete(l.id)} style={{ marginTop: "8px", width: "100%", padding: "6px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "#fef2f2", color: "#dc2626" }}>Remove</button>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                <button onClick={() => handleEdit(l)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #cbd5e1", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "white", color: "#334155" }}>Edit</button>
+                <button onClick={() => handleDelete(l.id)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "#fef2f2", color: "#dc2626" }}>Remove</button>
+              </div>
             </div>
           ))}
         </div>
