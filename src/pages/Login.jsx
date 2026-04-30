@@ -6,6 +6,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [signupRole, setSignupRole] = useState("customer");
   const [selectedAccountType, setSelectedAccountType] = useState("customer");
   const [error, setError] = useState("");
@@ -35,7 +36,8 @@ export default function Login() {
     let result;
     if (isSignup) {
       if (!name.trim()) { setError("Please enter your name"); return; }
-      result = await signup(email, password, name, signupRole);
+      if (!phone.trim()) { setError("Please enter your phone number"); return; }
+      result = await signup(email, password, name, signupRole, phone);
     } else {
       result = await login(email, password);
     }
@@ -165,6 +167,8 @@ export default function Login() {
             <div>
               <label style={lbl}>Full Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" style={inp} />
+              <label style={lbl}>Phone Number</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Your phone number" style={inp} />
               <label style={lbl}>Account Type</label>
               <select
                 value={signupRole}

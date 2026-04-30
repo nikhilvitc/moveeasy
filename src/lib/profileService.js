@@ -7,7 +7,7 @@ const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
 
-export async function createProfileAfterSignup({ firebaseUser, name, role }) {
+export async function createProfileAfterSignup({ firebaseUser, name, role, phone }) {
   const email = firebaseUser.email.toLowerCase().trim();
   const normalizedRole = role === "seller" ? "seller" : "customer";
 
@@ -19,7 +19,7 @@ export async function createProfileAfterSignup({ firebaseUser, name, role }) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ name, role: normalizedRole }),
+      body: JSON.stringify({ name, role: normalizedRole, phone }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Profile service returned ${res.status}`);
@@ -29,6 +29,7 @@ export async function createProfileAfterSignup({ firebaseUser, name, role }) {
         uid: firebaseUser.uid,
         email,
         name: name || email.split("@")[0],
+        phone: phone || "",
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : null,
         updatedAt: serverTimestamp(),
       }, { merge: true }),

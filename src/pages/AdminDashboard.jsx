@@ -342,7 +342,7 @@ export default function AdminDashboard() {
               <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email}</div>
+                  <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email} {u.phone ? `| ${u.phone}` : ""}</div>
                 </div>
                 <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
               </div>

@@ -197,7 +197,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name, role = "customer") => {
+  const signup = async (email, password, name, role = "customer", phone = "") => {
     const e = email.toLowerCase().trim();
     if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
     const users = getUsers();
@@ -207,6 +207,7 @@ export function AuthProvider({ children }) {
       users[e] = {
         name: name || e.split("@")[0],
         role: normalizedRole,
+        phone,
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
       };
       saveUsers(users);
@@ -221,6 +222,7 @@ export function AuthProvider({ children }) {
       users[e] = {
         name: name || e.split("@")[0],
         role: normalizedRole,
+        phone,
         password,
         sellerBadgeStatus: normalizedRole === "seller" ? "none" : undefined,
       };
@@ -232,7 +234,7 @@ export function AuthProvider({ children }) {
     }
     try {
       const cred = await createUserWithEmailAndPassword(auth, e, password);
-      await createProfileAfterSignup({ firebaseUser: cred.user, name: name || e.split("@")[0], role: normalizedRole });
+      await createProfileAfterSignup({ firebaseUser: cred.user, name: name || e.split("@")[0], role: normalizedRole, phone });
       await sendEmailVerification(cred.user);
       await signOut(auth);
       return {
