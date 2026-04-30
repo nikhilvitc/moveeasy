@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { addVisitRequestData } from "../lib/firestoreStore";
@@ -82,9 +82,16 @@ export default function PropertyModal({ property, onClose }) {
     setTimeout(() => setShareText("↗ Share"), 2000);
   };
 
+  const scrollRef = useRef(null);
+
   const scrollTo = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el && scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: el.offsetTop - 50, // slightly offset for header
+        behavior: "smooth"
+      });
+    }
   };
 
   return (
@@ -94,7 +101,7 @@ export default function PropertyModal({ property, onClose }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         style={{
-          position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.6)",
+          position: "fixed", inset: 0, zIndex: 99999, background: "rgba(15, 23, 42, 0.95)",
           display: "flex", justifyContent: "center", alignItems: "center", padding: "20px"
         }}
         onClick={onClose}
@@ -131,7 +138,7 @@ export default function PropertyModal({ property, onClose }) {
             </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}>
             {/* Gallery */}
             <div style={{ display: "grid", gridTemplateColumns: images.length > 1 ? "2fr 1fr" : "1fr", gap: "4px", height: "400px", padding: "4px", background: "#f8fafc" }}>
               <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "black" }}>

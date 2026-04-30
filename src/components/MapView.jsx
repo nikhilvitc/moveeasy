@@ -53,19 +53,31 @@ function ChangeView({ center, zoom }) {
   return null;
 }
 
-function ToggleOption({ label, active, onClick }) {
+function ToggleOption({ label, active, onClick, activeColor = "#dc2626" }) {
+  // Convert hex color to an RGBA with low opacity for the background
+  const getLightBg = (hex) => {
+    if (hex.startsWith("#") && hex.length === 7) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, 0.15)`;
+    }
+    return "#fee2e2";
+  };
+
   return (
     <button
       onClick={onClick}
       style={{
-        border: active ? "1px solid #dc2626" : "1px solid #e2e8f0",
-        background: active ? "#fee2e2" : "white",
-        color: active ? "#b91c1c" : "#334155",
+        border: active ? `1px solid ${activeColor}` : "1px solid #e2e8f0",
+        background: active ? getLightBg(activeColor) : "white",
+        color: active ? activeColor : "#334155",
         borderRadius: "8px",
         padding: "6px 10px",
         fontSize: "12px",
-        fontWeight: 600,
+        fontWeight: 700,
         cursor: "pointer",
+        transition: "all 0.2s"
       }}
     >
       {label}
@@ -80,6 +92,7 @@ export default function MapView() {
   const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 12 });
   const [selected, setSelected] = useState(null);
   const [viewingProperty, setViewingProperty] = useState(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [filters, setFilters] = useState(getFiltersInitialState());
 
   useEffect(() => {
@@ -104,6 +117,66 @@ export default function MapView() {
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <style>{`
+        .desktop-sidebar {
+          width: clamp(220px, 26vw, 360px);
+          overflow-y: auto;
+          border-right: 1px solid #e2e8f0;
+          background: #f8fafc;
+          padding: 14px;
+          flex-shrink: 0;
+          transition: transform 0.3s ease-in-out;
+        }
+        .mobile-filter-btn {
+          display: none;
+        }
+        .mobile-only-close {
+          display: none;
+        }
+        @media (max-width: 768px) {
+          .desktop-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 9999;
+            width: 85vw;
+            max-width: 320px;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            transform: translateX(-100%);
+          }
+          .desktop-sidebar.open {
+            transform: translateX(0);
+          }
+          .mobile-filter-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: #1e293b;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+          }
+          .mobile-only-close {
+            display: block !important;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+          }
+        }
+      `}</style>
       <div style={{ background: "white", padding: "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -128,22 +201,22 @@ export default function MapView() {
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <aside
-          style={{
-            width: "clamp(220px, 26vw, 360px)",
-            overflowY: "auto",
-            borderRight: "1px solid #e2e8f0",
-            background: "#f8fafc",
-            padding: "14px",
-            flexShrink: 0,
-          }}
-        >
-          <h3 style={{ margin: "0 0 8px", color: "#b91c1c" }}>Filters</h3>
+        <aside className={`desktop-sidebar ${showMobileFilters ? "open" : ""}`}>
+          <h3 style={{ margin: "0 0 8px", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            Filters
+            <button onClick={() => setShowMobileFilters(false)} style={{ display: "none" }} className="mobile-only-close">×</button>
+          </h3>
           <div style={{ marginBottom: "14px" }}>
             <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "8px" }}>BHK Type</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {FILTER_OPTIONS.bhkTypes.map((item) => (
-                <ToggleOption key={item} label={item} active={filters.bhkTypes.includes(item)} onClick={() => toggleFilter("bhkTypes", item)} />
+                <ToggleOption 
+                  key={item} 
+                  label={item} 
+                  active={filters.bhkTypes.includes(item)} 
+                  onClick={() => toggleFilter("bhkTypes", item)} 
+                  activeColor={bhkColors[item] || "#dc2626"}
+                />
               ))}
             </div>
           </div>
@@ -177,7 +250,7 @@ export default function MapView() {
         <div style={{ flex: 1, minWidth: "360px", position: "relative" }}>
           <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
             {filteredListings.map((l) => (
               <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
                 <Popup>
@@ -196,6 +269,10 @@ export default function MapView() {
               </Marker>
             ))}
           </MapContainer>
+          
+          <button className="mobile-filter-btn" onClick={() => setShowMobileFilters(true)}>
+            Filters
+          </button>
         </div>
 
         <div
