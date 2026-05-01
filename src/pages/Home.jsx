@@ -18,11 +18,11 @@ export default function Home() {
       <main className="relative">
         <Hero />
 
-        <div className="relative z-30 -mt-12 sm:-mt-24 lg:-mt-24">
+        <div className="relative z-30 -mt-6 sm:-mt-12 lg:-mt-16">
           <Stats />
         </div>
 
-        <div className="relative z-10 -mt-32 sm:-mt-20 lg:-mt-24">
+        <div className="relative z-10 mt-0 sm:-mt-6 lg:-mt-8">
           <Features />
           <SmartMatch />
           <HowItWorks />

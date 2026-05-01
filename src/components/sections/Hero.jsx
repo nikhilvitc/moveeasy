@@ -56,21 +56,21 @@ export default function Hero() {
     <section
       className="
         relative w-full
-        min-h-[calc(100vh-72px)]
+        min-h-[calc(100vh-64px)]
         flex items-center
-        pt-[88px] sm:pt-[96px] lg:pt-[110px] pb-16
+        pt-8 sm:pt-10 lg:pt-14 pb-12 sm:pb-16
         overflow-hidden bg-white
       "
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 w-full">
-        <div className="grid lg:grid-cols-2 items-center gap-10 lg:gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 w-full">
+        <div className="grid lg:grid-cols-2 items-center gap-8 lg:gap-4">
           {/* Left: Text Content */}
           <div className="max-w-[600px] mx-auto lg:mx-0 text-center lg:text-left">
             {/* Main Heading */}
             <motion.h1
               {...fadeUp(0)}
               className="
-                text-[40px] sm:text-[56px] lg:text-[72px]
+                text-[34px] sm:text-[50px] lg:text-[72px]
                 font-extrabold text-gray-950
                 leading-[1.05] tracking-tight
               "
@@ -82,7 +82,7 @@ export default function Hero() {
             <motion.h2
               {...fadeUp(0.1)}
               className="
-                text-[40px] sm:text-[56px] lg:text-[72px]
+                text-[34px] sm:text-[50px] lg:text-[72px]
                 font-light text-[#E85A4F]
                 leading-[1.05] tracking-tight
               "
@@ -94,7 +94,7 @@ export default function Hero() {
             <motion.p
               {...fadeUp(0.2)}
               className="
-                mt-6 text-[16px] sm:text-[18px] text-gray-500
+                mt-5 text-[15px] sm:text-[18px] text-gray-500
                 leading-[1.7] max-w-[500px] mx-auto lg:mx-0
               "
             >
@@ -166,8 +166,8 @@ export default function Hero() {
             <div
               className="
                 relative
-                w-[340px] h-[500px]
-                sm:w-[460px] sm:h-[580px]
+                w-[320px] h-[440px]
+                sm:w-[440px] sm:h-[560px]
                 lg:w-[540px] lg:h-[650px]
               "
             >
@@ -179,7 +179,7 @@ export default function Hero() {
                   initial={{ opacity: 0, scale: 0.88, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ duration: 0.82, delay: 0.1, ease: EASE }}
-                  className="h-[380px] sm:h-[460px] lg:h-[540px]
+                  className="h-[320px] sm:h-[430px] lg:h-[540px]
                               w-auto
                               drop-shadow-2xl
                               select-none
@@ -195,7 +195,7 @@ export default function Hero() {
                 src={ratingCard}
                 alt="5.0 Traveler Rating"
                 className="
-                  top-[6%] left-[-2%] w-[176px]
+                  top-[8%] left-[2%] w-[148px] sm:w-[176px]
                   z-20
                 "
                 entranceDelay={0.52}
@@ -209,7 +209,7 @@ export default function Hero() {
                 alt="Virtual Tour: Skyline Loft"
                 className="
                   top-[3%] right-[-2%]
-                  w-[130px] sm:w-[158px] lg:w-[178px]
+                  w-[112px] sm:w-[158px] lg:w-[178px]
                   z-20
                 "
                 entranceDelay={0.58}
@@ -223,7 +223,7 @@ export default function Hero() {
                 alt="40% Efficiency increase"
                 className="
                   top-[40%] right-[-4%]
-                  w-[120px] sm:w-[148px] lg:w-[164px]
+                  w-[104px] sm:w-[148px] lg:w-[164px]
                   z-20
                 "
                 entranceDelay={0.72}
@@ -237,7 +237,7 @@ export default function Hero() {
                 alt="Items sold this week"
                 className="
                   bottom-[10%] left-[-2%]
-                  w-[130px] sm:w-[148px] lg:w-[164px]
+                  w-[112px] sm:w-[148px] lg:w-[164px]
                   z-20
                 "
                 entranceDelay={0.67}
@@ -251,7 +251,7 @@ export default function Hero() {
                 alt="Social post card"
                 className="
                   bottom-[8%] right-[1%]
-                  w-[90px] sm:w-[118px] lg:w-[136px]
+                  w-[80px] sm:w-[118px] lg:w-[136px]
                   z-20
                 "
                 entranceDelay={0.78}
