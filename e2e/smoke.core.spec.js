@@ -1,0 +1,28 @@
+import { test, expect } from "@playwright/test";
+
+test.describe("MovEazy core smoke", () => {
+  test("home page renders primary CTA", async ({ page }) => {
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: /Move To A New City/i })).toBeVisible();
+    await expect(page.getByText(/Start Your Move/i).first()).toBeVisible();
+  });
+
+  test("map page loads with listings UI", async ({ page }) => {
+    await page.goto("./#/map");
+    await expect(page.getByText(/Map Listings/i)).toBeVisible();
+    await expect(page.getByText(/properties/i).first()).toBeVisible();
+  });
+
+  test("map page mobile shows filter and properties controls", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("./#/map");
+    await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Properties|Hide/i })).toBeVisible();
+  });
+
+  test("admin route is protected for signed-out users", async ({ page }) => {
+    await page.goto("./#/admin");
+    await expect(page).toHaveURL(/#\/login/);
+    await expect(page.getByRole("heading", { name: /MovEasy/i })).toBeVisible();
+  });
+});
