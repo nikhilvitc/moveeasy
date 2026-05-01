@@ -102,6 +102,7 @@ export default function AdminDashboard() {
   const [sellerReqsState, setSellerReqsState] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
 
   useEffect(() => {
     let alive = true;
@@ -123,6 +124,13 @@ export default function AdminDashboard() {
     load().catch(() => undefined);
     return () => { alive = false; };
   }, [refreshTick]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 900);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const listings = listingsState;
   const users = usersState;
@@ -267,29 +275,30 @@ export default function AdminDashboard() {
   };
 
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
+  const sectionCard = { background: "white", padding: isMobile ? "12px" : "16px", borderRadius: "12px", marginBottom: "16px" };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
-      <div style={{ background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", padding: isMobile ? "14px 12px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
         <div>
           <div style={{ fontSize: "20px", fontWeight: 800 }}>Admin Dashboard</div>
           <div style={{ fontSize: "12px", opacity: 0.7 }}>{user?.email}</div>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button onClick={() => navigate("/map")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Map</button>
           <button onClick={() => navigate("/")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Home</button>
           <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#ef4444", color: "white" }}>Logout</button>
         </div>
       </div>
 
-      <div style={{ padding: "20px 24px" }}>
+      <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
         {pendingSellerBadgeApps.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
               Pending verified seller badge ({pendingSellerBadgeApps.length})
             </div>
             {pendingSellerBadgeApps.map((p) => (
-              <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+              <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: "12px" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.name}</div>
                   <div style={{ fontSize: "12px", color: "#64748b" }}>{p.email}</div>
@@ -307,7 +316,7 @@ export default function AdminDashboard() {
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626", marginBottom: "10px" }}>Pending Seller Requests ({sellerReqs.length})</div>
             {sellerReqs.map((r) => (
-              <div key={r.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={r.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: "10px" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{r.name}</div>
                   <div style={{ fontSize: "12px", color: "#64748b" }}>{r.email}</div>
@@ -324,7 +333,7 @@ export default function AdminDashboard() {
         {visitRequests.length > 0 && (
           <div style={{ background: "#fffbeb", padding: "16px", borderRadius: "12px", marginBottom: "16px", border: "1px solid #fcd34d" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#b45309", marginBottom: "10px" }}>Global Visit Requests</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
               {visitRequests.map((v) => (
                 <div key={v.id} style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid #fde68a" }}>
                   <div style={{ fontSize: "13px", color: "#92400e" }}><strong>Time:</strong> {v.visitTime}</div>
@@ -339,10 +348,10 @@ export default function AdminDashboard() {
         )}
 
         {/* User Management Section */}
-        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+        <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>User Management ({users.length} total)</div>
           
-          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "10px", marginBottom: "16px" }}>
+          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr auto", gap: "10px", marginBottom: "16px" }}>
             <input placeholder="Full Name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
             <input type="email" placeholder="Email Address" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
             <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}>
@@ -355,9 +364,9 @@ export default function AdminDashboard() {
 
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
             {users.map((u) => (
-              <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
                 {editingUserEmail === u.email ? (
-                  <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center" }}>
+                  <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                     <input value={editUserForm.name} onChange={(e) => setEditUserForm(p => ({...p, name: e.target.value}))} placeholder="Name" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
                     <input value={editUserForm.phone} onChange={(e) => setEditUserForm(p => ({...p, phone: e.target.value}))} placeholder="Phone" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
                     <select value={editUserForm.role} onChange={(e) => setEditUserForm(p => ({...p, role: e.target.value}))} style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
@@ -374,7 +383,7 @@ export default function AdminDashboard() {
                       <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
                       <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email} {u.phone ? `| ${u.phone}` : ""}</div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                       <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "6px 12px" }}>Edit</button>
                       <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
                     </div>
@@ -385,9 +394,9 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+        <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
-          <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+          <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "10px" }}>
             <input placeholder="Title" required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
             <input placeholder="Price label" required value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
             <input type="number" placeholder="Monthly rent" required value={form.monthlyRent} onChange={(e) => setForm((p) => ({ ...p, monthlyRent: Number(e.target.value) }))} />
@@ -400,8 +409,8 @@ export default function AdminDashboard() {
             <input type="file" accept="image/*,video/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
-            <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: "span 2", minHeight: "70px" }} />
-            <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: "span 2", minHeight: "70px" }} />
+            <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
+            <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>
           <div style={{ marginTop: "12px", fontSize: "12px" }}>
@@ -415,9 +424,9 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+        <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Broker Bulk Import</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
             <input placeholder="Broker name" value={importBrokerName} onChange={(e) => setImportBrokerName(e.target.value)} />
             <input placeholder="Source name" value={importSourceName} onChange={(e) => setImportSourceName(e.target.value)} />
           </div>
@@ -452,14 +461,16 @@ export default function AdminDashboard() {
         <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>All Listings ({listings.length})</div>
         <div style={{ background: "white", borderRadius: "12px", overflow: "hidden" }}>
           {listings.map((l) => (
-            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{l.title}</div>
                 <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}</div>
               </div>
-              <div style={{ fontWeight: 700, color: "#16a34a", marginRight: "16px" }}>{l.price}</div>
-              <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", marginRight: "8px" }}>Edit</button>
-              <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px" }}>Delete</button>
+              <div style={{ fontWeight: 700, color: "#16a34a", marginRight: isMobile ? 0 : "16px" }}>{l.price}</div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px" }}>Edit</button>
+                <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px" }}>Delete</button>
+              </div>
             </div>
           ))}
         </div>

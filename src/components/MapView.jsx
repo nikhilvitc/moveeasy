@@ -93,7 +93,9 @@ export default function MapView() {
   const [selected, setSelected] = useState(null);
   const [viewingProperty, setViewingProperty] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showMobileListings, setShowMobileListings] = useState(false);
   const [filters, setFilters] = useState(getFiltersInitialState());
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
     let alive = true;
@@ -103,6 +105,13 @@ export default function MapView() {
     }
     loadListings().catch(() => setListings(getListings()));
     return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const filteredListings = useMemo(() => applyListingFilters(listings, filters), [listings, filters]);
@@ -177,9 +186,9 @@ export default function MapView() {
           }
         }
       `}</style>
-      <div style={{ background: "white", padding: "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ background: "white", padding: isMobile ? "10px 12px" : "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", marginBottom: "8px", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             <button
               onClick={() => navigate("/")}
               style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}
@@ -194,7 +203,7 @@ export default function MapView() {
                 Admin Controls
               </button>
             )}
-            <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
+            <div style={{ fontSize: isMobile ? "16px" : "18px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
           </div>
           <div style={{ fontSize: "12px", color: "#64748b" }}>{filteredListings.length} properties</div>
         </div>
@@ -247,7 +256,7 @@ export default function MapView() {
           ))}
         </aside>
 
-        <div style={{ flex: 1, minWidth: "360px", position: "relative" }}>
+        <div style={{ flex: 1, minWidth: isMobile ? 0 : "360px", position: "relative" }}>
           <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
@@ -278,20 +287,47 @@ export default function MapView() {
             ))}
           </MapContainer>
           
-          <button className="mobile-filter-btn" onClick={() => setShowMobileFilters(true)}>
-            Filters
-          </button>
+          {isMobile && (
+            <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 1000, display: "flex", gap: "8px" }}>
+              <button className="mobile-filter-btn" onClick={() => setShowMobileFilters(true)} style={{ position: "static", transform: "none", margin: 0 }}>
+                Filters
+              </button>
+              <button
+                onClick={() => setShowMobileListings((v) => !v)}
+                style={{
+                  background: "#0f172a",
+                  color: "white",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: "24px",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                }}
+              >
+                {showMobileListings ? "Hide" : "Properties"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div
           style={{
-            width: "clamp(220px, 24vw, 320px)",
+            width: isMobile ? "100%" : "clamp(220px, 24vw, 320px)",
             overflowY: "auto",
             background: "#f8fafc",
-            borderLeft: "1px solid #e2e8f0",
+            borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
             padding: "10px",
-            height: "100%",
+            height: isMobile ? "42vh" : "100%",
             flexShrink: 0,
+            position: isMobile ? "absolute" : "static",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: isMobile ? 998 : "auto",
+            boxShadow: isMobile ? "0 -8px 24px rgba(15, 23, 42, 0.18)" : "none",
+            transform: isMobile ? (showMobileListings ? "translateY(0)" : "translateY(102%)") : "none",
+            transition: "transform 0.25s ease",
           }}
         >
           <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#1e293b" }}>Properties ({filteredListings.length})</div>
