@@ -12,6 +12,15 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --me-coral: #e85a4f;
+    --me-coral-deep: #b91c1c;
+    --me-ink: #292524;
+    --me-ink-muted: #57534e;
+    --me-surface: #fffaf8;
+    --me-surface-cool: #f0f9ff;
+  }
+
   *,
   *::before,
   *::after {
@@ -37,8 +46,11 @@
 
   body {
     font-family: "Inter", sans-serif;
-    color: #0a0a0a;
-    background-color: #ffffff;
+    color: var(--me-ink);
+    background:
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(232, 90, 79, 0.12), transparent 55%),
+      radial-gradient(ellipse 80% 50% at 100% 0%, rgba(14, 165, 233, 0.08), transparent 45%),
+      linear-gradient(180deg, #fffaf8 0%, #ffffff 40%, #fafaf9 100%);
     overflow: visible;
   }
 

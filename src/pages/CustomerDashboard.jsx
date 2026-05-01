@@ -123,7 +123,7 @@ export default function CustomerDashboard() {
   const btn = { padding: "8px 16px", borderRadius: "10px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f7fb" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #eef4ff 0%, #f7f9ff 42%, #f8fafc 100%)" }}>
       <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "white", padding: isMobile ? "12px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
         <div>
           <div style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800 }}>Welcome, {user?.name}</div>

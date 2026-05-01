@@ -1,13 +1,10 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import {
-  phoneMockup,
-  ratingCard,
-  videoThumbnailCard,
-  engagementChartCard,
-  itemsSoldCard,
-  socialPostCard,
-} from "../../assets";
+import { useMemo, useState } from "react";
+
+/** Premium exterior — Unsplash (license-friendly). */
+const HERO_PHOTO =
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=88&w=2400";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -17,250 +14,191 @@ const fadeUp = (delay = 0) => ({
   transition: { duration: 0.65, delay, ease: EASE },
 });
 
-function FloatingCard({
-  src,
-  alt,
-  className,
-  entranceDelay,
-  xFrom,
-  floatDelay = 0,
-}) {
-  return (
-    <motion.div
-      className={`absolute ${className}`}
-      initial={{ opacity: 0, x: xFrom }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.72, delay: entranceDelay, ease: EASE }}
-    >
-      <motion.img
-        src={src}
-        alt={alt}
-        className="w-full drop-shadow-xl select-none pointer-events-none"
-        draggable={false}
-        animate={{ y: [0, -9, 0] }}
-        transition={{
-          duration: 3.6 + floatDelay * 0.25,
-          ease: "easeInOut",
-          repeat: Infinity,
-          repeatType: "loop",
-          delay: entranceDelay + 0.72 + floatDelay * 0.4,
-        }}
-      />
-    </motion.div>
-  );
-}
-
 export default function Hero() {
   const navigate = useNavigate();
+  const [quickFilters, setQuickFilters] = useState({
+    locality: "",
+    bhk: "2 BHK",
+    propertyType: "Apartment",
+    budget: "30000-70000",
+  });
+  const featuredLocalities = ["Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
+  const budgetRanges = useMemo(
+    () => ({
+      "15000-35000": { min: 15000, max: 35000 },
+      "30000-70000": { min: 30000, max: 70000 },
+      "70000-120000": { min: 70000, max: 120000 },
+    }),
+    []
+  );
+  const runSearch = () => {
+    const budget = budgetRanges[quickFilters.budget] || budgetRanges["30000-70000"];
+    const params = new URLSearchParams({
+      locality: quickFilters.locality,
+      bhk: quickFilters.bhk,
+      propertyType: quickFilters.propertyType,
+      minRent: String(budget.min),
+      maxRent: String(budget.max),
+    });
+    navigate(`/map?${params.toString()}`);
+  };
+
   return (
-    <section
-      className="
-        relative w-full
-        min-h-[calc(100vh-64px)]
-        flex items-center
-        pt-8 sm:pt-10 lg:pt-14 pb-12 sm:pb-16
-        overflow-hidden bg-white
-      "
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 w-full">
-        <div className="grid lg:grid-cols-2 items-center gap-8 lg:gap-4">
-          {/* Left: Text Content */}
-          <div className="max-w-[600px] mx-auto lg:mx-0 text-center lg:text-left">
-            {/* Main Heading */}
-            <motion.h1
-              {...fadeUp(0)}
-              className="
-                text-[34px] sm:text-[50px] lg:text-[72px]
-                font-extrabold text-gray-950
-                leading-[1.05] tracking-tight
-              "
-            >
-              Move To A New City
-            </motion.h1>
+    <section className="relative z-[1] w-full min-h-0 overflow-hidden lg:min-h-[calc(100vh-64px)]">
+      {/* Full-bleed photography */}
+      <img
+        src={HERO_PHOTO}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover object-center scale-105 pointer-events-none select-none"
+        draggable={false}
+      />
+      {/* Themed overlays: warm coral left → cool depth right (matches Figma split feel) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "linear-gradient(105deg, rgba(76, 5, 25, 0.92) 0%, rgba(185, 28, 28, 0.78) 38%, rgba(15, 23, 42, 0.55) 72%, rgba(12, 74, 110, 0.45) 100%)",
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/50 via-transparent to-stone-900/20 pointer-events-none" />
 
-            {/* Subheading in coral/red */}
-            <motion.h2
-              {...fadeUp(0.1)}
-              className="
-                text-[34px] sm:text-[50px] lg:text-[72px]
-                font-light text-[#E85A4F]
-                leading-[1.05] tracking-tight
-              "
-            >
-              Without The Chaos
-            </motion.h2>
+      <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:pt-10 sm:pb-12 lg:pb-14">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-6 lg:gap-10 items-stretch">
+          <motion.div {...fadeUp(0)} className="min-w-0 text-white pt-2 lg:pt-6">
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[12px] sm:text-[13px] font-semibold tracking-wide text-[#ffe4e0] backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary-glow shadow-[0_0_12px_#ff8a7a]" />
+              Bengaluru · Verified listings
+            </p>
 
-            {/* Description */}
-            <motion.p
-              {...fadeUp(0.2)}
-              className="
-                mt-5 text-[15px] sm:text-[18px] text-gray-500
-                leading-[1.7] max-w-[500px] mx-auto lg:mx-0
-              "
-            >
-              We understand your needs, connect you to the right brokers, and
-              manage your move from start to finish with speed and trust.
-            </motion.p>
-
-            {/* Security Badge */}
-            <motion.div
-              {...fadeUp(0.3)}
-              className="mt-6 flex items-center justify-center lg:justify-start gap-3"
-            >
-              <svg
-                className="w-5 h-5 text-[#E85A4F]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-                />
-              </svg>
-              <span className="text-[15px] sm:text-[16px] font-medium text-gray-700">
-                100% Secure Deposit Protection
+            <h1 className="mt-4 text-[28px] min-[400px]:text-[32px] sm:text-[48px] lg:text-[62px] font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-sm break-words">
+              Find Verified Properties In{" "}
+              <span className="bg-gradient-to-r from-[#fecaca] via-white to-[#bae6fd] bg-clip-text text-transparent">
+                Bengaluru
               </span>
-            </motion.div>
+            </h1>
+            <p className="mt-3 max-w-xl text-[14px] sm:text-[17px] font-medium leading-relaxed text-[#fecdd3]">
+              5K+ listings refreshed daily · curated for serious renters who want clarity, not chaos.
+            </p>
 
-            {/* CTA Button */}
-            <motion.div
-              {...fadeUp(0.4)}
-              className="mt-8 flex justify-center lg:justify-start"
-            >
-              <button
-                onClick={() => navigate('/login')}
-                className="
-                  flex items-center gap-3
-                  px-8 sm:px-10 py-[14px] sm:py-[16px]
-                  text-[15px] sm:text-[16px] font-semibold
-                  text-white bg-[#E85A4F] rounded-full
-                  hover:bg-[#D64A3F]
-                  active:scale-[0.975]
-                  transition-all duration-200
-                  shadow-[0_8px_30px_rgba(232,90,79,0.35)]
-                "
-              >
-                Start Your Move
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"
-                  />
-                </svg>
-              </button>
-            </motion.div>
-          </div>
-
-          {/* Right: Phone + Floating Cards */}
-          <div className="flex justify-center items-center overflow-hidden">
-            <div
-              className="
-                relative
-                w-[320px] h-[440px]
-                sm:w-[440px] sm:h-[560px]
-                lg:w-[540px] lg:h-[650px]
-              "
-            >
-              {/* Phone Mockup */}
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                <motion.img
-                  src={phoneMockup}
-                  alt="MovEASY mobile app"
-                  initial={{ opacity: 0, scale: 0.88, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.82, delay: 0.1, ease: EASE }}
-                  className="h-[320px] sm:h-[430px] lg:h-[540px]
-                              w-auto
-                              drop-shadow-2xl
-                              select-none
-                            "
-                  draggable={false}
+            <div className="mt-6 sm:mt-8 rounded-2xl border border-white/20 bg-white/12 p-3.5 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.25)] backdrop-blur-md">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_0.8fr]">
+                <input
+                  value={quickFilters.locality}
+                  onChange={(e) => setQuickFilters((p) => ({ ...p, locality: e.target.value }))}
+                  placeholder="Search locality or project"
+                  className="h-11 rounded-xl border border-white/30 bg-white/95 px-3 text-[14px] text-stone-800 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-primary/50"
                 />
+                <button
+                  type="button"
+                  onClick={runSearch}
+                  className="h-11 rounded-xl bg-primary text-[14px] font-semibold text-white shadow-red transition-colors hover:bg-primary-dark"
+                >
+                  Search
+                </button>
               </div>
-
-              {/* Floating Cards */}
-
-              {/* 5-Star Rating — upper left */}
-              <FloatingCard
-                src={ratingCard}
-                alt="5.0 Traveler Rating"
-                className="
-                  top-[8%] left-[2%] w-[148px] sm:w-[176px]
-                  z-20
-                "
-                entranceDelay={0.52}
-                xFrom={-26}
-                floatDelay={0}
-              />
-
-              {/* Video Thumbnail — upper right */}
-              <FloatingCard
-                src={videoThumbnailCard}
-                alt="Virtual Tour: Skyline Loft"
-                className="
-                  top-[3%] right-[-2%]
-                  w-[112px] sm:w-[158px] lg:w-[178px]
-                  z-20
-                "
-                entranceDelay={0.58}
-                xFrom={26}
-                floatDelay={0.6}
-              />
-
-              {/* Engagement Chart — middle right */}
-              <FloatingCard
-                src={engagementChartCard}
-                alt="40% Efficiency increase"
-                className="
-                  top-[40%] right-[-4%]
-                  w-[104px] sm:w-[148px] lg:w-[164px]
-                  z-20
-                "
-                entranceDelay={0.72}
-                xFrom={26}
-                floatDelay={1.0}
-              />
-
-              {/* Items Sold — lower left */}
-              <FloatingCard
-                src={itemsSoldCard}
-                alt="Items sold this week"
-                className="
-                  bottom-[10%] left-[-2%]
-                  w-[112px] sm:w-[148px] lg:w-[164px]
-                  z-20
-                "
-                entranceDelay={0.67}
-                xFrom={-26}
-                floatDelay={1.4}
-              />
-
-              {/* Social Post Card — lower right */}
-              <FloatingCard
-                src={socialPostCard}
-                alt="Social post card"
-                className="
-                  bottom-[8%] right-[1%]
-                  w-[80px] sm:w-[118px] lg:w-[136px]
-                  z-20
-                "
-                entranceDelay={0.78}
-                xFrom={26}
-                floatDelay={1.8}
-              />
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <select
+                  value={quickFilters.propertyType}
+                  onChange={(e) => setQuickFilters((p) => ({ ...p, propertyType: e.target.value }))}
+                  className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
+                >
+                  <option>Property Type</option>
+                  <option>Apartment</option>
+                  <option>Independent House/Villa</option>
+                  <option>Gated Societies</option>
+                </select>
+                <select
+                  value={quickFilters.bhk}
+                  onChange={(e) => setQuickFilters((p) => ({ ...p, bhk: e.target.value }))}
+                  className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
+                >
+                  <option>1 BHK</option>
+                  <option>2 BHK</option>
+                  <option>3 BHK</option>
+                  <option>3+ BHK</option>
+                </select>
+                <select
+                  value={quickFilters.budget}
+                  onChange={(e) => setQuickFilters((p) => ({ ...p, budget: e.target.value }))}
+                  className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
+                >
+                  <option value="15000-35000">Budget 15k – 35k</option>
+                  <option value="30000-70000">Budget 30k – 70k</option>
+                  <option value="70000-120000">Budget 70k – 1.2L</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={runSearch}
+                  className="h-10 rounded-xl border border-white/35 bg-white/15 text-[12px] font-semibold text-white backdrop-blur-sm hover:bg-white/25"
+                >
+                  More Filters
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="w-full text-[11px] font-semibold uppercase tracking-wider text-[#fecaca]/90 sm:w-auto">Popular</span>
+                {featuredLocalities.map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setQuickFilters((p) => ({ ...p, locality: loc }))}
+                    className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                      quickFilters.locality === loc
+                        ? "border-white bg-white text-primary-darker"
+                        : "border-white/40 text-white hover:bg-white/15"
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+
+            <div className="mt-5 flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center sm:mt-6 sm:gap-3">
+              <button
+                type="button"
+                onClick={runSearch}
+                className="inline-flex w-full min-[400px]:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-[14px] font-semibold text-white shadow-red-lg transition hover:bg-primary-dark sm:px-7"
+              >
+                View Listings
+                <span aria-hidden>→</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/guarantee")}
+                className="w-full min-[400px]:w-auto rounded-full border-2 border-white/70 bg-white/10 px-6 py-3 text-center text-[14px] font-semibold text-white backdrop-blur-sm hover:bg-white/20 sm:px-7"
+              >
+                Deposit Saver
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Desktop / large-tablet: glass stats panel. Mobile: compact row so it does not fight Stats below */}
+          <motion.div
+            {...fadeUp(0.14)}
+            className="relative flex min-h-0 flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:h-[min(520px,calc(100vh-180px))] lg:min-h-[280px]"
+          >
+            <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 sm:rounded-[28px]" />
+            <p className="relative z-10 mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100/90 sm:mb-3 sm:text-right sm:text-[11px] sm:tracking-[0.2em]">
+              Trusted moves
+            </p>
+            <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
+              <div className="min-w-0 rounded-xl bg-white/95 px-3 py-2.5 shadow-lg ring-1 ring-stone-200/80 sm:rounded-2xl sm:px-4 sm:py-3">
+                <div className="text-[17px] font-extrabold text-primary-darker sm:text-[20px]">1K+</div>
+                <div className="text-[10px] font-medium leading-snug text-ink-muted sm:text-[12px]">People moved happily</div>
+              </div>
+              <div className="min-w-0 rounded-xl bg-white/95 px-3 py-2.5 shadow-lg ring-1 ring-stone-200/80 sm:rounded-2xl sm:px-4 sm:py-3">
+                <div className="text-[17px] font-extrabold text-sky-800 sm:text-[20px]">56</div>
+                <div className="text-[10px] font-medium leading-snug text-ink-muted sm:text-[12px]">Homes closed / month</div>
+              </div>
+            </div>
+          </motion.div>
         </div>
+      </div>
+
+      {/* Bottom broker strip — subtle themed bar */}
+      <div className="relative z-[2] border-t border-white/10 bg-stone-950/50 px-3 py-3 text-center text-[11px] font-medium leading-snug text-[#fecdd3] backdrop-blur-md sm:px-4 sm:text-[13px] sm:leading-normal">
+        <span className="text-amber-200">✨</span> Are you a broker? Join MovEazy — verified leads, zero spam.
       </div>
     </section>
   );

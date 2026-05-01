@@ -10,7 +10,7 @@ import ServicesCTA from "../components/sections/ServicesCTA";
 
 export default function Services() {
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased">
       <Navbar />
 
       <main className="relative">

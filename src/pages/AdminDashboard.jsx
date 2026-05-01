@@ -7,6 +7,7 @@ import { isFirebaseConfigured } from "../lib/firebase";
 import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData, updateUserProfileData } from "../lib/firestoreStore";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import MediaUploadField from "../components/MediaUploadField";
 
 const DEFAULT_FORM = {
   title: "",
@@ -27,6 +28,22 @@ const DEFAULT_FORM = {
   furnishing: "Semi",
   preferredTenants: ["Family"],
   parking: ["2 Wheeler"],
+  securityDeposit: "",
+  maintenanceCost: "",
+  brokerage: "",
+  builtUpArea: "",
+  areaUnit: "sq ft",
+  bathrooms: "",
+  balcony: "",
+  floorNumber: "",
+  totalFloors: "",
+  leaseType: "",
+  ageOfProperty: "",
+  parkingInfo: "",
+  gasPipeline: "",
+  gatedCommunity: "",
+  amenitiesText: "",
+  furnishingsText: "",
   lat: 12.9716,
   lng: 77.5946,
 };
@@ -68,6 +85,22 @@ function listingToForm(listing) {
     furnishing: listing.furnishing || "Semi",
     preferredTenants: toList(listing.preferredTenants, ["Family"]),
     parking: toList(listing.parking, ["2 Wheeler"]),
+    securityDeposit: listing.securityDeposit || "",
+    maintenanceCost: listing.maintenanceCost || "",
+    brokerage: listing.brokerage || "",
+    builtUpArea: listing.builtUpArea || "",
+    areaUnit: listing.areaUnit || "sq ft",
+    bathrooms: listing.bathrooms || "",
+    balcony: listing.balcony || "",
+    floorNumber: listing.floorNumber || "",
+    totalFloors: listing.totalFloors || "",
+    leaseType: listing.leaseType || "",
+    ageOfProperty: listing.ageOfProperty || "",
+    parkingInfo: listing.parkingInfo || "",
+    gasPipeline: listing.gasPipeline || "",
+    gatedCommunity: listing.gatedCommunity || "",
+    amenitiesText: Array.isArray(listing.amenities) ? listing.amenities.join(", ") : (listing.amenities || ""),
+    furnishingsText: Array.isArray(listing.furnishings) ? listing.furnishings.join(", ") : (listing.furnishings || ""),
     lat: Number(listing.lat || 12.9716),
     lng: Number(listing.lng || 77.5946),
   };
@@ -157,6 +190,8 @@ export default function AdminDashboard() {
       parking: toList(form.parking, ["2 Wheeler"]),
       images: allImages,
       image: form.image || allImages[0] || "",
+      amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
+      furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
       updatedAt: new Date().toISOString(),
     };
     if (isFirebaseConfigured) await upsertListingData(payload, user);
@@ -406,11 +441,26 @@ export default function AdminDashboard() {
             <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
             <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
             <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
-            <input type="file" accept="image/*,video/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
             <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
             <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
+            <input placeholder="Security deposit (optional)" value={form.securityDeposit} onChange={(e) => setForm((p) => ({ ...p, securityDeposit: e.target.value }))} />
+            <input placeholder="Maintenance cost (optional)" value={form.maintenanceCost} onChange={(e) => setForm((p) => ({ ...p, maintenanceCost: e.target.value }))} />
+            <input placeholder="Brokerage (optional)" value={form.brokerage} onChange={(e) => setForm((p) => ({ ...p, brokerage: e.target.value }))} />
+            <input placeholder="Built up area (optional)" value={form.builtUpArea} onChange={(e) => setForm((p) => ({ ...p, builtUpArea: e.target.value }))} />
+            <input placeholder="Bathrooms (optional)" value={form.bathrooms} onChange={(e) => setForm((p) => ({ ...p, bathrooms: e.target.value }))} />
+            <input placeholder="Balcony (optional)" value={form.balcony} onChange={(e) => setForm((p) => ({ ...p, balcony: e.target.value }))} />
+            <input placeholder="Floor no. (optional)" value={form.floorNumber} onChange={(e) => setForm((p) => ({ ...p, floorNumber: e.target.value }))} />
+            <input placeholder="Total floors (optional)" value={form.totalFloors} onChange={(e) => setForm((p) => ({ ...p, totalFloors: e.target.value }))} />
+            <input placeholder="Lease type (optional)" value={form.leaseType} onChange={(e) => setForm((p) => ({ ...p, leaseType: e.target.value }))} />
+            <input placeholder="Age of property (optional)" value={form.ageOfProperty} onChange={(e) => setForm((p) => ({ ...p, ageOfProperty: e.target.value }))} />
+            <input placeholder="Parking info (optional)" value={form.parkingInfo} onChange={(e) => setForm((p) => ({ ...p, parkingInfo: e.target.value }))} />
+            <input placeholder="Gas pipeline (Yes/No)" value={form.gasPipeline} onChange={(e) => setForm((p) => ({ ...p, gasPipeline: e.target.value }))} />
+            <input placeholder="Gated community (Yes/No)" value={form.gatedCommunity} onChange={(e) => setForm((p) => ({ ...p, gatedCommunity: e.target.value }))} />
+            <textarea placeholder="Furnishings (comma separated, optional)" value={form.furnishingsText} onChange={(e) => setForm((p) => ({ ...p, furnishingsText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
+            <textarea placeholder="Amenities (comma separated, optional)" value={form.amenitiesText} onChange={(e) => setForm((p) => ({ ...p, amenitiesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
+            <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>
           <div style={{ marginTop: "12px", fontSize: "12px" }}>

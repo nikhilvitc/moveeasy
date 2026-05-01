@@ -11,8 +11,9 @@
 // Property cards: photo (with red badge chip), location pin + area/BHK, subtitle.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import logoSvg from "../../assets/logo/moveasy.svg";
 import { MapPin } from "lucide-react";
@@ -47,17 +48,41 @@ const PROPERTIES = [
     subtitle: "Budget-friendly",
   },
   {
-    id: 3,
-    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&auto=format&fit=crop",
-    badge: "Great commute",
-    area: "HSR Layout",
+    id: 4,
+    image: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=600&auto=format&fit=crop",
+    badge: "Metro access",
+    area: "Koramangala",
     bhk: "2BHK",
-    subtitle: "Close to your office",
+    subtitle: "Lively neighborhood",
+  },
+  {
+    id: 5,
+    image: "https://images.unsplash.com/photo-1600047509782-20d39509f26d?w=600&auto=format&fit=crop",
+    badge: "Premium area",
+    area: "Indiranagar",
+    bhk: "3BHK",
+    subtitle: "High-demand zone",
+  },
+  {
+    id: 6,
+    image: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=600&auto=format&fit=crop",
+    badge: "Family pick",
+    area: "Bellandur",
+    bhk: "2BHK",
+    subtitle: "Near tech parks",
+  },
+  {
+    id: 7,
+    image: "https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=600&auto=format&fit=crop",
+    badge: "Fast availability",
+    area: "Mahadevpura",
+    bhk: "1BHK",
+    subtitle: "Budget-friendly",
   },
 ];
 
 // ── Property Card ─────────────────────────────────────────────────────────────
-function PropertyCard({ property, delay }) {
+function PropertyCard({ property, delay, onClick }) {
   const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
 
   return (
@@ -77,6 +102,7 @@ function PropertyCard({ property, delay }) {
         transition-all duration-300
         cursor-pointer
       "
+      onClick={onClick}
     >
       {/* Image + Badge */}
       <div className="relative w-full h-[200px] sm:h-[220px] overflow-hidden">
@@ -118,6 +144,16 @@ function PropertyCard({ property, delay }) {
 export default function SmartMatch() {
   const navigate = useNavigate();
   const { ref: titleRef, inView: titleInView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const [areaFilter, setAreaFilter] = useState("All areas");
+  const [bhkFilter, setBhkFilter] = useState("All BHK");
+  const areaOptions = ["All areas", "HSR Layout", "Koramangala", "Indiranagar", "Whitefield", "Bellandur", "Mahadevpura"];
+  const bhkOptions = ["All BHK", "1BHK", "2BHK", "3BHK"];
+  const visibleMatches = useMemo(
+    () =>
+      PROPERTIES.filter((p) => (areaFilter === "All areas" ? true : p.area === areaFilter))
+        .filter((p) => (bhkFilter === "All BHK" ? true : p.bhk === bhkFilter)),
+    [areaFilter, bhkFilter]
+  );
 
   return (
     <section className="bg-white py-20 sm:py-24 lg:py-28">
@@ -214,9 +250,20 @@ export default function SmartMatch() {
               ">
                 Top Matches
               </span>
-              <button className="text-[14.5px] font-semibold text-gray-950 hover:text-[#EF4444] transition-colors">
+            <button
+              onClick={() => navigate("/listings")}
+              className="text-[14.5px] font-semibold text-gray-950 hover:text-[#EF4444] transition-colors"
+            >
                 View All
               </button>
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white">
+                {areaOptions.map((opt) => <option key={opt}>{opt}</option>)}
+              </select>
+              <select value={bhkFilter} onChange={(e) => setBhkFilter(e.target.value)} className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white">
+                {bhkOptions.map((opt) => <option key={opt}>{opt}</option>)}
+              </select>
             </div>
 
             {/* Horizontally scrollable cards */}
@@ -228,9 +275,19 @@ export default function SmartMatch() {
               scrollbar-hide
               snap-x snap-mandatory
             ">
-              {PROPERTIES.map((property, i) => (
+              {visibleMatches.map((property, i) => (
                 <div key={property.id} className="snap-start">
-                  <PropertyCard property={property} delay={0.1 + i * 0.1} />
+                  <PropertyCard
+                    property={property}
+                    delay={0.1 + i * 0.08}
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        locality: property.area,
+                        bhk: property.bhk.replace("BHK", " BHK"),
+                      });
+                      navigate(`/map?${params.toString()}`);
+                    }}
+                  />
                 </div>
               ))}
             </div>

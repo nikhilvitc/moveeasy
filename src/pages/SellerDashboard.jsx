@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { getAssignmentsData, getListingsData, removeListingData, uploadListingFiles, upsertListingData, getVisitsData } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
+import MediaUploadField from "../components/MediaUploadField";
 
 async function readUserRow(email) {
   if (!email) return null;
@@ -31,7 +32,12 @@ export default function SellerDashboard() {
   const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
+  const [form, setForm] = useState({
+    title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
+    securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
+    floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
+    gatedCommunity: "", furnishingsText: "", amenitiesText: "",
+  });
   const [pinPosition, setPinPosition] = useState(null);
   const [myAssignments, setMyAssignments] = useState([]);
   const [sellerRow, setSellerRow] = useState(null);
@@ -74,20 +80,55 @@ export default function SellerDashboard() {
     if (!pinPosition) { alert("Please click on the map to set property location"); return; }
     const id = form.id || String(Date.now());
     const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, id) : [];
-    const finalImages = uploadedImages.length ? uploadedImages : (form.images || []);
-    const newItem = { ...form, id, seller: user?.name || "Seller", sellerEmail: user?.email, ownerEmail: user?.email, lat: pinPosition[0], lng: pinPosition[1], experience: "N/A", totalListings: 0, areas: form.address, company: user?.name, contact: form.contact || "N/A", monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0, availability: form.availability || "Immediate", propertyType: form.propertyType || "Apartment", furnishing: form.furnishing || "Semi", preferredTenants: form.preferredTenants || ["Family"], parking: form.parking || ["2 Wheeler"], images: finalImages, image: finalImages[0] || "" };
+    const manualImages = String(form.imagesText || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+    const mergedImages = [...uploadedImages, ...manualImages];
+    const finalImages = mergedImages.length ? mergedImages : (form.images || []);
+    const newItem = {
+      ...form,
+      id,
+      seller: user?.name || "Seller",
+      sellerEmail: user?.email,
+      ownerEmail: user?.email,
+      lat: pinPosition[0],
+      lng: pinPosition[1],
+      experience: "N/A",
+      totalListings: 0,
+      areas: form.address,
+      company: user?.name,
+      contact: form.contact || "N/A",
+      monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0,
+      availability: form.availability || "Immediate",
+      propertyType: form.propertyType || "Apartment",
+      furnishing: form.furnishing || "Semi",
+      preferredTenants: form.preferredTenants || ["Family"],
+      parking: form.parking || ["2 Wheeler"],
+      amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
+      furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
+      images: finalImages,
+      image: finalImages[0] || "",
+    };
     if (isFirebaseConfigured) await upsertListingData(newItem, user);
     else upsertListing(newItem);
     const all = isFirebaseConfigured ? await getListingsData() : getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
-    setForm({ title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "" });
+    setForm({
+      title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
+      securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
+      floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
+      gatedCommunity: "", furnishingsText: "", amenitiesText: "",
+    });
     setPinPosition(null);
     setPhotoFiles([]);
     setShowAdd(false);
   };
 
   const handleEdit = (listing) => {
-    setForm({ ...listing });
+    setForm({
+      ...listing,
+      imagesText: Array.isArray(listing.images) ? listing.images.join("\n") : (listing.imagesText || ""),
+      amenitiesText: Array.isArray(listing.amenities) ? listing.amenities.join(", ") : (listing.amenitiesText || ""),
+      furnishingsText: Array.isArray(listing.furnishings) ? listing.furnishings.join(", ") : (listing.furnishingsText || ""),
+    });
     setPinPosition([listing.lat, listing.lng]);
     setShowAdd(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -173,7 +214,14 @@ export default function SellerDashboard() {
               <select value={form.bhk} onChange={(e) => setForm({ ...form, bhk: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}><option>1RK</option><option>1BHK</option><option>2BHK</option><option>3BHK</option><option>4BHK</option></select>
               <input placeholder="Address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
-              <input type="file" accept="image/*,video/*" multiple onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Security deposit (optional)" value={form.securityDeposit || ""} onChange={(e) => setForm({ ...form, securityDeposit: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Maintenance (optional)" value={form.maintenanceCost || ""} onChange={(e) => setForm({ ...form, maintenanceCost: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Built up area (optional)" value={form.builtUpArea || ""} onChange={(e) => setForm({ ...form, builtUpArea: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Bathrooms (optional)" value={form.bathrooms || ""} onChange={(e) => setForm({ ...form, bathrooms: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <textarea placeholder="Furnishings (comma separated)" value={form.furnishingsText || ""} onChange={(e) => setForm({ ...form, furnishingsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
+              <textarea placeholder="Amenities (comma separated: lift, power backup, geyser...)" value={form.amenitiesText || ""} onChange={(e) => setForm({ ...form, amenitiesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
+              <textarea placeholder="Extra media URLs (one per line)" value={form.imagesText || ""} onChange={(e) => setForm({ ...form, imagesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "68px" }} />
+              <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
               <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center" }}>{pinPosition ? "Pin set" : "Click map below"}</div>
               <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2" }}>Save</button>
             </form>

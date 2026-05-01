@@ -15,21 +15,23 @@ export default {
       // ── Brand colors ────────────────────────────────────────────────────
       colors: {
         primary: {
-          DEFAULT: "#EF4444",   // main red
-          dark:    "#DC2626",   // hover
-          darker:  "#B91C1C",   // gradient end
-          light:   "#FEE2E2",   // tint backgrounds
-          soft:    "#FFF1F1",   // very light pink sections
+          DEFAULT: "#E85A4F",   // MovEazy coral (Figma-adjacent)
+          dark:    "#D64A3F",
+          darker:  "#B91C1C",
+          light:   "#FECACA",
+          soft:    "#FFF4F2",
+          glow:    "#FF8A7A",
         },
         ink: {
-          DEFAULT: "#0A0A0A",   // near-black text
-          muted:   "#6B7280",   // secondary text
-          subtle:  "#9CA3AF",   // tertiary / captions
+          DEFAULT: "#292524",   // warm stone — not harsh black
+          muted:   "#57534E",
+          subtle:  "#78716C",
         },
         surface: {
           white:   "#FFFFFF",
-          pink:    "#FFF1F1",   // Features section bg
-          dark:    "#111111",   // Stats / Comparison bg
+          pink:    "#FFF4F2",
+          mist:    "#F0F9FF",   // cool accent for depth
+          dark:    "#1C1917",
         },
       },
 

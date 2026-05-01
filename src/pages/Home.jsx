@@ -12,17 +12,18 @@ import Footer from "../components/layout/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen antialiased text-ink bg-transparent">
       <Navbar />
 
       <main className="relative">
         <Hero />
 
-        <div className="relative z-30 -mt-6 sm:-mt-12 lg:-mt-16">
+        {/* Pull-up overlap only on large screens — negative margin on mobile covered the hero + broker strip */}
+        <div className="relative z-20 mt-8 px-2 sm:mt-10 sm:px-0 lg:-mt-14 lg:z-30">
           <Stats />
         </div>
 
-        <div className="relative z-10 mt-0 sm:-mt-6 lg:-mt-8">
+        <div className="relative z-10 mt-8 sm:mt-10 lg:-mt-6">
           <Features />
           <SmartMatch />
           <HowItWorks />

@@ -19,26 +19,26 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+    <nav className="sticky top-0 z-50 border-b border-primary-light/40 bg-white/90 backdrop-blur-lg shadow-navbar">
       <div className="flex items-center justify-between px-4 md:px-8 py-3">
       
       {/* LOGO */}
       <div onClick={() => closeAndGo("/")} className="cursor-pointer text-2xl font-black tracking-tight flex items-center">
-        <span className="text-black">Mov</span>
-        <span className="text-red-500">EAZY</span>
+        <span className="text-ink">Mov</span>
+        <span className="text-primary">EAZY</span>
       </div>
 
       {/* CENTER LINKS */}
-      <div className="hidden lg:flex items-center gap-7 text-[14px] font-semibold text-gray-600">
-        <span onClick={() => closeAndGo("/services")} className="cursor-pointer hover:text-black transition-colors">Services</span>
-        <span onClick={() => closeAndGo("/guarantee")} className="cursor-pointer hover:text-black transition-colors">Guarantee</span>
-        <span onClick={() => closeAndGo("/map")} className="cursor-pointer hover:text-black transition-colors">Listings</span>
-        <span onClick={() => closeAndGo("/contact")} className="cursor-pointer hover:text-black transition-colors">Contact</span>
+      <div className="hidden lg:flex items-center gap-7 text-[14px] font-semibold text-ink-muted">
+        <span onClick={() => closeAndGo("/services")} className="cursor-pointer hover:text-primary-darker transition-colors">Services</span>
+        <span onClick={() => closeAndGo("/guarantee")} className="cursor-pointer hover:text-primary-darker transition-colors">Guarantee</span>
+        <span onClick={() => closeAndGo("/map")} className="cursor-pointer hover:text-primary-darker transition-colors">Listings</span>
+        <span onClick={() => closeAndGo("/contact")} className="cursor-pointer hover:text-primary-darker transition-colors">Contact</span>
         
         {/* EXPLORE MAP BUTTON */}
          <button 
            onClick={() => closeAndGo("/map")} 
-           className="cursor-pointer font-bold text-blue-700 bg-blue-50 px-4 py-1.5 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-2 border border-blue-200"
+           className="cursor-pointer font-bold text-sky-800 bg-sky-50 px-4 py-1.5 rounded-full hover:bg-sky-100/90 transition-colors flex items-center gap-2 border border-sky-200/80 shadow-sm"
          >
           🗺️ Explore Map
         </button>
@@ -48,12 +48,12 @@ export default function Navbar() {
       <div className="flex items-center gap-4">
         <button 
           onClick={() => closeAndGo("/contact")}
-          className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-black rounded-full hover:bg-gray-50 transition-colors">
+          className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-ink/15 text-ink rounded-full hover:border-primary/40 hover:bg-primary-soft/50 transition-colors">
           Book A Consultation
         </button>
         
         {user ? (
-          <div className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+          <div className="hidden lg:flex items-center gap-3 text-sm font-semibold text-ink-muted">
             {user.role === "customer" && (
               <button
                 onClick={() => closeAndGo("/customer")}
@@ -87,7 +87,7 @@ export default function Navbar() {
             </button>
           </div>
         ) : (
-          <button onClick={() => closeAndGo("/login")} className="hidden sm:block px-6 py-2 text-sm font-bold text-white bg-red-500 rounded-full hover:bg-red-600 transition-colors shadow-sm">
+          <button onClick={() => closeAndGo("/login")} className="hidden sm:block px-6 py-2 text-sm font-bold text-white bg-primary rounded-full hover:bg-primary-dark transition-colors shadow-red">
             Sign In / Register
           </button>
         )}
@@ -103,8 +103,8 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="lg:hidden border-t border-gray-100 px-4 py-4 bg-white">
-          <div className="grid gap-3 text-sm font-semibold text-gray-700">
+        <div className="lg:hidden border-t border-primary-light/30 px-4 py-4 bg-surface-pink/80">
+          <div className="grid gap-3 text-sm font-semibold text-ink">
             <button onClick={() => closeAndGo("/services")} className="text-left">Services</button>
             <button onClick={() => closeAndGo("/guarantee")} className="text-left">Guarantee</button>
             <button onClick={() => closeAndGo("/map")} className="text-left">Listings / Map</button>

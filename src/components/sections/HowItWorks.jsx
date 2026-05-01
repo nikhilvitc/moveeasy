@@ -30,7 +30,7 @@ const STEPS = [
 
 function DashedArc() {
   return (
-    <div className="hidden lg:flex items-start justify-center w-20 xl:w-28 mt-14 flex-shrink-0">
+    <div className="hidden lg:flex items-start justify-center w-12 xl:w-20 2xl:w-24 mt-14 flex-shrink-0">
       <svg viewBox="0 0 80 30" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full" aria-hidden="true">
         <path d="M4 24 Q40 2 76 24" stroke="#9CA3AF" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" />
       </svg>
@@ -43,8 +43,8 @@ export default function HowItWorks() {
 
   return (
     <section className="bg-white py-20 sm:py-24 lg:py-28">
-      <div className="max-w-6xl mx-auto px-6 lg:px-10">
-        <div className="rounded-2xl lg:rounded-3xl border border-gray-100 bg-white px-6 sm:px-10 lg:px-14 py-14 sm:py-16 lg:py-20">
+      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 xl:max-w-[90rem] xl:px-12 2xl:px-16">
+        <div className="rounded-2xl lg:rounded-3xl border border-gray-100 bg-white px-5 py-14 sm:px-8 sm:py-16 lg:px-12 lg:py-20 xl:px-16">
 
           {/* Title */}
           <motion.div
@@ -70,7 +70,7 @@ export default function HowItWorks() {
             {STEPS.map((step, i) => (
               <div key={step.number} className="flex sm:contents">
                 <motion.div
-                  className="flex flex-col items-center text-center sm:flex-1 sm:max-w-[220px] relative"
+                  className="relative flex min-w-0 flex-1 flex-col items-center text-center lg:px-1 xl:px-2"
                   initial={{ opacity: 0, y: 28 }}
                   animate={inView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.58, delay: i * 0.15, ease: EASE }}

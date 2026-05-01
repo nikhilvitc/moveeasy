@@ -83,6 +83,13 @@ function normalizeListing(listing) {
     : typeof listing.parking === "string" && listing.parking.trim()
       ? [listing.parking.trim()]
       : ["2 Wheeler"];
+  const normalizeCsvList = (value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string" && value.trim()) {
+      return value.split(",").map((item) => item.trim()).filter(Boolean);
+    }
+    return [];
+  };
 
   return {
     id: listing.id ?? Date.now(),
@@ -106,6 +113,23 @@ function normalizeListing(listing) {
     propertyType: listing.propertyType ?? "Apartment",
     furnishing: listing.furnishing ?? "Semi",
     parking,
+    // Optional extended details (non-mandatory)
+    securityDeposit: listing.securityDeposit ?? "",
+    maintenanceCost: listing.maintenanceCost ?? "",
+    brokerage: listing.brokerage ?? "",
+    builtUpArea: listing.builtUpArea ?? "",
+    areaUnit: listing.areaUnit ?? "sq ft",
+    bathrooms: listing.bathrooms ?? "",
+    balcony: listing.balcony ?? "",
+    floorNumber: listing.floorNumber ?? "",
+    totalFloors: listing.totalFloors ?? "",
+    leaseType: listing.leaseType ?? "",
+    ageOfProperty: listing.ageOfProperty ?? "",
+    parkingInfo: listing.parkingInfo ?? "",
+    gasPipeline: listing.gasPipeline ?? "",
+    gatedCommunity: listing.gatedCommunity ?? "",
+    furnishings: normalizeCsvList(listing.furnishings),
+    amenities: normalizeCsvList(listing.amenities),
     source: listing.source ?? "manual",
     sourceUrl: listing.sourceUrl ?? "",
     assignedCustomerEmail: listing.assignedCustomerEmail ?? null,

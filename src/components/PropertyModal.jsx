@@ -9,7 +9,7 @@ function MediaElement({ src, alt, style }) {
   if (!src) return null;
   const isVideo = src.match(/\.(mp4|webm|ogg|mov)$/i) || src.includes('video');
   if (isVideo) {
-    return <video src={src} style={style} autoPlay muted loop playsInline />;
+    return <video src={src} style={style} controls playsInline preload="metadata" />;
   }
   return <img src={src} alt={alt} loading="lazy" style={style} />;
 }
@@ -37,6 +37,34 @@ export default function PropertyModal({ property, onClose }) {
 
   const images = property.images && property.images.length > 0 ? property.images : [property.image].filter(Boolean);
   if (images.length === 0) images.push("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000");
+  const numericRent = Number(String(property.monthlyRent || property.rent || "0").replace(/[^0-9.]/g, "")) || 0;
+  const securityDeposit = numericRent > 0 ? Math.round(numericRent * 2.5) : 0;
+  const maintenance = numericRent > 0 ? Math.round(numericRent * 0.08) : 0;
+  const moveInCharges = maintenance + 1999;
+  const formatInr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
+  const amenities = property.amenities && property.amenities.length
+    ? property.amenities
+    : ["Power backup", "24x7 water", "Security", "Lift", "Pet friendly"];
+  const furnishings = property.furnishings && property.furnishings.length
+    ? property.furnishings
+    : ["Dining Table", "Washing Machine", "Sofa", "Microwave", "Fridge", "Geyser"];
+  const detailRows = [
+    ["Security", property.securityDeposit || formatInr(securityDeposit)],
+    ["Area Unit", property.areaUnit || "square_feet"],
+    ["Brokerage", property.brokerage || "Not specified"],
+    ["Maintenance", property.maintenanceCost || formatInr(maintenance)],
+    ["Built up area", property.builtUpArea || "Not specified"],
+    ["Furnishing", property.furnishing || "Semi-furnished"],
+    ["Bathrooms", property.bathrooms || "Not specified"],
+    ["Balcony", property.balcony || "Not specified"],
+    ["Available from", property.availableFrom || property.availability || "Immediate"],
+    ["Floor number", (property.floorNumber || property.totalFloors) ? `${property.floorNumber || "?"} of ${property.totalFloors || "?"} floors` : "Not specified"],
+    ["Lease type", property.leaseType || (property.preferredTenants && property.preferredTenants.join(" / ")) || "Not specified"],
+    ["Age of property", property.ageOfProperty || "Not specified"],
+    ["Parking", property.parkingInfo || (property.parking && property.parking.join(", ")) || "Not specified"],
+    ["Gas Pipeline", property.gasPipeline || "Not specified"],
+    ["Gate Community", property.gatedCommunity || "Not specified"],
+  ];
 
   const submitVisit = async (e) => {
     e.preventDefault();
@@ -83,6 +111,8 @@ export default function PropertyModal({ property, onClose }) {
 
   const [isSaved, setIsSaved] = useState(false);
   const [shareText, setShareText] = useState("↗ Share");
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(null);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -91,6 +121,15 @@ export default function PropertyModal({ property, onClose }) {
   };
 
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    setActiveMediaIndex(0);
+  }, [property?.id]);
+
+  const activeMedia = images[activeMediaIndex] || images[0];
+  const isActiveVideo = String(activeMedia || "").match(/\.(mp4|webm|ogg|mov)$/i) || String(activeMedia || "").includes("video");
+  const goPrevMedia = () => setActiveMediaIndex((prev) => (prev - 1 + images.length) % images.length);
+  const goNextMedia = () => setActiveMediaIndex((prev) => (prev + 1) % images.length);
 
   const scrollTo = (id) => {
     const el = document.getElementById(id);
@@ -120,7 +159,7 @@ export default function PropertyModal({ property, onClose }) {
           exit={{ y: 20, opacity: 0, scale: 0.98 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           style={{
-            background: "white", width: "100%", maxWidth: "1100px", height: isMobile ? "95vh" : "90vh",
+            background: "linear-gradient(180deg, #fffdfd 0%, #fff8f8 100%)", width: "100%", maxWidth: "1100px", height: isMobile ? "95vh" : "90vh",
             borderRadius: isMobile ? "14px" : "16px", overflow: "hidden", display: "flex", flexDirection: "column",
             position: "relative", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
           }}
@@ -150,7 +189,7 @@ export default function PropertyModal({ property, onClose }) {
           </button>
 
           {/* Header */}
-          <div style={{ padding: isMobile ? "12px 14px" : "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", zIndex: 10, paddingRight: isMobile ? "52px" : "24px" }}>
+          <div style={{ padding: isMobile ? "12px 14px" : "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff9f7", zIndex: 10, paddingRight: isMobile ? "52px" : "24px" }}>
             <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center" }}>
               <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px" }}>
@@ -170,22 +209,106 @@ export default function PropertyModal({ property, onClose }) {
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}>
             {/* Gallery */}
-            <div style={{ display: "grid", gridTemplateColumns: images.length > 1 ? "2fr 1fr" : "1fr", gap: "4px", height: isMobile ? "240px" : "400px", padding: "4px", background: "#f8fafc" }}>
-              <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "black" }}>
-                <MediaElement src={images[0]} alt={property.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <div style={{ height: isMobile ? "300px" : "420px", padding: "10px 10px 6px", background: "#f8fafc" }}>
+              <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#0f172a", borderRadius: "14px" }}>
+                <MediaElement src={activeMedia} alt={property.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {isActiveVideo && (
+                  <div style={{ position: "absolute", top: "10px", left: "10px", background: "rgba(15,23,42,0.7)", color: "white", fontSize: "11px", fontWeight: 700, borderRadius: "999px", padding: "5px 9px" }}>
+                    VIDEO
+                  </div>
+                )}
+                {images.length > 1 && (
+                  <div
+                    style={{ position: "absolute", inset: 0 }}
+                    onTouchStart={(e) => setTouchStartX(e.changedTouches?.[0]?.clientX ?? null)}
+                    onTouchEnd={(e) => {
+                      if (touchStartX == null) return;
+                      const endX = e.changedTouches?.[0]?.clientX ?? touchStartX;
+                      const delta = endX - touchStartX;
+                      if (Math.abs(delta) >= 40) {
+                        if (delta < 0) goNextMedia();
+                        else goPrevMedia();
+                      }
+                      setTouchStartX(null);
+                    }}
+                  />
+                )}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrevMedia}
+                      style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700 }}
+                      aria-label="Previous media"
+                    >
+                      {"<"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goNextMedia}
+                      style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700 }}
+                      aria-label="Next media"
+                    >
+                      {">"}
+                    </button>
+                  </>
+                )}
               </div>
               {images.length > 1 && (
-                <div style={{ display: "grid", gridTemplateRows: "1fr 1fr", gap: "4px" }}>
-                  <div style={{ overflow: "hidden", background: "black" }}>
-                    <MediaElement src={images[1]} alt="Gallery 1" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-                  {images[2] ? (
-                    <div style={{ overflow: "hidden", background: "black" }}>
-                      <MediaElement src={images[2]} alt="Gallery 2" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    </div>
-                  ) : (
-                    <div style={{ background: "#e2e8f0", width: "100%", height: "100%" }} />
-                  )}
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                  {images.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveMediaIndex(idx)}
+                      style={{
+                        width: idx === activeMediaIndex ? "22px" : "8px",
+                        height: "8px",
+                        borderRadius: "999px",
+                        border: "none",
+                        background: idx === activeMediaIndex ? "#334155" : "#cbd5e1",
+                        transition: "all 0.2s ease",
+                      }}
+                      aria-label={`Go to media ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+              {images.length > 1 && (
+                <div style={{ marginTop: "10px", display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "2px" }}>
+                  {images.map((src, idx) => {
+                    const isVideoThumb = String(src || "").match(/\.(mp4|webm|ogg|mov)$/i) || String(src || "").includes("video");
+                    return (
+                      <button
+                        key={`${src}-${idx}`}
+                        type="button"
+                        onClick={() => setActiveMediaIndex(idx)}
+                        style={{
+                          border: idx === activeMediaIndex ? "2px solid #334155" : "1px solid #cbd5e1",
+                          borderRadius: "10px",
+                          padding: 0,
+                          background: "white",
+                          minWidth: "72px",
+                          width: "72px",
+                          height: "52px",
+                          overflow: "hidden",
+                          position: "relative",
+                        }}
+                        aria-label={`Select media ${idx + 1}`}
+                      >
+                        {isVideoThumb ? (
+                          <video src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted />
+                        ) : (
+                          <img src={src} alt={`Media thumbnail ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        )}
+                        {isVideoThumb && (
+                          <span style={{ position: "absolute", right: "4px", bottom: "4px", fontSize: "9px", color: "white", background: "rgba(0,0,0,0.7)", borderRadius: "999px", padding: "2px 5px", fontWeight: 700 }}>
+                            VIDEO
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -237,6 +360,50 @@ export default function PropertyModal({ property, onClose }) {
                       <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Source</div>
                       <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.source || "Direct"}</div>
                     </div>
+                    <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px" }}>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Coordinates</div>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.lat && property.lng ? `${property.lat}, ${property.lng}` : "Not available"}</div>
+                    </div>
+                    <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px" }}>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Move-in</div>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.availableFrom || property.availability || "Immediate"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "32px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 16px", fontSize: "18px", fontWeight: 700, color: "#0f172a", borderBottom: "1px solid #e2e8f0" }}>
+                    Property details
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0 20px", padding: "0 16px" }}>
+                    {detailRows.map(([label, value], idx) => (
+                      <div key={label} style={{ padding: "12px 0", borderBottom: idx < detailRows.length - 2 ? "1px solid #e2e8f0" : "none" }}>
+                        <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{label}</div>
+                        <div style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "32px" }}>
+                  <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#0f172a" }}>Furnishings</h2>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0,1fr))", gap: "10px" }}>
+                    {furnishings.map((item) => (
+                      <div key={item} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "32px" }}>
+                  <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#0f172a" }}>Amenities</h2>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                    {amenities.map((item) => (
+                      <span key={item} style={{ background: "#fff1f2", color: "#be123c", border: "1px solid #fecdd3", padding: "7px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600 }}>
+                        {item}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -248,6 +415,17 @@ export default function PropertyModal({ property, onClose }) {
                     {property.price || `₹ ${property.monthlyRent || 0}`}
                   </div>
                   <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>Rent per month</div>
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
+                      <span>Security deposit</span><strong style={{ color: "#0f172a" }}>{formatInr(securityDeposit)}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
+                      <span>Maintenance (est.)</span><strong style={{ color: "#0f172a" }}>{formatInr(maintenance)}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569" }}>
+                      <span>Move-in charges</span><strong style={{ color: "#0f172a" }}>{formatInr(moveInCharges)}</strong>
+                    </div>
+                  </div>
 
                   {showVisitForm ? (
                     <form onSubmit={submitVisit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -278,6 +456,9 @@ export default function PropertyModal({ property, onClose }) {
                       </button>
                       <a href={`tel:${property.contact}`} style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#f8fafc", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
                         Call Seller: {property.contact}
+                      </a>
+                      <a href={`https://wa.me/${String(property.contact || "").replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#ecfdf3", color: "#166534", border: "1px solid #86efac", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
+                        WhatsApp Seller
                       </a>
                     </div>
                   )}
