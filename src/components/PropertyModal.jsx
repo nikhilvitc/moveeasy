@@ -19,10 +19,18 @@ export default function PropertyModal({ property, onClose }) {
   const [visitForm, setVisitForm] = useState({ phone: "", time: "", notes: "" });
   const [visitSuccess, setVisitSuccess] = useState("");
   const [showVisitForm, setShowVisitForm] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "unset"; };
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   if (!property) return null;
@@ -102,7 +110,7 @@ export default function PropertyModal({ property, onClose }) {
         exit={{ opacity: 0 }}
         style={{
           position: "fixed", inset: 0, zIndex: 99999, background: "rgba(15, 23, 42, 0.95)",
-          display: "flex", justifyContent: "center", alignItems: "center", padding: "20px"
+          display: "flex", justifyContent: "center", alignItems: "center", padding: isMobile ? "8px" : "20px"
         }}
         onClick={onClose}
       >
@@ -112,35 +120,57 @@ export default function PropertyModal({ property, onClose }) {
           exit={{ y: 20, opacity: 0, scale: 0.98 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           style={{
-            background: "white", width: "100%", maxWidth: "1100px", height: "90vh",
-            borderRadius: "16px", overflow: "hidden", display: "flex", flexDirection: "column",
+            background: "white", width: "100%", maxWidth: "1100px", height: isMobile ? "95vh" : "90vh",
+            borderRadius: isMobile ? "14px" : "16px", overflow: "hidden", display: "flex", flexDirection: "column",
             position: "relative", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)"
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              zIndex: 20,
+              width: "36px",
+              height: "36px",
+              borderRadius: "999px",
+              border: "1px solid #e2e8f0",
+              background: "rgba(255,255,255,0.95)",
+              color: "#0f172a",
+              fontWeight: 800,
+              fontSize: "18px",
+              lineHeight: 1,
+              cursor: "pointer",
+            }}
+            aria-label="Close property modal"
+          >
+            ×
+          </button>
+
           {/* Header */}
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", zIndex: 10 }}>
-            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
-              <div style={{ display: "flex", gap: "16px", color: "#475569", fontWeight: 600, fontSize: "14px" }}>
+          <div style={{ padding: isMobile ? "12px 14px" : "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", zIndex: 10, paddingRight: isMobile ? "52px" : "24px" }}>
+            <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center" }}>
+              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
+              <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px" }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
                 <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer" }}>Facts & Features</span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={() => setIsSaved(!isSaved)} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#334155" }}>
-                {isSaved ? "♥ Saved" : "♡ Save"}
+                {isMobile ? (isSaved ? "♥" : "♡") : (isSaved ? "♥ Saved" : "♡ Save")}
               </button>
               <button onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
-                {shareText}
+                {isMobile ? "↗" : shareText}
               </button>
-              <button onClick={onClose} style={{ background: "#f1f5f9", border: "none", borderRadius: "8px", padding: "6px 12px", fontWeight: 700, fontSize: "14px", cursor: "pointer", color: "#475569" }}>Close ×</button>
             </div>
           </div>
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}>
             {/* Gallery */}
-            <div style={{ display: "grid", gridTemplateColumns: images.length > 1 ? "2fr 1fr" : "1fr", gap: "4px", height: "400px", padding: "4px", background: "#f8fafc" }}>
+            <div style={{ display: "grid", gridTemplateColumns: images.length > 1 ? "2fr 1fr" : "1fr", gap: "4px", height: isMobile ? "240px" : "400px", padding: "4px", background: "#f8fafc" }}>
               <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "black" }}>
                 <MediaElement src={images[0]} alt={property.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
               </div>
@@ -161,7 +191,7 @@ export default function PropertyModal({ property, onClose }) {
             </div>
 
             {/* Content Area */}
-            <div style={{ display: "flex", flexWrap: "wrap", padding: "32px", gap: "40px", maxWidth: "1000px", margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", padding: isMobile ? "14px" : "32px", gap: isMobile ? "18px" : "40px", maxWidth: "1000px", margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
               
               {/* Left Column (Details) */}
               <div id="overview" style={{ flex: "1 1 500px", minWidth: 0 }}>

@@ -161,18 +161,14 @@ export default function MapView() {
             display: flex;
             align-items: center;
             justify-content: center;
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
             z-index: 1000;
             background: #1e293b;
             color: white;
             border: none;
-            padding: 10px 24px;
+            padding: 10px 14px;
             border-radius: 24px;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 13px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             cursor: pointer;
           }
@@ -186,7 +182,7 @@ export default function MapView() {
           }
         }
       `}</style>
-      <div style={{ background: "white", padding: isMobile ? "10px 12px" : "12px 20px", borderBottom: "1px solid #e2e8f0" }}>
+      <div style={{ background: "white", padding: isMobile ? "10px 12px" : "12px 20px", borderBottom: "1px solid #e2e8f0", position: "relative", zIndex: 1001 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", marginBottom: "8px", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
             <button
@@ -288,7 +284,7 @@ export default function MapView() {
           </MapContainer>
           
           {isMobile && (
-            <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 1000, display: "flex", gap: "8px" }}>
+            <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, display: "flex", gap: "8px" }}>
               <button className="mobile-filter-btn" onClick={() => setShowMobileFilters(true)} style={{ position: "static", transform: "none", margin: 0 }}>
                 Filters
               </button>
@@ -318,13 +314,13 @@ export default function MapView() {
             background: "#f8fafc",
             borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
             padding: "10px",
-            height: isMobile ? "42vh" : "100%",
+            height: isMobile ? "45vh" : "100%",
             flexShrink: 0,
             position: isMobile ? "absolute" : "static",
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: isMobile ? 998 : "auto",
+            zIndex: isMobile ? 1002 : "auto",
             boxShadow: isMobile ? "0 -8px 24px rgba(15, 23, 42, 0.18)" : "none",
             transform: isMobile ? (showMobileListings ? "translateY(0)" : "translateY(102%)") : "none",
             transition: "transform 0.25s ease",
