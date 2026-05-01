@@ -38,9 +38,9 @@ function makeBhkIcon(bhk) {
   const c = bhkColors[bhk] || "#6b7280";
   return L.divIcon({
     className: "",
-    html: '<div style="background:' + c + ';color:white;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3)">' + bhk + "</div>",
-    iconSize: [40, 20],
-    iconAnchor: [20, 10],
+    html: '<div style="background:' + c + ';color:white;padding:4px 10px;border-radius:20px;font-size:14px;font-weight:800;white-space:nowrap;border:2px solid white;box-shadow:0 4px 8px rgba(0,0,0,0.4)">' + bhk + "</div>",
+    iconSize: [60, 24],
+    iconAnchor: [30, 12],
   });
 }
 
@@ -252,7 +252,15 @@ export default function MapView() {
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
             {filteredListings.map((l) => (
-              <Marker key={l.id} position={[l.lat, l.lng]} icon={makeBhkIcon(l.bhk)} eventHandlers={{ click: () => setSelected(l) }}>
+              <Marker 
+                key={l.id} 
+                position={[l.lat, l.lng]} 
+                icon={makeBhkIcon(l.bhk)} 
+                eventHandlers={{ 
+                  click: () => setSelected(l),
+                  mouseover: (e) => e.target.openPopup()
+                }}
+              >
                 <Popup>
                   <div style={{ minWidth: "180px" }}>
                     {l.image && <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "90px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
