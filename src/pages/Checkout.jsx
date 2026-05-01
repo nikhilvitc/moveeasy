@@ -113,10 +113,10 @@ export default function Checkout() {
               <div className="bg-blue-50 rounded-xl p-4 mb-6 text-sm">
                 <div className="font-semibold text-blue-900 mb-2">Or pay via Bank Transfer:</div>
                 <div className="text-blue-800 space-y-1">
-                  <div>UPI: <span className="font-mono font-bold">moveazy@upi</span></div>
+                  <div>UPI: <span className="font-mono font-bold">9413186425@ybl</span></div>
                   <div>After payment, share screenshot on WhatsApp:</div>
                   <a
-                    href="https://wa.me/917055954373?text=I've%20paid%20₹1999%20for%20Guarantee%20Plan.%20Here's%20my%20receipt."
+                    href="https://wa.me/919413186425?text=I've%20paid%20₹1999%20for%20Guarantee%20Plan.%20Here's%20my%20receipt."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"

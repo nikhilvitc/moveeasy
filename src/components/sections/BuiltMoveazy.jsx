@@ -1,6 +1,7 @@
 // src/components/sections/BuiltMoveazy.jsx
 import { motion } from "framer-motion";
 import { Search, Headphones, ArrowRightLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -33,6 +34,7 @@ const FEATURES = [
 ];
 
 export default function BuiltMoveazy() {
+  const navigate = useNavigate();
   return (
     <section className="relative w-full bg-white py-20 lg:py-28 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -81,7 +83,10 @@ export default function BuiltMoveazy() {
           {...fadeUp(0.24)}
           className="mt-12 text-center"
         >
-          <button className="rounded-full px-8 py-3.5 text-[14px] font-semibold text-white bg-[#EF4444] hover:bg-[#DC2626] transition-all duration-200 shadow-[0_10px_28px_rgba(239,68,68,0.25)]">
+          <button
+            onClick={() => navigate("/map")}
+            className="rounded-full px-8 py-3.5 text-[14px] font-semibold text-white bg-[#EF4444] hover:bg-[#DC2626] transition-all duration-200 shadow-[0_10px_28px_rgba(239,68,68,0.25)]"
+          >
             Start Your Stress-Free Move
           </button>
         </motion.div>

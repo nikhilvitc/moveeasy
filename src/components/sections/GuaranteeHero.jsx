@@ -1,5 +1,6 @@
 // src/components/sections/GuaranteeHero.jsx
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import keyhandoverImg from "../../assets/images/guarentee-keyhandover.jpg";
 import depositImg from "../../assets/images/guarentee-deposit.png";
 import disputeImg from "../../assets/images/guarentee-dispute.png";
@@ -20,6 +21,7 @@ const FEATURE_LINKS = [
 ];
 
 export default function GuaranteeHero() {
+  const navigate = useNavigate();
   return (
     <section className="relative w-full overflow-hidden bg-white pt-[88px] sm:pt-[96px] lg:pt-[110px] pb-14 sm:pb-16 lg:pb-20">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10">
@@ -53,6 +55,7 @@ export default function GuaranteeHero() {
             <motion.div {...fadeUp(0.18)} className="mt-7 flex flex-col gap-3">
               <div>
                 <button
+                  onClick={() => navigate("/checkout")}
                   className="
                     px-7 py-[13px] text-[14.5px] font-semibold
                     text-white bg-[#EF4444] rounded-full
@@ -108,7 +111,7 @@ export default function GuaranteeHero() {
                 {FEATURE_LINKS.map((link) => (
                   <a
                     key={link}
-                    href="#"
+                    href="/#/contact"
                     className="
                       inline-flex items-center gap-2
                       text-[14px] font-medium text-[#1E2A3A]

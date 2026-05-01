@@ -109,6 +109,7 @@
 // }
 import { motion } from "framer-motion";
 import cozyLivingRoom from "../../assets/images/Cozy_modern_living_room.png";
+import { useNavigate } from "react-router-dom";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -120,6 +121,7 @@ const fadeUp = (delay = 0) => ({
 });
 
 export default function ServicesHero() {
+  const navigate = useNavigate();
   return (
     <section className="relative w-full overflow-hidden bg-white pt-24 sm:pt-28 lg:pt-32 pb-14 sm:pb-16">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10">
@@ -177,6 +179,7 @@ export default function ServicesHero() {
               className="mt-8 flex flex-wrap gap-4"
             >
               <button
+                onClick={() => navigate("/map")}
                 className="
                   rounded-full px-7 py-3
                   text-[14px] font-semibold text-white
@@ -190,6 +193,7 @@ export default function ServicesHero() {
               </button>
 
               <button
+                onClick={() => navigate("/contact")}
                 className="
                   rounded-full px-7 py-3
                   text-[14px] font-semibold

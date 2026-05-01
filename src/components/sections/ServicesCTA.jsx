@@ -1,10 +1,12 @@
 // src/components/sections/ServicesCTA.jsx
 // Named ServicesCTA to avoid collision with existing CityCTA.jsx
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const EASE = [0.22, 1, 0.36, 1];
 
 export default function ServicesCTA() {
+  const navigate = useNavigate();
   return (
     <section className="relative w-full bg-white py-16 lg:py-24 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
@@ -66,7 +68,9 @@ export default function ServicesCTA() {
               transition={{ duration: 0.55, delay: 0.36, ease: EASE }}
               className="mt-10 flex flex-wrap justify-center gap-4"
             >
-              <button className="
+              <button
+                onClick={() => navigate("/contact")}
+                className="
                 px-8 py-[13px] text-[14.5px] font-semibold
                 text-[#EF4444] bg-white rounded-full
                 hover:bg-gray-50 active:scale-[0.975]
@@ -75,7 +79,9 @@ export default function ServicesCTA() {
                 See Open Positions
               </button>
 
-              <button className="
+              <button
+                onClick={() => navigate("/map")}
+                className="
                 px-8 py-[13px] text-[14.5px] font-semibold
                 text-white rounded-full border border-white/50
                 hover:bg-white/10 active:scale-[0.975]
