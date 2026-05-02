@@ -42,6 +42,23 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     overflow-y: scroll;
+    /* Keep mobile from auto-shrinking type; stepped rem scales Tailwind on large desktops */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    font-size: 100%;
+  }
+
+  /* Larger physical UI on wide monitors (Tailwind spacing/type use rem) */
+  @media (min-width: 1024px) {
+    html {
+      font-size: 106.25%;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    html {
+      font-size: 112.5%;
+    }
   }
 
   body {
@@ -73,6 +90,11 @@
   svg {
     display: block;
     max-width: 100%;
+  }
+
+  /* Avoid height:auto on cover / full-bleed media (Tailwind h-full + object-cover) */
+  img:not([class~="h-full"]):not([height]),
+  video:not([class~="h-full"]):not([height]) {
     height: auto;
   }
 

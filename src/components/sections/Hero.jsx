@@ -44,7 +44,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative z-[1] w-full min-h-0 overflow-hidden lg:min-h-[calc(100vh-64px)]">
+    <section className="relative z-[1] w-full min-h-[min(560px,88dvh)] overflow-hidden lg:min-h-[calc(100vh-64px)]">
       {/* Full-bleed photography */}
       <img
         src={HERO_PHOTO}
