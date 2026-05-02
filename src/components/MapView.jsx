@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
 import { useAuth } from "../context/AuthContext";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { getListingsData, addVisitRequestData } from "../lib/firestoreStore";
+import { getListingsData } from "../lib/firestoreStore";
 import PropertyModal from "./PropertyModal";
 
 function MediaElement({ src, alt, style }) {
@@ -77,6 +77,28 @@ function FitListingsBounds({ listings, enabled }) {
       map.fitBounds(b, { padding: [72, 72], maxZoom: 15, animate: false });
     });
   }, [map, signature, enabled, listings.length]);
+  return null;
+}
+
+/** Leaflet caches tile layout size; must invalidate when sidebars / mode change or the map leaves a grey gap. */
+function InvalidateMapSize({ layoutRevision }) {
+  const map = useMap();
+  useEffect(() => {
+    const nudge = () => {
+      map.invalidateSize({ animate: false, pan: false });
+    };
+    nudge();
+    const raf = requestAnimationFrame(nudge);
+    const t1 = setTimeout(nudge, 80);
+    const t2 = setTimeout(nudge, 280);
+    window.addEventListener("resize", nudge);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", nudge);
+    };
+  }, [map, layoutRevision]);
   return null;
 }
 
@@ -186,6 +208,8 @@ export default function MapView() {
     });
   };
 
+  const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${isMobile}`;
+
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}>
       <style>{`
@@ -276,7 +300,17 @@ export default function MapView() {
         </div>
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <select value={desktopMode} onChange={(e) => setDesktopMode(e.target.value)} style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 14px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}>
+            <select
+              value={desktopMode}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDesktopMode(v);
+                if (v === "map") {
+                  setShowDesktopListings(false);
+                }
+              }}
+              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 14px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}
+            >
               <option value="split">Split View</option>
               <option value="map">Full Map</option>
             </select>
@@ -297,7 +331,8 @@ export default function MapView() {
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        {(isMobile || (desktopMode === "split" && showDesktopFilters)) && (
+        {(isMobile ||
+          (showDesktopFilters && (desktopMode === "split" || desktopMode === "map"))) && (
         <aside className={`desktop-sidebar ${showMobileFilters ? "open" : ""}`}>
           <h3 style={{ margin: "0 0 12px", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: 800 }}>
             Filters
@@ -345,8 +380,9 @@ export default function MapView() {
         </aside>
         )}
 
-        <div style={{ flex: 1, minWidth: isMobile ? 0 : "400px", position: "relative" }}>
-          <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%" }}>
+        <div style={{ flex: "1 1 0%", minWidth: isMobile ? 0 : 280, position: "relative", background: "#fff" }}>
+          <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%", zIndex: 1 }}>
+            <InvalidateMapSize layoutRevision={mapLayoutKey} />
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <FitListingsBounds listings={filteredListings} enabled={!selectedLocality.trim()} />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />

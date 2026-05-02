@@ -8,10 +8,11 @@ const HERO_PHOTO =
 
 const EASE = [0.22, 1, 0.36, 1];
 
+/* initial: false avoids a stuck opacity:0 first paint if motion fails on some mobile browsers */
 const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 28 },
+  initial: false,
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.65, delay, ease: EASE },
+  transition: { duration: 0.55, delay, ease: EASE },
 });
 
 export default function Hero() {
@@ -44,7 +45,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative z-[1] w-full min-h-[min(560px,88dvh)] overflow-hidden lg:min-h-[calc(100vh-64px)]">
+    <section className="relative z-[1] w-full min-h-[min(560px,85vh)] overflow-hidden lg:min-h-[calc(100vh-64px)]">
       {/* Full-bleed photography */}
       <img
         src={HERO_PHOTO}

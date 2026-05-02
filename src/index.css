@@ -48,19 +48,6 @@
     font-size: 100%;
   }
 
-  /* Larger physical UI on wide monitors (Tailwind spacing/type use rem) */
-  @media (min-width: 1024px) {
-    html {
-      font-size: 106.25%;
-    }
-  }
-
-  @media (min-width: 1536px) {
-    html {
-      font-size: 112.5%;
-    }
-  }
-
   body {
     font-family: "Inter", sans-serif;
     color: var(--me-ink);
@@ -101,5 +88,24 @@
   button {
     cursor: pointer;
     font-family: inherit;
+  }
+}
+
+/* Outside @layer so it always applies; scales rem-based Tailwind on large desktops */
+@media (min-width: 1024px) {
+  html {
+    font-size: 106.25%;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 118.75%;
   }
 }
