@@ -38,32 +38,59 @@ export default function PropertyModal({ property, onClose }) {
   const images = property.images && property.images.length > 0 ? property.images : [property.image].filter(Boolean);
   if (images.length === 0) images.push("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000");
   const numericRent = Number(String(property.monthlyRent || property.rent || "0").replace(/[^0-9.]/g, "")) || 0;
-  const securityDeposit = numericRent > 0 ? Math.round(numericRent * 2.5) : 0;
-  const maintenance = numericRent > 0 ? Math.round(numericRent * 0.08) : 0;
+  const parseMoney = (raw) => {
+    const n = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const depositFromField = parseMoney(property.securityDeposit);
+  const maintenanceFromField = parseMoney(property.maintenanceCost);
+  const securityDeposit = depositFromField ?? (numericRent > 0 ? Math.round(numericRent * 2.5) : 0);
+  const maintenance = maintenanceFromField ?? (numericRent > 0 ? Math.round(numericRent * 0.08) : 0);
   const moveInCharges = maintenance + 1999;
   const formatInr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
-  const amenities = property.amenities && property.amenities.length
-    ? property.amenities
-    : ["Power backup", "24x7 water", "Security", "Lift", "Pet friendly"];
-  const furnishings = property.furnishings && property.furnishings.length
-    ? property.furnishings
-    : ["Dining Table", "Washing Machine", "Sofa", "Microwave", "Fridge", "Geyser"];
+  const depositSidebar =
+    depositFromField != null
+      ? formatInr(depositFromField)
+      : String(property.securityDeposit || "").trim()
+        ? String(property.securityDeposit)
+        : formatInr(securityDeposit);
+  const maintenanceSidebar =
+    maintenanceFromField != null
+      ? formatInr(maintenanceFromField)
+      : String(property.maintenanceCost || "").trim()
+        ? String(property.maintenanceCost)
+        : formatInr(maintenance);
+  const dash = (v) => {
+    if (v == null || v === "") return "—";
+    if (Array.isArray(v) && v.length === 0) return "—";
+    return String(v);
+  };
+  const amenities = property.amenities && property.amenities.length ? property.amenities : [];
+  const furnishings = property.furnishings && property.furnishings.length ? property.furnishings : [];
+  const builtUpLabel = property.builtUpArea
+    ? `${property.builtUpArea}${property.areaUnit ? ` ${property.areaUnit}` : ""}`
+    : "—";
+  const floorLabel =
+    property.floorNumber || property.totalFloors
+      ? `${dash(property.floorNumber)} of ${dash(property.totalFloors)} floors`
+      : "—";
   const detailRows = [
-    ["Security", property.securityDeposit || formatInr(securityDeposit)],
-    ["Area Unit", property.areaUnit || "square_feet"],
-    ["Brokerage", property.brokerage || "Not specified"],
-    ["Maintenance", property.maintenanceCost || formatInr(maintenance)],
-    ["Built up area", property.builtUpArea || "Not specified"],
-    ["Furnishing", property.furnishing || "Semi-furnished"],
-    ["Bathrooms", property.bathrooms || "Not specified"],
-    ["Balcony", property.balcony || "Not specified"],
-    ["Available from", property.availableFrom || property.availability || "Immediate"],
-    ["Floor number", (property.floorNumber || property.totalFloors) ? `${property.floorNumber || "?"} of ${property.totalFloors || "?"} floors` : "Not specified"],
-    ["Lease type", property.leaseType || (property.preferredTenants && property.preferredTenants.join(" / ")) || "Not specified"],
-    ["Age of property", property.ageOfProperty || "Not specified"],
-    ["Parking", property.parkingInfo || (property.parking && property.parking.join(", ")) || "Not specified"],
-    ["Gas Pipeline", property.gasPipeline || "Not specified"],
-    ["Gate Community", property.gatedCommunity || "Not specified"],
+    ["Security deposit", property.securityDeposit ? dash(property.securityDeposit) : formatInr(securityDeposit)],
+    ["Area unit", dash(property.areaUnit) !== "—" ? property.areaUnit : "sq ft"],
+    ["Brokerage", dash(property.brokerage)],
+    ["Maintenance", property.maintenanceCost ? dash(property.maintenanceCost) : formatInr(maintenance)],
+    ["Built-up area", builtUpLabel],
+    ["Furnishing (type)", dash(property.furnishing)],
+    ["Bathrooms", dash(property.bathrooms)],
+    ["Balcony", dash(property.balcony)],
+    ["Available from", dash(property.availableFrom || property.availability)],
+    ["Floor / total floors", floorLabel],
+    ["Lease type", dash(property.leaseType)],
+    ["Age of property", dash(property.ageOfProperty)],
+    ["Parking", dash(property.parkingInfo) !== "—" ? property.parkingInfo : property.parking?.join(", ") || "—"],
+    ["Gas pipeline", dash(property.gasPipeline)],
+    ["Gated community", dash(property.gatedCommunity)],
+    ["Source URL", property.sourceUrl ? property.sourceUrl : "—"],
   ];
 
   const submitVisit = async (e) => {
@@ -373,13 +400,21 @@ export default function PropertyModal({ property, onClose }) {
 
                 <div style={{ marginBottom: "32px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
                   <div style={{ padding: "14px 16px", fontSize: "18px", fontWeight: 700, color: "#0f172a", borderBottom: "1px solid #e2e8f0" }}>
-                    Property details
+                    Listing specifications <span style={{ fontSize: "13px", fontWeight: 500, color: "#64748b" }}>(from listing / broker)</span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "0 20px", padding: "0 16px" }}>
                     {detailRows.map(([label, value], idx) => (
-                      <div key={label} style={{ padding: "12px 0", borderBottom: idx < detailRows.length - 2 ? "1px solid #e2e8f0" : "none" }}>
+                      <div key={label} style={{ padding: "12px 0", borderBottom: idx < detailRows.length - 1 ? "1px solid #e2e8f0" : "none" }}>
                         <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{label}</div>
-                        <div style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>{value}</div>
+                        <div style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a", wordBreak: "break-word" }}>
+                          {label === "Source URL" && value !== "—" ? (
+                            <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb" }}>
+                              {value}
+                            </a>
+                          ) : (
+                            value
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -387,24 +422,32 @@ export default function PropertyModal({ property, onClose }) {
 
                 <div style={{ marginBottom: "32px" }}>
                   <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#0f172a" }}>Furnishings</h2>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0,1fr))", gap: "10px" }}>
-                    {furnishings.map((item) => (
-                      <div key={item} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
-                        {item}
-                      </div>
-                    ))}
-                  </div>
+                  {furnishings.length ? (
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0,1fr))", gap: "10px" }}>
+                      {furnishings.map((item) => (
+                        <div key={item} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: 600, color: "#334155" }}>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: "14px", color: "#64748b" }}>—</p>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: "32px" }}>
                   <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#0f172a" }}>Amenities</h2>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                    {amenities.map((item) => (
-                      <span key={item} style={{ background: "#fff1f2", color: "#be123c", border: "1px solid #fecdd3", padding: "7px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600 }}>
-                        {item}
-                      </span>
-                    ))}
-                  </div>
+                  {amenities.length ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                      {amenities.map((item) => (
+                        <span key={item} style={{ background: "#fff1f2", color: "#be123c", border: "1px solid #fecdd3", padding: "7px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600 }}>
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: "14px", color: "#64748b" }}>—</p>
+                  )}
                 </div>
               </div>
 
@@ -417,10 +460,10 @@ export default function PropertyModal({ property, onClose }) {
                   <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>Rent per month</div>
                   <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
-                      <span>Security deposit</span><strong style={{ color: "#0f172a" }}>{formatInr(securityDeposit)}</strong>
+                      <span>Security deposit</span><strong style={{ color: "#0f172a" }}>{depositSidebar}</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
-                      <span>Maintenance (est.)</span><strong style={{ color: "#0f172a" }}>{formatInr(maintenance)}</strong>
+                      <span>Maintenance (est.)</span><strong style={{ color: "#0f172a" }}>{maintenanceSidebar}</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569" }}>
                       <span>Move-in charges</span><strong style={{ color: "#0f172a" }}>{formatInr(moveInCharges)}</strong>

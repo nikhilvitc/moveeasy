@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import logoSvg from "../assets/logo/moveasy.svg";
@@ -85,10 +85,11 @@ export default function Onboarding() {
 
     try {
       const now = Timestamp.now();
+      const phoneE164 = `+91${phone}`;
       await setDoc(doc(db, "users", user.uid), {
         name: name.trim(),
         email: user.email || "",
-        phone: `+91${phone}`,
+        phone: phoneE164,
         flatTypes,
         officeLocation,
         moveInDate: Timestamp.fromDate(new Date(moveInDate)),
@@ -96,6 +97,22 @@ export default function Onboarding() {
         createdAt: now,
         updatedAt: now,
       });
+      // Keep Admin "User Management" in sync (same collection as login-created profiles).
+      await setDoc(
+        doc(db, "userProfiles", user.uid),
+        {
+          uid: user.uid,
+          email: (user.email || "").toLowerCase().trim(),
+          name: name.trim(),
+          phone: phoneE164,
+          customerFlatTypes: flatTypes,
+          customerOfficeLocation: officeLocation,
+          customerMoveInDate: Timestamp.fromDate(new Date(moveInDate)),
+          profileComplete: true,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
       navigate("/", { replace: true });
     } catch (err) {
       console.error("Onboarding save error:", err);

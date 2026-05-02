@@ -185,9 +185,11 @@ export function removeListing(id) {
 export function getAllUsers() {
   const users = readJson(KEYS.users, {});
   return Object.entries(users).map(([email, value]) => ({
+    uid: `local-${email}`,
     email,
     name: value.name || email.split("@")[0],
     role: value.role || "customer",
+    phone: value.phone || "",
   }));
 }
 
@@ -203,9 +205,22 @@ export function removeUserLocally(email) {
   }
 }
 
-export function addUserLocally(email, name, role) {
+export function addUserLocally(email, name, role, phone = "") {
   const users = readJson(KEYS.users, {});
-  users[email.toLowerCase().trim()] = { name, role };
+  users[email.toLowerCase().trim()] = { name, role, phone: String(phone || "").trim() };
+  writeJson(KEYS.users, users);
+}
+
+export function updateUserLocally(email, { name, role, phone }) {
+  const users = readJson(KEYS.users, {});
+  const key = email.toLowerCase().trim();
+  if (!users[key]) return;
+  users[key] = {
+    ...users[key],
+    ...(name !== undefined ? { name } : {}),
+    ...(role !== undefined ? { role } : {}),
+    ...(phone !== undefined ? { phone: String(phone || "").trim() } : {}),
+  };
   writeJson(KEYS.users, users);
 }
 

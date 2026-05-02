@@ -10,7 +10,7 @@ import {
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import { triggerVerifiedOnboardingEmails } from "../lib/emailService";
-import { createProfileAfterSignup, getProfileByEmail, getProfileForUser } from "../lib/profileService";
+import { createProfileAfterSignup, ensureUserProfileDocuments, getProfileByEmail, getProfileForUser } from "../lib/profileService";
 
 const AuthContext = createContext(null);
 const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
@@ -107,8 +107,15 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
+        await ensureUserProfileDocuments(firebaseUser);
         const profile = await getProfileForUser(firebaseUser);
-        setUser({ email: profile.email, role: profile.role || "customer", name: profile.name });
+        setUser({
+          email: profile.email,
+          role: profile.role || "customer",
+          name: profile.name,
+          phone: profile.phone || "",
+          uid: profile.uid || firebaseUser.uid,
+        });
         if (profile.role === "admin") loadPendingSellerBadgeApplications();
       } catch {
         setUser(null);
@@ -156,8 +163,15 @@ export function AuthProvider({ children }) {
           unverified: true,
         };
       }
+      await ensureUserProfileDocuments(cred.user);
       const profile = await getProfileForUser(cred.user);
-      const u = { email: e, role: profile.role || "customer", name: profile.name || e.split("@")[0] };
+      const u = {
+        email: e,
+        role: profile.role || "customer",
+        name: profile.name || e.split("@")[0],
+        phone: profile.phone || "",
+        uid: profile.uid || cred.user.uid,
+      };
       setUser(u);
       const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
       return {
@@ -376,9 +390,21 @@ export function AuthProvider({ children }) {
   const refreshRole = () => {
     if (!user) return;
     if (isFirebaseConfigured) {
-      auth.currentUser && getProfileForUser(auth.currentUser).then((profile) => {
-        if (profile.role !== user.role) setUser({ email: profile.email, role: profile.role, name: profile.name });
-      }).catch(() => undefined);
+      auth.currentUser &&
+        ensureUserProfileDocuments(auth.currentUser)
+          .then(() => getProfileForUser(auth.currentUser))
+          .then((profile) => {
+            if (profile.role !== user.role || (profile.phone || "") !== (user?.phone || "")) {
+              setUser({
+                email: profile.email,
+                role: profile.role,
+                name: profile.name,
+                phone: profile.phone || "",
+                uid: profile.uid || auth.currentUser.uid,
+              });
+            }
+          })
+          .catch(() => undefined);
       return;
     }
     const users = getUsers();

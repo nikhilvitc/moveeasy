@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally } from "../lib/store";
+import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally, updateUserLocally } from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData, updateUserProfileData } from "../lib/firestoreStore";
@@ -128,6 +128,7 @@ export default function AdminDashboard() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("customer");
   const [newUserName, setNewUserName] = useState("");
+  const [newUserPhone, setNewUserPhone] = useState("");
   const [listingsState, setListingsState] = useState([]);
   const [usersState, setUsersState] = useState([]);
   const [editingUserEmail, setEditingUserEmail] = useState(null);
@@ -246,10 +247,11 @@ export default function AdminDashboard() {
   const handleAddUser = async (e) => {
     e.preventDefault();
     if (!newUserEmail.trim()) return;
-    if (isFirebaseConfigured) await addUserProfileData(newUserEmail, newUserName, newUserRole);
-    else addUserLocally(newUserEmail, newUserName, newUserRole);
+    if (isFirebaseConfigured) await addUserProfileData(newUserEmail, newUserName, newUserRole, newUserPhone);
+    else addUserLocally(newUserEmail, newUserName, newUserRole, newUserPhone);
     setNewUserEmail("");
     setNewUserName("");
+    setNewUserPhone("");
     setRefreshTick((v) => v + 1);
   };
 
@@ -260,9 +262,8 @@ export default function AdminDashboard() {
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
-    if (isFirebaseConfigured) {
-      await updateUserProfileData(editingUserEmail, editUserForm);
-    }
+    if (isFirebaseConfigured) await updateUserProfileData(editingUserEmail, editUserForm);
+    else updateUserLocally(editingUserEmail, editUserForm);
     setEditingUserEmail(null);
     setRefreshTick((v) => v + 1);
   };
@@ -386,9 +387,10 @@ export default function AdminDashboard() {
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>User Management ({users.length} total)</div>
           
-          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr auto", gap: "10px", marginBottom: "16px" }}>
+          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) minmax(100px,0.75fr) auto", gap: "10px", marginBottom: "16px" }}>
             <input placeholder="Full Name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
             <input type="email" placeholder="Email Address" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
+            <input type="tel" placeholder="Phone (optional) — +91 9876543210" value={newUserPhone} onChange={(e) => setNewUserPhone(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
             <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}>
               <option value="customer">Customer</option>
               <option value="seller">Seller / Broker</option>
@@ -399,7 +401,7 @@ export default function AdminDashboard() {
 
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
             {users.map((u) => (
-              <div key={u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
+              <div key={u.uid || u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
                 {editingUserEmail === u.email ? (
                   <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                     <input value={editUserForm.name} onChange={(e) => setEditUserForm(p => ({...p, name: e.target.value}))} placeholder="Name" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
@@ -415,12 +417,32 @@ export default function AdminDashboard() {
                 ) : (
                   <>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{u.name} <span style={{ fontSize: "11px", color: "white", background: u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span></div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>{u.email} {u.phone ? `| ${u.phone}` : ""}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {u.name}{" "}
+                        <span style={{ fontSize: "11px", color: "white", background: u.role === "admin" ? "#7c3aed" : u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span>
+                        {u.sellerBadgeStatus && u.role === "seller" ? (
+                          <span style={{ fontSize: "10px", marginLeft: "6px", color: "#64748b" }}>badge: {u.sellerBadgeStatus}</span>
+                        ) : null}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.5 }}>
+                        <div><strong>Email:</strong> {u.email}</div>
+                        <div><strong>Phone:</strong> {u.phone?.trim() ? u.phone : "—"}</div>
+                        <div style={{ fontSize: "11px", wordBreak: "break-all" }}><strong>User id:</strong> {u.uid || "—"}</div>
+                        {(u.customerOfficeLocation || (Array.isArray(u.customerFlatTypes) && u.customerFlatTypes.length)) ? (
+                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+                            {u.customerOfficeLocation ? <span><strong>Office:</strong> {u.customerOfficeLocation}</span> : null}
+                            {Array.isArray(u.customerFlatTypes) && u.customerFlatTypes.length ? (
+                              <span>{u.customerOfficeLocation ? " · " : null}<strong>Flat types:</strong> {u.customerFlatTypes.join(", ")}</span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                       <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "6px 12px" }}>Edit</button>
-                      <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+                      {String(u.uid || "").startsWith("reserved-admin") ? null : (
+                        <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+                      )}
                     </div>
                   </>
                 )}
@@ -445,21 +467,21 @@ export default function AdminDashboard() {
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
             <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
             <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
-            <input placeholder="Security deposit (optional)" value={form.securityDeposit} onChange={(e) => setForm((p) => ({ ...p, securityDeposit: e.target.value }))} />
-            <input placeholder="Maintenance cost (optional)" value={form.maintenanceCost} onChange={(e) => setForm((p) => ({ ...p, maintenanceCost: e.target.value }))} />
-            <input placeholder="Brokerage (optional)" value={form.brokerage} onChange={(e) => setForm((p) => ({ ...p, brokerage: e.target.value }))} />
-            <input placeholder="Built up area (optional)" value={form.builtUpArea} onChange={(e) => setForm((p) => ({ ...p, builtUpArea: e.target.value }))} />
-            <input placeholder="Bathrooms (optional)" value={form.bathrooms} onChange={(e) => setForm((p) => ({ ...p, bathrooms: e.target.value }))} />
-            <input placeholder="Balcony (optional)" value={form.balcony} onChange={(e) => setForm((p) => ({ ...p, balcony: e.target.value }))} />
-            <input placeholder="Floor no. (optional)" value={form.floorNumber} onChange={(e) => setForm((p) => ({ ...p, floorNumber: e.target.value }))} />
-            <input placeholder="Total floors (optional)" value={form.totalFloors} onChange={(e) => setForm((p) => ({ ...p, totalFloors: e.target.value }))} />
-            <input placeholder="Lease type (optional)" value={form.leaseType} onChange={(e) => setForm((p) => ({ ...p, leaseType: e.target.value }))} />
-            <input placeholder="Age of property (optional)" value={form.ageOfProperty} onChange={(e) => setForm((p) => ({ ...p, ageOfProperty: e.target.value }))} />
-            <input placeholder="Parking info (optional)" value={form.parkingInfo} onChange={(e) => setForm((p) => ({ ...p, parkingInfo: e.target.value }))} />
-            <input placeholder="Gas pipeline (Yes/No)" value={form.gasPipeline} onChange={(e) => setForm((p) => ({ ...p, gasPipeline: e.target.value }))} />
-            <input placeholder="Gated community (Yes/No)" value={form.gatedCommunity} onChange={(e) => setForm((p) => ({ ...p, gatedCommunity: e.target.value }))} />
-            <textarea placeholder="Furnishings (comma separated, optional)" value={form.furnishingsText} onChange={(e) => setForm((p) => ({ ...p, furnishingsText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
-            <textarea placeholder="Amenities (comma separated, optional)" value={form.amenitiesText} onChange={(e) => setForm((p) => ({ ...p, amenitiesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
+            <input placeholder="Security deposit (optional) — 50000" value={form.securityDeposit} onChange={(e) => setForm((p) => ({ ...p, securityDeposit: e.target.value }))} />
+            <input placeholder="Maintenance cost (optional) — 2000" value={form.maintenanceCost} onChange={(e) => setForm((p) => ({ ...p, maintenanceCost: e.target.value }))} />
+            <input placeholder="Brokerage (optional) — Half month rent" value={form.brokerage} onChange={(e) => setForm((p) => ({ ...p, brokerage: e.target.value }))} />
+            <input placeholder="Built up area (optional) — 1200" value={form.builtUpArea} onChange={(e) => setForm((p) => ({ ...p, builtUpArea: e.target.value }))} />
+            <input placeholder="Bathrooms (optional) — 2" value={form.bathrooms} onChange={(e) => setForm((p) => ({ ...p, bathrooms: e.target.value }))} />
+            <input placeholder="Balcony (optional) — 1 wide" value={form.balcony} onChange={(e) => setForm((p) => ({ ...p, balcony: e.target.value }))} />
+            <input placeholder="Floor no. (optional) — 4" value={form.floorNumber} onChange={(e) => setForm((p) => ({ ...p, floorNumber: e.target.value }))} />
+            <input placeholder="Total floors (optional) — 12" value={form.totalFloors} onChange={(e) => setForm((p) => ({ ...p, totalFloors: e.target.value }))} />
+            <input placeholder="Lease type (optional) — 11 months" value={form.leaseType} onChange={(e) => setForm((p) => ({ ...p, leaseType: e.target.value }))} />
+            <input placeholder="Age of property (optional) — 3 years" value={form.ageOfProperty} onChange={(e) => setForm((p) => ({ ...p, ageOfProperty: e.target.value }))} />
+            <input placeholder="Parking info (optional) — 1 covered car" value={form.parkingInfo} onChange={(e) => setForm((p) => ({ ...p, parkingInfo: e.target.value }))} />
+            <input placeholder="Gas pipeline (optional) — Yes" value={form.gasPipeline} onChange={(e) => setForm((p) => ({ ...p, gasPipeline: e.target.value }))} />
+            <input placeholder="Gated community (optional) — Yes" value={form.gatedCommunity} onChange={(e) => setForm((p) => ({ ...p, gatedCommunity: e.target.value }))} />
+            <textarea placeholder="Furnishings (comma separated, optional) — Sofa, Fridge, Washing machine" value={form.furnishingsText} onChange={(e) => setForm((p) => ({ ...p, furnishingsText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
+            <textarea placeholder="Amenities (comma separated, optional) — Gym, Pool, Power backup" value={form.amenitiesText} onChange={(e) => setForm((p) => ({ ...p, amenitiesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
             <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
           </form>

@@ -61,23 +61,58 @@ export async function addAssignmentData({ listingId, customerEmail, sellerEmail,
 export async function getAllUsersData() {
   const [profilesSnap, rolesSnap] = await Promise.all([getDocs(collection(db, "userProfiles")), getDocs(collection(db, "userRoles"))]);
   const roles = new Map(rolesSnap.docs.map((roleDoc) => [roleDoc.id, roleDoc.data().role || "customer"]));
-  return [
-    ...ADMIN_EMAILS.map((email) => ({ uid: "reserved-admin", email, name: "MovEasy Admin", role: "admin" })),
-    ...profilesSnap.docs.map((profileDoc) => {
+  const adminEmailSet = new Set(ADMIN_EMAILS.map((e) => e.toLowerCase().trim()));
+  const fromProfiles = profilesSnap.docs
+    .map((profileDoc) => {
       const profile = profileDoc.data();
-      return { uid: profileDoc.id, email: profile.email, name: profile.name || String(profile.email || "user").split("@")[0], role: roles.get(profileDoc.id) || "customer", ...profile };
-    }),
+      const email = String(profile.email || "").toLowerCase().trim();
+      return {
+        uid: profileDoc.id,
+        email: profile.email,
+        name: profile.name || String(profile.email || "user").split("@")[0],
+        role: roles.get(profileDoc.id) || "customer",
+        phone: profile.phone || "",
+        sellerBadgeStatus: profile.sellerBadgeStatus ?? null,
+        sellerBadgeApplication: profile.sellerBadgeApplication || null,
+        ...profile,
+      };
+    })
+    .filter((row) => !adminEmailSet.has(String(row.email || "").toLowerCase().trim()));
+
+  return [
+    ...ADMIN_EMAILS.map((email) => ({ uid: `reserved-admin-${email}`, email, name: "MovEasy Admin", role: "admin", phone: "" })),
+    ...fromProfiles,
   ];
 }
 
-export async function addUserProfileData(email, name, role) {
+export async function addUserProfileData(email, name, role, phone = "") {
   const normalized = String(email || "").toLowerCase().trim();
   if (!normalized) return;
   const existing = await getProfileByEmail(normalized);
   const uid = existing?.uid || crypto.randomUUID();
   await Promise.all([
-    setDoc(doc(db, "userProfiles", uid), { uid, email: normalized, name: name || normalized.split("@")[0], sellerBadgeStatus: role === "seller" ? "none" : null, updatedAt: serverTimestamp() }, { merge: true }),
-    setDoc(doc(db, "userRoles", uid), { uid, email: normalized, role: role === "admin" ? "admin" : role === "seller" ? "seller" : "customer", updatedAt: serverTimestamp() }, { merge: true }),
+    setDoc(
+      doc(db, "userProfiles", uid),
+      {
+        uid,
+        email: normalized,
+        name: name || normalized.split("@")[0],
+        phone: String(phone || "").trim(),
+        sellerBadgeStatus: role === "seller" ? "none" : null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    setDoc(
+      doc(db, "userRoles", uid),
+      {
+        uid,
+        email: normalized,
+        role: role === "admin" ? "admin" : role === "seller" ? "seller" : "customer",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
   ]);
 }
 

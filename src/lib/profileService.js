@@ -47,7 +47,7 @@ export async function createProfileAfterSignup({ firebaseUser, name, role, phone
 export async function getProfileForUser(firebaseUser) {
   const email = firebaseUser.email.toLowerCase().trim();
   if (ADMIN_EMAILS.includes(email)) {
-    return { email, name: "MovEasy Admin", role: "admin", sellerBadgeStatus: null };
+    return { email, name: "MovEasy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
   }
 
   const [profileSnap, roleSnap] = await Promise.all([
@@ -59,8 +59,75 @@ export async function getProfileForUser(firebaseUser) {
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};
   const role = ["admin", "seller", "customer"].includes(roleRow.role) ? roleRow.role : "customer";
   const name = profile.name || firebaseUser.displayName || email.split("@")[0];
+  const phone = profile.phone || firebaseUser.phoneNumber || "";
 
-  return { email, name, role, sellerBadgeStatus: profile.sellerBadgeStatus ?? null };
+  return { uid: firebaseUser.uid, email, name, role, phone, sellerBadgeStatus: profile.sellerBadgeStatus ?? null };
+}
+
+/**
+ * Every verified sign-in should have userProfiles + userRoles so Admin "User Management" lists customers.
+ * Accounts created before this fix, or outside the signup flow, may be missing these docs.
+ */
+export async function ensureUserProfileDocuments(firebaseUser) {
+  if (!firebaseUser?.email) return;
+  const email = firebaseUser.email.toLowerCase().trim();
+  if (ADMIN_EMAILS.includes(email)) return;
+
+  const uid = firebaseUser.uid;
+  const [profileSnap, roleSnap] = await Promise.all([
+    getDoc(doc(db, "userProfiles", uid)),
+    getDoc(doc(db, "userRoles", uid)),
+  ]);
+
+  const profile = profileSnap.exists() ? profileSnap.data() : {};
+  const roleRow = roleSnap.exists() ? roleSnap.data() : {};
+  const roleFromDb = ["admin", "seller", "customer"].includes(roleRow.role) ? roleRow.role : null;
+  const role = roleFromDb || "customer";
+  const name = profile.name || firebaseUser.displayName || email.split("@")[0];
+  const phone = profile.phone || firebaseUser.phoneNumber || "";
+
+  const writes = [];
+  if (!profileSnap.exists()) {
+    writes.push(
+      setDoc(
+        doc(db, "userProfiles", uid),
+        {
+          uid,
+          email,
+          name,
+          phone,
+          sellerBadgeStatus: role === "seller" ? "none" : null,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    );
+  } else if (!String(profile.phone || "").trim() && firebaseUser.phoneNumber) {
+    writes.push(
+      setDoc(
+        doc(db, "userProfiles", uid),
+        { phone: firebaseUser.phoneNumber, updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+  }
+
+  if (!roleSnap.exists()) {
+    writes.push(
+      setDoc(
+        doc(db, "userRoles", uid),
+        {
+          uid,
+          email,
+          role,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    );
+  }
+
+  if (writes.length) await Promise.all(writes);
 }
 
 export async function getProfileByEmail(email) {
