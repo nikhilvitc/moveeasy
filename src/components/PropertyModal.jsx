@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { addVisitRequestData } from "../lib/firestoreStore";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
+import { findNearbyListings } from "../lib/geo";
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -14,7 +15,7 @@ function MediaElement({ src, alt, style }) {
   return <img src={src} alt={alt} loading="lazy" style={style} />;
 }
 
-export default function PropertyModal({ property, onClose }) {
+export default function PropertyModal({ property, onClose, listings = [], onSelectListing }) {
   const { user } = useAuth();
   const [visitForm, setVisitForm] = useState({ phone: "", time: "", notes: "" });
   const [visitSuccess, setVisitSuccess] = useState("");
@@ -32,6 +33,32 @@ export default function PropertyModal({ property, onClose }) {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  const [isSaved, setIsSaved] = useState(false);
+  const [shareText, setShareText] = useState("↗ Share");
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState(null);
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShareText("✓ Copied!");
+    setTimeout(() => setShareText("↗ Share"), 2000);
+  };
+
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    setActiveMediaIndex(0);
+  }, [property?.id]);
+
+  const nearbyListings = useMemo(() => {
+    if (!property || !Number.isFinite(Number(property.lat)) || !Number.isFinite(Number(property.lng))) return [];
+    return findNearbyListings(
+      { lat: Number(property.lat), lng: Number(property.lng) },
+      listings,
+      { excludeId: property.id, limit: 4, maxKm: 35 }
+    );
+  }, [property?.id, property?.lat, property?.lng, listings]);
 
   if (!property) return null;
 
@@ -136,23 +163,6 @@ export default function PropertyModal({ property, onClose }) {
     gap: "6px"
   };
 
-  const [isSaved, setIsSaved] = useState(false);
-  const [shareText, setShareText] = useState("↗ Share");
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
-  const [touchStartX, setTouchStartX] = useState(null);
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShareText("✓ Copied!");
-    setTimeout(() => setShareText("↗ Share"), 2000);
-  };
-
-  const scrollRef = useRef(null);
-
-  useEffect(() => {
-    setActiveMediaIndex(0);
-  }, [property?.id]);
-
   const activeMedia = images[activeMediaIndex] || images[0];
   const isActiveVideo = String(activeMedia || "").match(/\.(mp4|webm|ogg|mov)$/i) || String(activeMedia || "").includes("video");
   const goPrevMedia = () => setActiveMediaIndex((prev) => (prev - 1 + images.length) % images.length);
@@ -221,6 +231,9 @@ export default function PropertyModal({ property, onClose }) {
               <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px" }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
+                {nearbyListings.length > 0 && typeof onSelectListing === "function" ? (
+                  <span onClick={() => scrollTo("nearby-homes")} style={{ cursor: "pointer" }}>Nearby</span>
+                ) : null}
                 <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer" }}>Facts & Features</span>
               </div>
             </div>
@@ -235,9 +248,29 @@ export default function PropertyModal({ property, onClose }) {
           </div>
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}>
-            {/* Gallery */}
-            <div style={{ height: isMobile ? "300px" : "420px", padding: "10px 10px 6px", background: "#f8fafc" }}>
-              <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#0f172a", borderRadius: "14px" }}>
+            {/* Gallery: column layout so dots + thumbnails sit above the title (no overlap) */}
+            <div
+              style={{
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                padding: "10px 10px 14px",
+                background: "#f8fafc",
+                borderBottom: "1px solid #e2e8f0",
+              }}
+            >
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: isMobile ? 240 : 380,
+                  flexShrink: 0,
+                  overflow: "hidden",
+                  background: "#0f172a",
+                  borderRadius: "14px",
+                }}
+              >
                 <MediaElement src={activeMedia} alt={property.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 {isActiveVideo && (
                   <div style={{ position: "absolute", top: "10px", left: "10px", background: "rgba(15,23,42,0.7)", color: "white", fontSize: "11px", fontWeight: 700, borderRadius: "999px", padding: "5px 9px" }}>
@@ -282,7 +315,7 @@ export default function PropertyModal({ property, onClose }) {
                 )}
               </div>
               {images.length > 1 && (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                   {images.map((_, idx) => (
                     <button
                       key={idx}
@@ -302,7 +335,7 @@ export default function PropertyModal({ property, onClose }) {
                 </div>
               )}
               {images.length > 1 && (
-                <div style={{ marginTop: "10px", display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "2px" }}>
+                <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px", WebkitOverflowScrolling: "touch" }}>
                   {images.map((src, idx) => {
                     const isVideoThumb = String(src || "").match(/\.(mp4|webm|ogg|mov)$/i) || String(src || "").includes("video");
                     return (
@@ -367,6 +400,55 @@ export default function PropertyModal({ property, onClose }) {
                     {property.description || "Stunning property located in a prime neighborhood. Contact the seller to learn more about the unprecedented amenities and layout. Perfect for those looking for comfort and convenience in one place."}
                   </p>
                 </div>
+
+                {nearbyListings.length > 0 && typeof onSelectListing === "function" ? (
+                  <div id="nearby-homes" style={{ marginBottom: "32px" }}>
+                    <h2 style={{ margin: "0 0 8px", fontSize: "18px", color: "#0f172a" }}>Nearby homes</h2>
+                    <p style={{ margin: "0 0 14px", fontSize: "14px", color: "#64748b", lineHeight: 1.5 }}>
+                      Other listings in this neighbourhood — tap a card to switch without closing the map.
+                    </p>
+                    <div style={{ display: "flex", gap: "12px", overflowX: "auto", paddingBottom: "6px", WebkitOverflowScrolling: "touch" }}>
+                      {nearbyListings.map((n) => {
+                        const img = n.image || n.images?.[0];
+                        const km = typeof n._distanceKm === "number" ? n._distanceKm.toFixed(1) : "?";
+                        return (
+                          <button
+                            key={n.id}
+                            type="button"
+                            onClick={() => {
+                              const { _distanceKm: _d, ...rest } = n;
+                              onSelectListing(rest);
+                            }}
+                            style={{
+                              flex: "0 0 auto",
+                              width: "min(200px, 72vw)",
+                              textAlign: "left",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              overflow: "hidden",
+                              background: "white",
+                              cursor: "pointer",
+                              padding: 0,
+                              boxShadow: "0 2px 10px rgba(15,23,42,0.06)",
+                            }}
+                          >
+                            {img ? (
+                              <img src={img} alt="" style={{ width: "100%", height: "100px", objectFit: "cover", display: "block" }} />
+                            ) : (
+                              <div style={{ height: "100px", background: "#f1f5f9" }} />
+                            )}
+                            <div style={{ padding: "10px 12px 12px" }}>
+                              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", marginBottom: "4px" }}>{km} km away</div>
+                              <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", lineHeight: 1.35 }}>{n.title}</div>
+                              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", lineHeight: 1.35 }}>{n.address}</div>
+                              <div style={{ fontSize: "13px", fontWeight: 800, color: "#16a34a", marginTop: "6px" }}>{n.price || `₹ ${n.monthlyRent}`}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div id="facts" style={{ marginBottom: "32px" }}>
                   <h2 style={{ margin: "0 0 16px", fontSize: "18px", color: "#0f172a" }}>Facts, features & policies</h2>

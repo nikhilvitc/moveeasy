@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -7,7 +7,11 @@ import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListing
 import { useAuth } from "../context/AuthContext";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { getListingsData } from "../lib/firestoreStore";
+import { geocodePlace } from "../lib/geocode";
+import { haversineKm } from "../lib/geo";
 import PropertyModal from "./PropertyModal";
+
+const MAP_NEARBY_KM = 12;
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -58,25 +62,30 @@ function ChangeView({ center, zoom }) {
   return null;
 }
 
-/** Zoom map to show all listing pins when filters change (skips when locality search drives the view). */
-function FitListingsBounds({ listings, enabled }) {
+/** Zoom map to show listing pins; optional fallback center when the filtered set is empty. */
+function FitListingsBounds({ listings, enabled, fallbackCenter, fallbackZoom = 13 }) {
   const map = useMap();
   const signature = listings.map((l) => l.id).join(",");
   useEffect(() => {
-    if (!enabled || !listings.length) return;
+    if (!enabled) return;
     const pts = listings
       .filter((l) => Number.isFinite(l.lat) && Number.isFinite(l.lng))
       .map((l) => [l.lat, l.lng]);
-    if (!pts.length) return;
     requestAnimationFrame(() => {
       if (pts.length === 1) {
         map.setView(pts[0], 15, { animate: false });
         return;
       }
-      const b = L.latLngBounds(pts);
-      map.fitBounds(b, { padding: [72, 72], maxZoom: 15, animate: false });
+      if (pts.length > 1) {
+        const b = L.latLngBounds(pts);
+        map.fitBounds(b, { padding: [72, 72], maxZoom: 15, animate: false });
+        return;
+      }
+      if (fallbackCenter && Number.isFinite(fallbackCenter[0]) && Number.isFinite(fallbackCenter[1])) {
+        map.setView(fallbackCenter, fallbackZoom, { animate: false });
+      }
     });
-  }, [map, signature, enabled, listings.length]);
+  }, [map, signature, enabled, listings.length, fallbackCenter, fallbackZoom]);
   return null;
 }
 
@@ -147,6 +156,10 @@ export default function MapView() {
   const [filters, setFilters] = useState(getFiltersInitialState());
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
   const [selectedLocality, setSelectedLocality] = useState("");
+  const [mapSearchInput, setMapSearchInput] = useState("");
+  const [mapSearchLoading, setMapSearchLoading] = useState(false);
+  const [mapSearchError, setMapSearchError] = useState("");
+  const [placeAnchor, setPlaceAnchor] = useState(null);
   const [desktopMode, setDesktopMode] = useState("split");
   const [showDesktopFilters, setShowDesktopFilters] = useState(true);
   const [showDesktopListings, setShowDesktopListings] = useState(true);
@@ -178,6 +191,7 @@ export default function MapView() {
     const minRent = Number(qs.get("minRent") || 0);
     const maxRent = Number(qs.get("maxRent") || 0);
     setSelectedLocality(locality);
+    if (locality) setMapSearchInput(locality);
     setFilters((prev) => ({
       ...prev,
       bhkTypes: bhk ? [bhk] : prev.bhkTypes,
@@ -204,6 +218,42 @@ export default function MapView() {
       [l.title, l.address, l.location].filter(Boolean).some((text) => String(text).toLowerCase().includes(q))
     );
   }, [listings, filters, selectedLocality]);
+
+  const mapListings = useMemo(() => {
+    if (!placeAnchor) return filteredListings;
+    return filteredListings.filter((l) => {
+      if (!Number.isFinite(Number(l.lat)) || !Number.isFinite(Number(l.lng))) return false;
+      return haversineKm(placeAnchor.lat, placeAnchor.lng, Number(l.lat), Number(l.lng)) <= MAP_NEARBY_KM;
+    });
+  }, [filteredListings, placeAnchor]);
+
+  const runMapPlaceSearch = async () => {
+    const q = mapSearchInput.trim();
+    setMapSearchError("");
+    if (!q) {
+      setPlaceAnchor(null);
+      setSelectedLocality("");
+      return;
+    }
+    setMapSearchLoading(true);
+    try {
+      const r = await geocodePlace(q);
+      if (r.ok) {
+        setPlaceAnchor({ lat: r.lat, lng: r.lng, label: r.displayName });
+        setMapState({ center: [r.lat, r.lng], zoom: 15 });
+        setSelectedLocality("");
+        setMapSearchError("");
+      } else {
+        setPlaceAnchor(null);
+        setSelectedLocality(q);
+        setMapSearchError(r.error || "");
+      }
+    } catch {
+      setMapSearchError("Search failed. Check your connection.");
+    } finally {
+      setMapSearchLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!filteredListings.length || !selectedLocality.trim()) return;
@@ -288,7 +338,7 @@ export default function MapView() {
           }
         }
       `}</style>
-      <div style={{ background: "linear-gradient(90deg, #fff7f5 0%, #f8fbff 100%)", padding: isMobile ? "12px 14px" : "14px 24px", borderBottom: "1px solid #e2e8f0", position: "relative", zIndex: 1001 }}>
+      <div style={{ background: "#ffffff", padding: isMobile ? "12px 14px" : "14px 24px", borderBottom: "1px solid #e2e8f0", position: "relative", zIndex: 1001, isolation: "isolate", boxShadow: "0 1px 0 rgba(15,23,42,0.06)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", marginBottom: isMobile ? "8px" : "10px", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <button
@@ -307,8 +357,50 @@ export default function MapView() {
             )}
             <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
           </div>
-          <div style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>{filteredListings.length} properties</div>
+          <div style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
+            {mapListings.length} properties
+            {placeAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{MAP_NEARBY_KM} km of pin</span> : null}
+          </div>
         </div>
+        {isMobile && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                value={mapSearchInput}
+                onChange={(e) => setMapSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") runMapPlaceSearch();
+                }}
+                placeholder="Place or landmark (e.g. Google Bangalore)"
+                style={{ flex: "1 1 180px", border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 12px", fontSize: "14px", minHeight: "44px" }}
+              />
+              <button
+                type="button"
+                disabled={mapSearchLoading}
+                onClick={runMapPlaceSearch}
+                style={{ border: "1px solid #cbd5e1", background: "#0f172a", color: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px", cursor: mapSearchLoading ? "wait" : "pointer" }}
+              >
+                {mapSearchLoading ? "…" : "Go"}
+              </button>
+            </div>
+            {placeAnchor ? (
+              <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                <span style={{ flex: 1, minWidth: 0 }}>Near: {placeAnchor.label}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaceAnchor(null);
+                    setMapSearchError("");
+                  }}
+                  style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "8px", padding: "4px 10px", fontSize: "12px", fontWeight: 600 }}
+                >
+                  Clear map search
+                </button>
+              </div>
+            ) : null}
+            {mapSearchError ? <div style={{ fontSize: "12px", color: "#b91c1c" }}>{mapSearchError}</div> : null}
+          </div>
+        )}
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <select
@@ -332,13 +424,44 @@ export default function MapView() {
               {showDesktopListings ? "Hide Properties" : "Show Properties"}
             </button>
             <input
-              value={selectedLocality}
-              onChange={(e) => setSelectedLocality(e.target.value)}
-              placeholder="Search locality"
-              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", minWidth: "240px", minHeight: "44px" }}
+              value={mapSearchInput}
+              onChange={(e) => setMapSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runMapPlaceSearch();
+              }}
+              placeholder="Search map: landmark or area"
+              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", minWidth: "220px", minHeight: "44px", flex: "1 1 220px" }}
             />
+            <button
+              type="button"
+              disabled={mapSearchLoading}
+              onClick={runMapPlaceSearch}
+              style={{ border: "1px solid #cbd5e1", background: "#0f172a", color: "white", borderRadius: "10px", padding: "10px 18px", fontSize: "14px", fontWeight: 700, minHeight: "44px", cursor: mapSearchLoading ? "wait" : "pointer" }}
+            >
+              {mapSearchLoading ? "…" : "Search map"}
+            </button>
+            {placeAnchor ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaceAnchor(null);
+                  setMapSearchError("");
+                }}
+                style={{ border: "1px solid #fca5a5", background: "#fff1f2", color: "#b91c1c", borderRadius: "10px", padding: "10px 14px", fontSize: "13px", fontWeight: 700, minHeight: "44px" }}
+              >
+                Clear area pin
+              </button>
+            ) : null}
           </div>
         )}
+        {!isMobile && mapSearchError ? (
+          <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "4px" }}>{mapSearchError}</div>
+        ) : null}
+        {!isMobile && placeAnchor ? (
+          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px", maxWidth: "720px", lineHeight: 1.4 }}>
+            Showing rentals within ~{MAP_NEARBY_KM} km of: <strong style={{ color: "#334155" }}>{placeAnchor.label}</strong>
+          </div>
+        ) : null}
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -349,6 +472,41 @@ export default function MapView() {
             Filters
             <button onClick={() => setShowMobileFilters(false)} style={{ display: "none" }} className="mobile-only-close">×</button>
           </h3>
+          <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0" }}>
+            <div style={{ fontWeight: 700, fontSize: "14px", marginBottom: "8px", color: "#334155" }}>Search map</div>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <input
+                value={mapSearchInput}
+                onChange={(e) => setMapSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") runMapPlaceSearch();
+                }}
+                placeholder="Landmark or address"
+                style={{ flex: "1 1 140px", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "8px 10px", fontSize: "14px" }}
+              />
+              <button
+                type="button"
+                disabled={mapSearchLoading}
+                onClick={runMapPlaceSearch}
+                style={{ border: "none", background: "#0f172a", color: "white", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: mapSearchLoading ? "wait" : "pointer" }}
+              >
+                {mapSearchLoading ? "…" : "Go"}
+              </button>
+            </div>
+            {placeAnchor ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaceAnchor(null);
+                  setMapSearchError("");
+                }}
+                style={{ marginTop: "8px", border: "1px solid #fecdd3", background: "#fff1f2", color: "#be123c", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", fontWeight: 600 }}
+              >
+                Clear map pin & radius
+              </button>
+            ) : null}
+            {mapSearchError ? <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "8px" }}>{mapSearchError}</div> : null}
+          </div>
           <div style={{ marginBottom: "18px" }}>
             <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "10px" }}>BHK Type</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
@@ -395,9 +553,29 @@ export default function MapView() {
           <MapContainer center={mapState.center} zoom={mapState.zoom} style={{ height: "100%", width: "100%", zIndex: 1 }}>
             <InvalidateMapSize layoutRevision={mapLayoutKey} />
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
-            <FitListingsBounds listings={filteredListings} enabled={!selectedLocality.trim()} />
+            <FitListingsBounds
+              listings={mapListings}
+              enabled={!selectedLocality.trim()}
+              fallbackCenter={placeAnchor ? [placeAnchor.lat, placeAnchor.lng] : null}
+              fallbackZoom={13}
+            />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
-            {filteredListings.map((l) => (
+            {placeAnchor && (
+              <>
+                <Circle
+                  center={[placeAnchor.lat, placeAnchor.lng]}
+                  radius={MAP_NEARBY_KM * 1000}
+                  pathOptions={{ color: "#2563eb", fillColor: "#93c5fd", fillOpacity: 0.15, weight: 2 }}
+                />
+                <Marker position={[placeAnchor.lat, placeAnchor.lng]}>
+                  <Popup>
+                    <div style={{ fontSize: "13px", fontWeight: 600 }}>Searched place</div>
+                    <div style={{ fontSize: "12px", color: "#64748b", maxWidth: "220px" }}>{placeAnchor.label}</div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
+            {mapListings.map((l) => (
               <Marker 
                 key={l.id} 
                 position={[l.lat, l.lng]} 
@@ -469,8 +647,8 @@ export default function MapView() {
             transition: "transform 0.25s ease",
           }}
         >
-          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "12px", color: "#1e293b" }}>Properties ({filteredListings.length})</div>
-          {filteredListings.map((l) => (
+          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "12px", color: "#1e293b" }}>Properties ({mapListings.length})</div>
+          {mapListings.map((l) => (
             <div
               key={l.id}
               onClick={() => setViewingProperty(l)}
@@ -502,6 +680,8 @@ export default function MapView() {
       {viewingProperty && (
         <PropertyModal
           property={viewingProperty}
+          listings={listings}
+          onSelectListing={(l) => setViewingProperty(l)}
           onClose={() => {
             setViewingProperty(null);
             if (listingIdFromUrl) {

@@ -302,6 +302,8 @@ export default function SmartMatch() {
       {selectedListing && (
         <PropertyModal
           property={selectedListing}
+          listings={listings}
+          onSelectListing={(l) => setSelectedListing(l)}
           onClose={() => setSelectedListing(null)}
         />
       )}

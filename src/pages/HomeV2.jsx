@@ -22,7 +22,8 @@ const navTabs = [
 
 export default function HomeV2() {
   const navigate = useNavigate();
-  const listings = useMemo(() => getListings().slice(0, 8), []);
+  const allListings = useMemo(() => getListings(), []);
+  const listings = useMemo(() => allListings.slice(0, 8), [allListings]);
   const [viewingProperty, setViewingProperty] = useState(null);
 
   return (
@@ -144,7 +145,14 @@ export default function HomeV2() {
           </div>
         </section>
       </main>
-      {viewingProperty && <PropertyModal property={viewingProperty} onClose={() => setViewingProperty(null)} />}
+      {viewingProperty && (
+        <PropertyModal
+          property={viewingProperty}
+          listings={allListings}
+          onSelectListing={(l) => setViewingProperty(l)}
+          onClose={() => setViewingProperty(null)}
+        />
+      )}
     </div>
   );
 }
