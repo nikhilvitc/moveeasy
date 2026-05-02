@@ -53,7 +53,8 @@ const localities = [
   ["Alipore", "Kolkata", 22.5354, 88.3311, 68000],
   ["C Scheme", "Jaipur", 26.9124, 75.7873, 36000],
   ["Vesu", "Surat", 21.1418, 72.7709, 30000],
-  ["Satellite", "Ahmedabad", 23.0303, 72.5178, 42000]
+  ["Satellite", "Ahmedabad", 23.0303, 72.5178, 42000],
+  ["Mahadevpura", "Bangalore", 12.9516, 77.68, 40000]
 ];
 
 const portals = ["Housing.com", "MagicBricks", "NoBroker", "CommonFloor", "PropTiger", "IndiaProperty", "OLX Properties", "Sulekha Properties", "99acres"];

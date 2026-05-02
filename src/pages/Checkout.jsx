@@ -6,6 +6,11 @@ import { useState } from "react";
 
 const EASE = [0.22, 1, 0.36, 1];
 
+/** Scannable UPI QR for the Guarantee Plan amount (same VPA as copy below). */
+const UPI_VPA = "9413186425@ybl";
+const UPI_PAY_URI = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent("MovEazy Guarantee")}&am=1999&cu=INR`;
+const UPI_QR_IMAGE_SRC = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(UPI_PAY_URI)}`;
+
 export default function Checkout() {
   const navigate = useNavigate();
   const [confirmed, setConfirmed] = useState(false);
@@ -71,39 +76,16 @@ export default function Checkout() {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Pay via UPI</h2>
 
-              {/* QR Code Placeholder */}
-              <div className="bg-gray-50 rounded-xl p-8 mb-6 text-center border-2 border-dashed border-gray-200">
-                <div className="w-48 h-48 mx-auto bg-white rounded-lg shadow-inner flex items-center justify-center mb-4 border border-gray-200">
-                  {/* SVG QR-like pattern */}
-                  <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
-                    <rect width="140" height="140" fill="white"/>
-                    <rect x="10" y="10" width="40" height="40" rx="4" fill="#1e293b"/>
-                    <rect x="16" y="16" width="28" height="28" rx="2" fill="white"/>
-                    <rect x="22" y="22" width="16" height="16" rx="1" fill="#1e293b"/>
-                    <rect x="90" y="10" width="40" height="40" rx="4" fill="#1e293b"/>
-                    <rect x="96" y="16" width="28" height="28" rx="2" fill="white"/>
-                    <rect x="102" y="22" width="16" height="16" rx="1" fill="#1e293b"/>
-                    <rect x="10" y="90" width="40" height="40" rx="4" fill="#1e293b"/>
-                    <rect x="16" y="96" width="28" height="28" rx="2" fill="white"/>
-                    <rect x="22" y="102" width="16" height="16" rx="1" fill="#1e293b"/>
-                    <rect x="60" y="10" width="8" height="8" fill="#1e293b"/>
-                    <rect x="60" y="26" width="8" height="8" fill="#1e293b"/>
-                    <rect x="72" y="18" width="8" height="8" fill="#1e293b"/>
-                    <rect x="60" y="60" width="20" height="20" rx="2" fill="#ef4444"/>
-                    <text x="70" y="75" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">₹</text>
-                    <rect x="56" y="90" width="8" height="8" fill="#1e293b"/>
-                    <rect x="68" y="90" width="8" height="8" fill="#1e293b"/>
-                    <rect x="80" y="90" width="8" height="8" fill="#1e293b"/>
-                    <rect x="90" y="60" width="8" height="8" fill="#1e293b"/>
-                    <rect x="106" y="60" width="8" height="8" fill="#1e293b"/>
-                    <rect x="90" y="76" width="8" height="8" fill="#1e293b"/>
-                    <rect x="122" y="76" width="8" height="8" fill="#1e293b"/>
-                    <rect x="106" y="90" width="24" height="8" fill="#1e293b"/>
-                    <rect x="90" y="106" width="8" height="8" fill="#1e293b"/>
-                    <rect x="106" y="106" width="8" height="24" fill="#1e293b"/>
-                    <rect x="122" y="106" width="8" height="8" fill="#1e293b"/>
-                    <rect x="122" y="122" width="8" height="8" fill="#1e293b"/>
-                  </svg>
+              <div className="bg-gray-50 rounded-xl p-8 mb-6 text-center border border-gray-200">
+                <div className="w-52 h-52 mx-auto bg-white rounded-lg shadow-inner flex items-center justify-center mb-4 border border-gray-200 p-2">
+                  <img
+                    src={UPI_QR_IMAGE_SRC}
+                    alt="UPI QR code for ₹1,999 MovEazy Guarantee payment"
+                    width={220}
+                    height={220}
+                    className="max-w-full h-auto"
+                    decoding="async"
+                  />
                 </div>
                 <p className="text-sm font-semibold text-gray-700">Scan with any UPI app</p>
                 <p className="text-xs text-gray-400 mt-1">Google Pay • PhonePe • Paytm • BHIM</p>

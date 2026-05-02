@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { pickFirstListingForHeroSearch } from "../../lib/searchResolve";
 
 /** Premium exterior — Unsplash (license-friendly). */
 const HERO_PHOTO =
@@ -34,6 +35,13 @@ export default function Hero() {
   );
   const runSearch = () => {
     const budget = budgetRanges[quickFilters.budget] || budgetRanges["30000-70000"];
+    const match = pickFirstListingForHeroSearch({
+      locality: quickFilters.locality,
+      bhk: quickFilters.bhk,
+      propertyType: quickFilters.propertyType,
+      minRent: budget.min,
+      maxRent: budget.max,
+    });
     const params = new URLSearchParams({
       locality: quickFilters.locality,
       bhk: quickFilters.bhk,
@@ -41,6 +49,7 @@ export default function Hero() {
       minRent: String(budget.min),
       maxRent: String(budget.max),
     });
+    if (match?.id != null) params.set("listingId", String(match.id));
     navigate(`/map?${params.toString()}`);
   };
 
@@ -177,7 +186,7 @@ export default function Hero() {
           {/* Desktop / large-tablet: glass stats panel. Mobile: compact row so it does not fight Stats below */}
           <motion.div
             {...fadeUp(0.14)}
-            className="relative flex min-h-0 flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:h-auto lg:min-h-0 lg:self-start lg:justify-start lg:max-w-md xl:max-w-lg"
+            className="relative flex min-h-0 w-full flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:ml-auto lg:h-auto lg:min-h-0 lg:max-w-md lg:justify-start lg:self-start xl:max-w-lg"
           >
             <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 sm:rounded-[28px]" />
             <p className="relative z-10 mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100/90 sm:mb-3 sm:text-right sm:text-[11px] sm:tracking-[0.2em] lg:text-left">
@@ -195,11 +204,6 @@ export default function Hero() {
             </div>
           </motion.div>
         </div>
-      </div>
-
-      {/* Bottom broker strip — subtle themed bar */}
-      <div className="relative z-[2] border-t border-white/10 bg-stone-950/50 px-3 py-3 text-center text-[11px] font-medium leading-snug text-[#fecdd3] backdrop-blur-md sm:px-4 sm:text-[13px] sm:leading-normal">
-        <span className="text-amber-200">✨</span> Are you a broker? Join MovEazy — verified leads, zero spam.
       </div>
     </section>
   );

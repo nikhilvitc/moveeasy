@@ -1,26 +1,20 @@
 // src/components/sections/SmartMatch.jsx
-// ─────────────────────────────────────────────────────────────────────────────
-// "Find the Right Home — Without the Guesswork"
-//
-// Layout (desktop):
-//   Full-width title + subtitle
-//   Row below: [SmartMatch card LEFT] | [vertical divider] | [property cards RIGHT]
-//
-// Property cards are horizontally scrollable on all screen sizes.
-// SmartMatch card has: logo + "Smart Match" label, feature list, red CTA.
-// Property cards: photo (with red badge chip), location pin + area/BHK, subtitle.
-// ─────────────────────────────────────────────────────────────────────────────
+// Top Matches uses seeded / Firestore listings so every card opens a real PropertyModal.
 
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import logoSvg from "../../assets/logo/moveasy.svg";
 import { MapPin } from "lucide-react";
+import { getListings } from "../../lib/store";
+import { isFirebaseConfigured } from "../../lib/firebase";
+import { getListingsData } from "../../lib/firestoreStore";
+import { pickFirstListingForHeroSearch } from "../../lib/searchResolve";
+import PropertyModal from "../PropertyModal";
 
 const EASE = [0.22, 1, 0.36, 1];
 
-// ── Smart Match feature list ──────────────────────────────────────────────────
 const SMART_FEATURES = [
   { emoji: "📍", label: "Best Areas for You" },
   { emoji: "💰", label: "Budget Fit" },
@@ -28,62 +22,38 @@ const SMART_FEATURES = [
   { emoji: "⚡", label: "Move Speed" },
 ];
 
-// ── Property listings ─────────────────────────────────────────────────────────
-// Using Unsplash images. Replace with real images when available.
-const PROPERTIES = [
-  {
-    id: 1,
-    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&auto=format&fit=crop",
-    badge: "Great commute",
-    area: "HSR Layout",
-    bhk: "2BHK",
-    subtitle: "Close to your office",
-  },
-  {
-    id: 2,
-    image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&auto=format&fit=crop",
-    badge: "Fast availability",
-    area: "Whitefield",
-    bhk: "1BHK",
-    subtitle: "Budget-friendly",
-  },
-  {
-    id: 4,
-    image: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=600&auto=format&fit=crop",
-    badge: "Metro access",
-    area: "Koramangala",
-    bhk: "2BHK",
-    subtitle: "Lively neighborhood",
-  },
-  {
-    id: 5,
-    image: "https://images.unsplash.com/photo-1600047509782-20d39509f26d?w=600&auto=format&fit=crop",
-    badge: "Premium area",
-    area: "Indiranagar",
-    bhk: "3BHK",
-    subtitle: "High-demand zone",
-  },
-  {
-    id: 6,
-    image: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=600&auto=format&fit=crop",
-    badge: "Family pick",
-    area: "Bellandur",
-    bhk: "2BHK",
-    subtitle: "Near tech parks",
-  },
-  {
-    id: 7,
-    image: "https://images.unsplash.com/photo-1523217582562-09d0def993a6?w=600&auto=format&fit=crop",
-    badge: "Fast availability",
-    area: "Mahadevpura",
-    bhk: "1BHK",
-    subtitle: "Budget-friendly",
-  },
-];
+const BADGE_ROTATION = ["Verified on map", "Sample listing", "Budget-friendly", "Great commute", "Fast availability"];
 
-// ── Property Card ─────────────────────────────────────────────────────────────
-function PropertyCard({ property, delay, onClick }) {
+function isBangaloreListing(listing) {
+  const t = `${listing.address || ""} ${listing.location || ""}`.toLowerCase();
+  return t.includes("bangalore") || t.includes("bengaluru");
+}
+
+function localityFromListing(listing) {
+  return String(listing.address || "").split(",")[0].trim() || "Bengaluru";
+}
+
+function normBhk(s) {
+  return String(s || "").replace(/\s+/g, "").toLowerCase();
+}
+
+function listingMatchesArea(listing, areaFilter) {
+  if (areaFilter === "All areas") return true;
+  const loc = localityFromListing(listing).toLowerCase();
+  const want = areaFilter.toLowerCase().trim();
+  return loc === want || loc.includes(want) || want.includes(loc);
+}
+
+function listingMatchesBhk(listing, bhkFilter) {
+  if (bhkFilter === "All BHK") return true;
+  return normBhk(listing.bhk) === normBhk(bhkFilter);
+}
+
+function PropertyCard({ listing, badge, delay, onClick }) {
   const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
+  const loc = localityFromListing(listing);
+  const bhkCompact = String(listing.bhk || "").replace(/\s+/g, "");
+  const subtitle = String(listing.description || listing.title || "").slice(0, 72).trim();
 
   return (
     <motion.div
@@ -104,62 +74,77 @@ function PropertyCard({ property, delay, onClick }) {
       "
       onClick={onClick}
     >
-      {/* Image + Badge */}
       <div className="relative w-full h-[200px] sm:h-[220px] overflow-hidden">
         <img
-          src={property.image}
-          alt={`${property.area} ${property.bhk}`}
+          src={listing.image}
+          alt={`${loc} ${listing.bhk}`}
           className="w-full h-full object-cover"
           loading="lazy"
         />
-        {/* Red badge chip — top right */}
-        <span className="
+        <span
+          className="
           absolute top-3 right-3
           bg-[#EF4444] text-white
           text-[12px] font-semibold
           px-3 py-1.5 rounded-full
           shadow-[0_2px_12px_rgba(239,68,68,0.4)]
-        ">
-          {property.badge}
+        "
+        >
+          {badge}
         </span>
       </div>
 
-      {/* Card body */}
       <div className="px-4 py-4">
         <div className="flex items-center gap-1.5">
           <MapPin size={13} className="text-[#EF4444] flex-shrink-0 mt-[1px]" fill="#EF4444" />
           <span className="text-[15px] font-bold text-gray-950">
-            {property.area} • {property.bhk}
+            {loc} • {bhkCompact}
           </span>
         </div>
-        <p className="mt-1 text-[13.5px] text-gray-400 pl-[18px]">
-          {property.subtitle}
-        </p>
+        <p className="mt-1 text-[13.5px] text-gray-400 pl-[18px]">{subtitle || "Tap for full details"}</p>
       </div>
     </motion.div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 export default function SmartMatch() {
   const navigate = useNavigate();
   const { ref: titleRef, inView: titleInView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const [listings, setListings] = useState([]);
   const [areaFilter, setAreaFilter] = useState("All areas");
   const [bhkFilter, setBhkFilter] = useState("All BHK");
-  const areaOptions = ["All areas", "HSR Layout", "Koramangala", "Indiranagar", "Whitefield", "Bellandur", "Mahadevpura"];
-  const bhkOptions = ["All BHK", "1BHK", "2BHK", "3BHK"];
-  const visibleMatches = useMemo(
-    () =>
-      PROPERTIES.filter((p) => (areaFilter === "All areas" ? true : p.area === areaFilter))
-        .filter((p) => (bhkFilter === "All BHK" ? true : p.bhk === bhkFilter)),
-    [areaFilter, bhkFilter]
-  );
+  const [selectedListing, setSelectedListing] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const rows = isFirebaseConfigured ? await getListingsData() : getListings();
+        if (alive) setListings(rows);
+      } catch {
+        if (alive) setListings(getListings());
+      }
+    }
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const areaOptions = ["All areas", "Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
+  const bhkOptions = ["All BHK", "1 BHK", "2 BHK", "3 BHK", "3+ BHK"];
+
+  const visibleMatches = useMemo(() => {
+    const blr = listings.filter(isBangaloreListing);
+    return blr
+      .filter((l) => listingMatchesArea(l, areaFilter))
+      .filter((l) => listingMatchesBhk(l, bhkFilter))
+      .slice(0, 24);
+  }, [listings, areaFilter, bhkFilter]);
 
   return (
     <section className="bg-white py-20 sm:py-24 lg:py-28">
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
-
-        {/* ── Title block ───────────────────────────────────────────────── */}
         <motion.div
           ref={titleRef}
           initial={{ opacity: 0, y: 24 }}
@@ -167,22 +152,20 @@ export default function SmartMatch() {
           transition={{ duration: 0.6, ease: EASE }}
           className="mb-10 sm:mb-12"
         >
-          <h2 className="
+          <h2
+            className="
             text-[26px] sm:text-[34px] lg:text-[40px]
             font-extrabold text-gray-950 leading-[1.15] tracking-tight
-          ">
+          "
+          >
             Find the Right Home — Without the Guesswork
           </h2>
           <p className="mt-3 text-[14.5px] sm:text-[15.5px] text-gray-500 max-w-2xl leading-relaxed">
-            Answer a few quick questions and we'll guide you to the best areas,
-            brokers, and homes based on your needs.
+            Answer a few quick questions and we'll guide you to the best areas, brokers, and homes based on your needs.
           </p>
         </motion.div>
 
-        {/* ── Main row ──────────────────────────────────────────────────── */}
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-0">
-
-          {/* ── LEFT: Smart Match card ─────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -197,17 +180,11 @@ export default function SmartMatch() {
               shadow-[0_2px_16px_rgba(0,0,0,0.06)]
             "
           >
-            {/* Card header: logo + Smart Match label */}
             <div className="flex items-center gap-3 mb-7">
-              <img
-                src={logoSvg}
-                alt="MovEASY"
-                className="h-7 w-auto"
-              />
+              <img src={logoSvg} alt="MovEASY" className="h-7 w-auto" />
               <span className="text-[16px] font-bold text-gray-950">Smart Match</span>
             </div>
 
-            {/* Feature list */}
             <ul className="flex flex-col gap-4 flex-1">
               {SMART_FEATURES.map(({ emoji, label }) => (
                 <li key={label} className="flex items-center gap-3 text-[15px] text-gray-700">
@@ -217,9 +194,19 @@ export default function SmartMatch() {
               ))}
             </ul>
 
-            {/* CTA button */}
-            <button 
-              onClick={() => navigate('/map')}
+            <button
+              type="button"
+              onClick={() => {
+                const m = pickFirstListingForHeroSearch({
+                  locality: "",
+                  bhk: "",
+                  propertyType: "",
+                  minRent: 10000,
+                  maxRent: 100000,
+                });
+                if (m) navigate(`/map?listingId=${encodeURIComponent(m.id)}`);
+                else navigate("/map");
+              }}
               className="
               mt-8 w-full py-[14px]
               text-[14.5px] font-semibold text-white
@@ -227,74 +214,97 @@ export default function SmartMatch() {
               hover:bg-[#DC2626] active:scale-[0.975]
               transition-all duration-200
               shadow-[0_4px_18px_rgba(239,68,68,0.30)]
-            ">
+            "
+            >
               Get Started →
             </button>
           </motion.div>
 
-          {/* ── Vertical divider — desktop only ───────────────────────── */}
           <div
             className="hidden lg:block w-px bg-gray-150 mx-8 xl:mx-10 self-stretch flex-shrink-0"
             style={{ backgroundColor: "#E5E7EB" }}
             aria-hidden="true"
           />
 
-          {/* ── RIGHT: Top Matches + scrollable property cards ────────── */}
           <div className="flex-1 min-w-0">
-            {/* Sub-header row */}
             <div className="flex items-center justify-between mb-5">
-              <span className="
+              <span
+                className="
                 text-[15px] sm:text-[16px] font-semibold
                 text-[#EF4444]
                 underline underline-offset-4 decoration-[#EF4444]
-              ">
+              "
+              >
                 Top Matches
               </span>
-            <button
-              onClick={() => navigate("/listings")}
-              className="text-[14.5px] font-semibold text-gray-950 hover:text-[#EF4444] transition-colors"
-            >
+              <button
+                type="button"
+                onClick={() => navigate("/listings")}
+                className="text-[14.5px] font-semibold text-gray-950 hover:text-[#EF4444] transition-colors"
+              >
                 View All
               </button>
             </div>
             <div className="flex items-center gap-2 mb-4">
-              <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white">
-                {areaOptions.map((opt) => <option key={opt}>{opt}</option>)}
+              <select
+                value={areaFilter}
+                onChange={(e) => setAreaFilter(e.target.value)}
+                className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white"
+              >
+                {areaOptions.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
               </select>
-              <select value={bhkFilter} onChange={(e) => setBhkFilter(e.target.value)} className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white">
-                {bhkOptions.map((opt) => <option key={opt}>{opt}</option>)}
+              <select
+                value={bhkFilter}
+                onChange={(e) => setBhkFilter(e.target.value)}
+                className="h-9 rounded-lg border border-gray-200 px-2.5 text-[12px] font-semibold text-gray-700 bg-white"
+              >
+                {bhkOptions.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
               </select>
             </div>
 
-            {/* Horizontally scrollable cards */}
-            <div className="
+            <div
+              className="
               flex gap-4 sm:gap-5
               overflow-x-auto
               pb-4
               -mx-2 px-2
               scrollbar-hide
               snap-x snap-mandatory
-            ">
-              {visibleMatches.map((property, i) => (
-                <div key={property.id} className="snap-start">
+            "
+            >
+              {visibleMatches.length === 0 && (
+                <p className="text-sm text-gray-500 py-6">
+                  No sample homes for this filter.{" "}
+                  <button type="button" className="font-semibold text-[#EF4444]" onClick={() => navigate("/map")}>
+                    Open map
+                  </button>
+                </p>
+              )}
+              {visibleMatches.map((listing, i) => (
+                <div key={listing.id} className="snap-start">
                   <PropertyCard
-                    property={property}
+                    listing={listing}
+                    badge={BADGE_ROTATION[i % BADGE_ROTATION.length]}
                     delay={0.1 + i * 0.08}
-                    onClick={() => {
-                      const params = new URLSearchParams({
-                        locality: property.area,
-                        bhk: property.bhk.replace("BHK", " BHK"),
-                      });
-                      navigate(`/map?${params.toString()}`);
-                    }}
+                    onClick={() => setSelectedListing(listing)}
                   />
                 </div>
               ))}
             </div>
           </div>
-
         </div>
       </div>
+
+      {selectedListing && (
+        <PropertyModal
+          property={selectedListing}
+          onClose={() => setSelectedListing(null)}
+        />
+      )}
     </section>
   );
 }

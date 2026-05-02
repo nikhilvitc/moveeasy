@@ -168,6 +168,8 @@ export default function MapView() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const listingIdFromUrl = useMemo(() => new URLSearchParams(location.search).get("listingId") || "", [location.search]);
+
   useEffect(() => {
     const qs = new URLSearchParams(location.search);
     const bhk = qs.get("bhk");
@@ -184,6 +186,15 @@ export default function MapView() {
       maxRent: maxRent > 0 ? maxRent : prev.maxRent,
     }));
   }, [location.search]);
+
+  useEffect(() => {
+    if (!listingIdFromUrl || !listings.length) return;
+    const found = listings.find((l) => String(l.id) === String(listingIdFromUrl));
+    if (!found) return;
+    setViewingProperty(found);
+    setSelected(found);
+    setMapState({ center: [found.lat, found.lng], zoom: 16 });
+  }, [listingIdFromUrl, listings]);
 
   const filteredListings = useMemo(() => {
     const base = applyListingFilters(listings, filters);
@@ -488,7 +499,20 @@ export default function MapView() {
         )}
       </div>
 
-      {viewingProperty && <PropertyModal property={viewingProperty} onClose={() => setViewingProperty(null)} />}
+      {viewingProperty && (
+        <PropertyModal
+          property={viewingProperty}
+          onClose={() => {
+            setViewingProperty(null);
+            if (listingIdFromUrl) {
+              const qs = new URLSearchParams(location.search);
+              qs.delete("listingId");
+              const next = qs.toString();
+              navigate({ pathname: location.pathname, search: next ? `?${next}` : "" }, { replace: true });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
