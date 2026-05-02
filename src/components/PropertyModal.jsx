@@ -232,34 +232,23 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={onClose}
+          {/* Header — close sits in the row so it never covers Save / Share */}
+          <div
             style={{
-              position: "absolute",
-              top: "10px",
-              right: "10px",
-              zIndex: 20,
-              width: "36px",
-              height: "36px",
-              borderRadius: "999px",
-              border: "1px solid #e2e8f0",
-              background: "rgba(255,255,255,0.95)",
-              color: "#0f172a",
-              fontWeight: 800,
-              fontSize: "18px",
-              lineHeight: 1,
-              cursor: "pointer",
+              padding: isMobile ? "12px 14px" : "16px 24px",
+              borderBottom: "1px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+              flexWrap: "wrap",
+              background: "#fff9f7",
+              zIndex: 10,
             }}
-            aria-label="Close property modal"
           >
-            ×
-          </button>
-
-          {/* Header */}
-          <div style={{ padding: isMobile ? "12px 14px" : "16px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff9f7", zIndex: 10, paddingRight: isMobile ? "52px" : "24px" }}>
-            <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center" }}>
-              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48" }}>MovEasy</div>
-              <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px" }}>
+            <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center", minWidth: 0, flex: "1 1 auto" }}>
+              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48", flexShrink: 0 }}>MovEasy</div>
+              <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
                 {nearbyListings.length > 0 && typeof onSelectListing === "function" ? (
                   <span onClick={() => scrollTo("nearby-homes")} style={{ cursor: "pointer" }}>Nearby</span>
@@ -267,7 +256,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                 <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer" }}>Facts & Features</span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0, marginLeft: "auto" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -280,8 +269,28 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
               >
                 {isMobile ? (isSaved ? "♥" : "♡") : (isSaved ? "♥ Saved" : "♡ Save")}
               </button>
-              <button onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
+              <button type="button" onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
                 {isMobile ? "↗" : shareText}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "999px",
+                  border: "1px solid #e2e8f0",
+                  background: "rgba(255,255,255,0.95)",
+                  color: "#0f172a",
+                  fontWeight: 800,
+                  fontSize: "18px",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+                aria-label="Close property modal"
+              >
+                ×
               </button>
             </div>
           </div>
