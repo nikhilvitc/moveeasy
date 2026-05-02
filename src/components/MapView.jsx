@@ -171,12 +171,13 @@ export default function MapView() {
   const [mapSearchError, setMapSearchError] = useState("");
   const [placeAnchor, setPlaceAnchor] = useState(null);
   const [desktopMode, setDesktopMode] = useState("split");
-  const [showDesktopFilters, setShowDesktopFilters] = useState(true);
+  /** Desktop: start collapsed so the map uses full width; use map search card + “Show Filters” for the panel. */
+  const [showDesktopFilters, setShowDesktopFilters] = useState(false);
   const [showDesktopListings, setShowDesktopListings] = useState(true);
   /** 'local' = filter listings by area name; 'place' = geocode landmark / metro and radius filter */
   const [searchMode, setSearchMode] = useState("local");
   const [showOverlayQuickFilters, setShowOverlayQuickFilters] = useState(false);
-  const [helpWidgetOpen, setHelpWidgetOpen] = useState(true);
+  const [helpWidgetOpen, setHelpWidgetOpen] = useState(false);
   const [workplaceAnchor, setWorkplaceAnchor] = useState(null);
   const [workplaceInput, setWorkplaceInput] = useState("");
   const [workplaceLoading, setWorkplaceLoading] = useState(false);
@@ -469,6 +470,8 @@ export default function MapView() {
   };
 
   const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${isMobile}`;
+  /** Desktop: map search card and left filter panel are mutually exclusive so the map stays uncluttered. */
+  const showMapSearchCard = isMobile || !showDesktopFilters;
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}>
@@ -601,7 +604,7 @@ export default function MapView() {
             <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}>
               {showDesktopListings ? "Hide Properties" : "Show Properties"}
             </button>
-            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>Search & filters on the map</span>
+            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>Map search on canvas · Show Filters for rent & area chips</span>
           </div>
         )}
       </div>
@@ -615,7 +618,15 @@ export default function MapView() {
             <button onClick={() => setShowMobileFilters(false)} style={{ display: "none" }} className="mobile-only-close">×</button>
           </h3>
           <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0", fontSize: "13px", color: "#64748b", lineHeight: 1.45 }}>
-            Use the <strong style={{ color: "#334155" }}>search card on the map</strong> for area name, landmark, or workplace. Open full filters here for rent range and more.
+            {isMobile ? (
+              <>
+                Use the <strong style={{ color: "#334155" }}>search card on the map</strong> for area, landmark, or workplace. Fine-tune rent and more here.
+              </>
+            ) : (
+              <>
+                Rent range, BHK, building type, and area chips. <strong style={{ color: "#334155" }}>Hide filters</strong> when you want the map search card back (metro, workplace, free-text).
+              </>
+            )}
           </div>
           <div style={{ marginBottom: "18px" }}>
             <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "8px" }}>Areas (tap — no typing)</div>
@@ -783,6 +794,7 @@ export default function MapView() {
             ))}
           </MapContainer>
 
+          {showMapSearchCard ? (
           <div
             style={{
               position: "absolute",
@@ -1172,6 +1184,7 @@ export default function MapView() {
               )}
             </div>
           </div>
+          ) : null}
 
           {helpWidgetOpen ? (
             <div
