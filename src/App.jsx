@@ -12,6 +12,7 @@ import Services from "./pages/Services";
 import Guarantee from "./pages/Guarantee";
 import Listings from "./pages/Listings";
 import Contact from "./pages/Contact";
+import MyActivity from "./pages/MyActivity";
 import Checkout from "./pages/Checkout";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -40,6 +41,7 @@ function AppRoutes() {
       <Route path="/guarantee" element={<Guarantee />} />
       <Route path="/listings" element={<Listings />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/activity" element={<MyActivity />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />

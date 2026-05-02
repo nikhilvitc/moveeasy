@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { getProfileByEmail } from "./profileService";
@@ -168,5 +168,126 @@ export async function addVisitRequestData({ listingId, customerEmail, customerPh
     createdAt: serverTimestamp(),
   };
   const refDoc = await addDoc(collection(db, "visits"), record);
+  try {
+    await addDoc(collection(db, "notifications"), {
+      audience: "admin",
+      targetEmail: "",
+      title: "New visit request",
+      body: `${customerEmail} requested a visit for listing #${listingId}.`,
+      type: "visit_request",
+      read: false,
+      meta: { listingId: String(listingId), customerEmail, sellerEmail },
+      createdAt: serverTimestamp(),
+    });
+    const se = String(sellerEmail || "").trim().toLowerCase();
+    if (se.includes("@")) {
+      await addDoc(collection(db, "notifications"), {
+        audience: "seller",
+        targetEmail: se,
+        title: "Visit request on your listing",
+        body: `${customerEmail} asked to visit listing #${listingId}.`,
+        type: "visit_request",
+        read: false,
+        meta: { listingId: String(listingId), customerEmail },
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch {
+    /* non-fatal */
+  }
   return { id: refDoc.id, ...record, createdAt: new Date().toISOString() };
+}
+
+/** --- Listing interest / applications (CRM) --- */
+
+export async function addInterestRequestData(payload) {
+  const record = {
+    ...payload,
+    listingId: String(payload.listingId || ""),
+    status: payload.status || "new",
+    createdAt: serverTimestamp(),
+  };
+  const refDoc = await addDoc(collection(db, "interests"), record);
+  return refDoc.id;
+}
+
+export async function getInterestsData() {
+  const snap = await getDocs(query(collection(db, "interests"), limit(200)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function updateInterestStatusData(id, status) {
+  await updateDoc(doc(db, "interests", String(id)), { status, updatedAt: serverTimestamp() });
+}
+
+/** --- In-app notifications --- */
+
+export async function addNotificationData({ audience, targetEmail = "", title, body, type = "info", meta = {} }) {
+  await addDoc(collection(db, "notifications"), {
+    audience: audience || "admin",
+    targetEmail: String(targetEmail || "").toLowerCase().trim(),
+    title: String(title || "").slice(0, 200),
+    body: String(body || "").slice(0, 2000),
+    type,
+    meta,
+    read: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getAdminNotificationsData() {
+  const snap = await getDocs(query(collection(db, "notifications"), where("audience", "==", "admin"), limit(120)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => {
+    const ta = a.createdAt?.toMillis?.() ?? 0;
+    const tb = b.createdAt?.toMillis?.() ?? 0;
+    return tb - ta;
+  });
+  return rows;
+}
+
+export async function getSellerNotificationsData(email) {
+  const n = String(email || "").toLowerCase().trim();
+  if (!n) return [];
+  const snap = await getDocs(query(collection(db, "notifications"), where("targetEmail", "==", n), limit(150)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.audience === "seller");
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function getCustomerNotificationsData(email) {
+  const n = String(email || "").toLowerCase().trim();
+  if (!n) return [];
+  const snap = await getDocs(query(collection(db, "notifications"), where("targetEmail", "==", n), limit(150)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.audience === "customer");
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function markNotificationReadData(id) {
+  await updateDoc(doc(db, "notifications", String(id)), { read: true, readAt: serverTimestamp() });
+}
+
+/** --- Per-user activity timeline (admin drill-down) --- */
+
+export async function addActivityEventData({ actorEmail, type, summary, meta = {} }) {
+  const email = String(actorEmail || "").toLowerCase().trim() || "guest@local.moveasy";
+  await addDoc(collection(db, "activityEvents"), {
+    actorEmail: email,
+    type: String(type || "event"),
+    summary: String(summary || "").slice(0, 400),
+    meta,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getActivityEventsForEmail(email) {
+  const n = String(email || "").toLowerCase().trim();
+  if (!n) return [];
+  const snap = await getDocs(query(collection(db, "activityEvents"), where("actorEmail", "==", n), limit(200)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
 }

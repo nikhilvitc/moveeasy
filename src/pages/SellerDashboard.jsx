@@ -2,7 +2,17 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { getAssignmentsData, getListingsData, removeListingData, uploadListingFiles, upsertListingData, getVisitsData } from "../lib/firestoreStore";
+import {
+  getAssignmentsData,
+  getListingsData,
+  removeListingData,
+  uploadListingFiles,
+  upsertListingData,
+  getVisitsData,
+  getInterestsData,
+  getSellerNotificationsData,
+  markNotificationReadData,
+} from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 import MediaUploadField from "../components/MediaUploadField";
 
@@ -18,7 +28,7 @@ async function readUserRow(email) {
 }
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { getAssignments, getListings, upsertListing, removeListing } from "../lib/store";
+import { getAssignments, getListings, upsertListing, removeListing, getInterestsGlobal, getNotificationsLocal, markNotificationLocalRead } from "../lib/store";
 
 function LocationPicker({ position, setPosition }) {
   useMapEvents({
@@ -45,22 +55,41 @@ export default function SellerDashboard() {
   const [badgeMsg, setBadgeMsg] = useState("");
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
+  const [leadInterests, setLeadInterests] = useState([]);
+  const [sellerNotifs, setSellerNotifs] = useState([]);
+  const [dashTick, setDashTick] = useState(0);
 
   useEffect(() => {
     let alive = true;
     async function load() {
-      const [allListings, allAssignments, row, allVisits] = isFirebaseConfigured
-        ? await Promise.all([getListingsData(), getAssignmentsData(), readUserRow(user?.email), getVisitsData()])
-        : [getListings(), getAssignments(), await readUserRow(user?.email), []];
+      const em = String(user?.email || "").toLowerCase().trim();
+      const [allListings, allAssignments, row, allVisits, interestsAll, notifs] = isFirebaseConfigured
+        ? await Promise.all([
+            getListingsData(),
+            getAssignmentsData(),
+            readUserRow(user?.email),
+            getVisitsData(),
+            getInterestsData(),
+            getSellerNotificationsData(user?.email),
+          ])
+        : [getListings(), getAssignments(), await readUserRow(user?.email), [], getInterestsGlobal(), getNotificationsLocal().filter((n) => n.audience === "seller" && String(n.targetEmail || "").toLowerCase() === em)];
       if (!alive) return;
       setListings(allListings.filter((l) => l.sellerEmail === user?.email));
       setMyAssignments(allAssignments.filter((a) => a.sellerEmail === user?.email));
       setSellerRow(row);
       setVisitRequests(allVisits.filter((v) => v.sellerEmail === user?.email));
+      setLeadInterests((interestsAll || []).filter((i) => String(i.sellerEmail || "").toLowerCase() === em));
+      setSellerNotifs(Array.isArray(notifs) ? notifs : []);
     }
     load().catch(() => undefined);
     return () => { alive = false; };
-  }, [user]);
+  }, [user, dashTick]);
+
+  const markSellerNotifRead = async (n) => {
+    if (isFirebaseConfigured) await markNotificationReadData(n.id);
+    else markNotificationLocalRead(n.id);
+    setDashTick((t) => t + 1);
+  };
 
   const handleBadgeSubmit = async (e) => {
     e.preventDefault();
@@ -157,6 +186,36 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
+        {sellerNotifs.length > 0 && (
+          <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 800, fontSize: "15px", color: "#9f1239", marginBottom: "8px" }}>Notifications ({sellerNotifs.filter((n) => !n.read).length} unread)</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: 220, overflowY: "auto" }}>
+              {sellerNotifs.map((n) => (
+                <div key={n.id} style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: n.read ? "1px solid #e2e8f0" : "2px solid #f43f5e" }}>
+                  <div style={{ fontWeight: 700, fontSize: "14px" }}>{n.title}</div>
+                  <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px", lineHeight: 1.45 }}>{n.body}</div>
+                  {!n.read ? (
+                    <button type="button" onClick={() => markSellerNotifRead(n)} style={{ ...btn, marginTop: "8px", background: "#0f172a", color: "white", fontSize: "12px" }}>
+                      Mark read
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {leadInterests.length > 0 && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
+            <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Renter interest on your listings</div>
+            <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: 1.65 }}>
+              {leadInterests.map((i) => (
+                <li key={i.id}>
+                  <strong>{i.customerName}</strong> ({i.customerEmail}) — {i.listingTitle} — {i.tenancyPreference} · {i.adultsSharing} people — <em>{i.status || "new"}</em>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
           <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "6px" }}>Seller trust badge (optional)</div>
           <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px", lineHeight: 1.45 }}>

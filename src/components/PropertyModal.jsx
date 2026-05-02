@@ -5,6 +5,8 @@ import { addVisitRequestData } from "../lib/firestoreStore";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
 import { findNearbyListings } from "../lib/geo";
+import { isListingSaved, toggleSavedListing } from "../lib/userActivity";
+import { submitListingInterestFull, logSavedListingChange } from "../lib/crmSync";
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -15,11 +17,15 @@ function MediaElement({ src, alt, style }) {
   return <img src={src} alt={alt} loading="lazy" style={style} />;
 }
 
-export default function PropertyModal({ property, onClose, listings = [], onSelectListing }) {
+export default function PropertyModal({ property, onClose, listings = [], onSelectListing, onSavedChange }) {
   const { user } = useAuth();
   const [visitForm, setVisitForm] = useState({ phone: "", time: "", notes: "" });
   const [visitSuccess, setVisitSuccess] = useState("");
   const [showVisitForm, setShowVisitForm] = useState(false);
+  const [applyMode, setApplyMode] = useState("entire_unit");
+  const [adultsSharing, setAdultsSharing] = useState(1);
+  const [applyNotes, setApplyNotes] = useState("");
+  const [applyMessage, setApplyMessage] = useState("");
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
@@ -50,6 +56,11 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   useEffect(() => {
     setActiveMediaIndex(0);
   }, [property?.id]);
+
+  useEffect(() => {
+    if (!property?.id) return;
+    setIsSaved(isListingSaved(user, property.id));
+  }, [user, property?.id]);
 
   const nearbyListings = useMemo(() => {
     if (!property || !Number.isFinite(Number(property.lat)) || !Number.isFinite(Number(property.lng))) return [];
@@ -178,6 +189,25 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
     }
   };
 
+  const submitInterest = async () => {
+    try {
+      await submitListingInterestFull(user, {
+        listingId: property.id,
+        listingTitle: property.title,
+        seller: property.seller,
+        contact: property.contact,
+        sellerEmail: property.sellerEmail || "",
+        tenancyPreference: applyMode,
+        adultsSharing,
+        notes: applyNotes,
+      });
+      setApplyMessage("Interest saved. Admins and the seller are notified by email when EmailJS is configured. Track status under Saved · activity or your dashboard.");
+      setApplyNotes("");
+    } catch (e) {
+      setApplyMessage(e instanceof Error ? e.message : "Could not complete submission. Please try again.");
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -238,7 +268,16 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <button onClick={() => setIsSaved(!isSaved)} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#334155" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = toggleSavedListing(user, property.id, property.title);
+                  setIsSaved(now);
+                  void logSavedListingChange(user, property.id, now, property.title);
+                  onSavedChange?.();
+                }}
+                style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#334155" }}
+              >
                 {isMobile ? (isSaved ? "♥" : "♡") : (isSaved ? "♥ Saved" : "♡ Save")}
               </button>
               <button onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
@@ -392,6 +431,38 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   <div style={badgeStyles}>🛋️ {property.furnishing || "Semi"}</div>
                   <div style={badgeStyles}>🚗 {property.parking && property.parking.length > 0 ? property.parking.join(", ") : "Available"}</div>
                   <div style={badgeStyles}>👨‍👩‍👧‍👦 {property.preferredTenants && property.preferredTenants.length > 0 ? property.preferredTenants.join(", ") : "Anyone"}</div>
+                  <div
+                    style={{
+                      ...badgeStyles,
+                      border: "1px solid #bbf7d0",
+                      background: "#ecfdf5",
+                      color: "#14532d",
+                    }}
+                  >
+                    📅 {property.availability || "Immediate"}
+                  </div>
+                </div>
+
+                <div style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%)", padding: "20px", borderRadius: "12px", marginBottom: "24px", border: "1px solid #bbf7d0" }}>
+                  <h2 style={{ margin: "0 0 10px", fontSize: "17px", color: "#0f172a" }}>Availability and rent share</h2>
+                  <p style={{ margin: "0 0 14px", fontSize: "14px", color: "#475569", lineHeight: 1.55 }}>
+                    Listed availability is shown on the badge above. If you share with flatmates, your portion of the monthly rent is an estimate only — final split depends on bedrooms agreed with the owner.
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, minmax(0,1fr))", gap: "10px" }}>
+                    {[1, 2, 3, 4].map((n) => {
+                      const share = numericRent > 0 ? Math.round(numericRent / n) : 0;
+                      return (
+                        <div key={n} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", textAlign: "center" }}>
+                          <div style={{ fontSize: "11px", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>{n === 1 ? "Solo" : `${n} people`}</div>
+                          <div style={{ fontSize: "15px", fontWeight: 800, color: "#15803d", marginTop: "6px" }}>{share > 0 ? formatInr(share) : "—"}</div>
+                          <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>per person / mo</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {property.bhk === "Roommate needed" ? (
+                    <p style={{ margin: "12px 0 0", fontSize: "13px", color: "#92400e", fontWeight: 600 }}>This listing is tagged for roommate matching — use Apply below and mention your move-in timeline.</p>
+                  ) : null}
                 </div>
 
                 <div style={{ background: "#f8fafc", padding: "24px", borderRadius: "12px", marginBottom: "32px", border: "1px solid #e2e8f0" }}>
@@ -540,6 +611,63 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                     {property.price || `₹ ${property.monthlyRent || 0}`}
                   </div>
                   <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>Rent per month</div>
+
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px", marginBottom: "16px", background: "#fafafa" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>Apply interest</div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px" }}>How do you want to rent?</label>
+                    <select
+                      value={applyMode}
+                      onChange={(e) => setApplyMode(e.target.value)}
+                      style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                    >
+                      <option value="entire_unit">Whole unit (family / solo)</option>
+                      <option value="seeking_flatmate">Looking for a flatmate for this home</option>
+                      <option value="open_to_share">Open to sharing rent with others</option>
+                    </select>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px" }}>People splitting rent (incl. you)</label>
+                    <select
+                      value={adultsSharing}
+                      onChange={(e) => setAdultsSharing(Number(e.target.value))}
+                      style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n} {n === 1 ? "person" : "people"}
+                        </option>
+                      ))}
+                    </select>
+                    <textarea
+                      rows={2}
+                      value={applyNotes}
+                      onChange={(e) => setApplyNotes(e.target.value)}
+                      placeholder="Optional note (move-in date, budget, pets…)"
+                      style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box", resize: "vertical" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={submitInterest}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        background: "#0f172a",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: 800,
+                        fontSize: "14px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Submit interest
+                    </button>
+                    {applyMessage ? (
+                      <div style={{ marginTop: "10px", fontSize: "12px", color: "#166534", fontWeight: 600, lineHeight: 1.45 }}>{applyMessage}</div>
+                    ) : null}
+                    <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#94a3b8", lineHeight: 1.45 }}>
+                      {!user?.email ? "Signed out: we still save this on this device under a guest profile. Sign in to sync across devices." : null}
+                    </p>
+                  </div>
+
                   <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", marginBottom: "16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
                       <span>Security deposit</span><strong style={{ color: "#0f172a" }}>{depositSidebar}</strong>

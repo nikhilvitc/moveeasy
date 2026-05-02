@@ -5,6 +5,9 @@ const KEYS = {
   users: "moveasy_users",
   assignments: "moveasy_assignments_v1",
   sellerRequests: "moveasy_seller_requests",
+  interests: "moveasy_interests_global_v1",
+  notifications: "moveasy_notifications_v1",
+  activity: "moveasy_activity_events_v1",
 };
 
 const DEFAULT_FILTERS = {
@@ -16,6 +19,8 @@ const DEFAULT_FILTERS = {
   propertyTypes: [],
   furnishing: [],
   parking: [],
+  /** Multi-select area names; listing matches if title/address/location contains any */
+  neighborhoods: [],
 };
 
 export const FILTER_OPTIONS = {
@@ -261,6 +266,87 @@ export function getSellerRequests() {
   return readJson(KEYS.sellerRequests, []);
 }
 
+function listingMatchesNeighborhoods(listing, neighborhoods) {
+  if (!neighborhoods?.length) return true;
+  const hay = [listing.title, listing.address, listing.location]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return neighborhoods.some((n) => hay.includes(String(n).toLowerCase()));
+}
+
+/** --- Local CRM (used when Firebase is off or as browser cache) --- */
+
+export function appendInterestGlobal(record) {
+  const all = readJson(KEYS.interests, []);
+  const row = {
+    id: String(Date.now()),
+    ...record,
+    createdAt: record.createdAt || new Date().toISOString(),
+    status: record.status || "new",
+  };
+  all.unshift(row);
+  writeJson(KEYS.interests, all.slice(0, 800));
+  return row;
+}
+
+export function getInterestsGlobal() {
+  return readJson(KEYS.interests, []);
+}
+
+export function updateInterestGlobal(id, updates) {
+  const all = readJson(KEYS.interests, []);
+  const idx = all.findIndex((r) => String(r.id) === String(id));
+  if (idx < 0) return null;
+  all[idx] = { ...all[idx], ...updates, updatedAt: new Date().toISOString() };
+  writeJson(KEYS.interests, all);
+  return all[idx];
+}
+
+export function pushNotificationLocal(payload) {
+  const all = readJson(KEYS.notifications, []);
+  const row = {
+    id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    read: false,
+    createdAt: new Date().toISOString(),
+    ...payload,
+  };
+  all.unshift(row);
+  writeJson(KEYS.notifications, all.slice(0, 500));
+  return row;
+}
+
+export function getNotificationsLocal() {
+  return readJson(KEYS.notifications, []);
+}
+
+export function markNotificationLocalRead(id) {
+  const all = readJson(KEYS.notifications, []);
+  const idx = all.findIndex((r) => String(r.id) === String(id));
+  if (idx < 0) return;
+  all[idx] = { ...all[idx], read: true };
+  writeJson(KEYS.notifications, all);
+}
+
+export function appendUserActivityEvent({ actorEmail, type, summary, meta }) {
+  const all = readJson(KEYS.activity, []);
+  const email = String(actorEmail || "").toLowerCase().trim() || "guest@local.moveasy";
+  all.unshift({
+    id: `a-${Date.now()}`,
+    actorEmail: email,
+    type: String(type || "event"),
+    summary: String(summary || "").slice(0, 400),
+    meta: meta && typeof meta === "object" ? meta : {},
+    createdAt: new Date().toISOString(),
+  });
+  writeJson(KEYS.activity, all.slice(0, 2000));
+}
+
+export function getUserActivityEvents(actorEmail) {
+  const email = String(actorEmail || "").toLowerCase().trim();
+  return readJson(KEYS.activity, []).filter((r) => String(r.actorEmail).toLowerCase() === email);
+}
+
 export function applyListingFilters(listings, filters) {
   return listings.filter((listing) => {
     if (filters.bhkTypes.length && !filters.bhkTypes.includes(listing.bhk)) return false;
@@ -275,6 +361,7 @@ export function applyListingFilters(listings, filters) {
     if (filters.propertyTypes.length && !filters.propertyTypes.includes(listing.propertyType)) return false;
     if (filters.furnishing.length && !filters.furnishing.includes(listing.furnishing)) return false;
     if (filters.parking.length && !filters.parking.every((p) => listing.parking.includes(p))) return false;
+    if (!listingMatchesNeighborhoods(listing, filters.neighborhoods || [])) return false;
     return true;
   });
 }

@@ -10,8 +10,18 @@ import { getListingsData } from "../lib/firestoreStore";
 import { geocodePlace } from "../lib/geocode";
 import { haversineKm } from "../lib/geo";
 import PropertyModal from "./PropertyModal";
+import { AREA_NAMES_SORTED } from "../data/listingsData";
+import {
+  appendFilterHistory,
+  consumeMapRestorePayload,
+  isListingSaved,
+  toggleSavedListing,
+} from "../lib/userActivity";
+import { logSavedListingChange } from "../lib/crmSync";
 
 const MAP_NEARBY_KM = 12;
+/** Listings within this radius (km) of geocoded office / company */
+const COMMUTE_NEARBY_KM = 14;
 
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
@@ -163,6 +173,15 @@ export default function MapView() {
   const [desktopMode, setDesktopMode] = useState("split");
   const [showDesktopFilters, setShowDesktopFilters] = useState(true);
   const [showDesktopListings, setShowDesktopListings] = useState(true);
+  /** 'local' = filter listings by area name; 'place' = geocode landmark / metro and radius filter */
+  const [searchMode, setSearchMode] = useState("local");
+  const [showOverlayQuickFilters, setShowOverlayQuickFilters] = useState(false);
+  const [helpWidgetOpen, setHelpWidgetOpen] = useState(true);
+  const [workplaceAnchor, setWorkplaceAnchor] = useState(null);
+  const [workplaceInput, setWorkplaceInput] = useState("");
+  const [workplaceLoading, setWorkplaceLoading] = useState(false);
+  const [workplaceError, setWorkplaceError] = useState("");
+  const [savedRevision, setSavedRevision] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -202,6 +221,36 @@ export default function MapView() {
   }, [location.search]);
 
   useEffect(() => {
+    const payload = consumeMapRestorePayload();
+    if (!payload || typeof payload !== "object") return;
+    if (payload.filters && typeof payload.filters === "object") {
+      setFilters((prev) => ({
+        ...prev,
+        ...payload.filters,
+        neighborhoods: Array.isArray(payload.filters.neighborhoods) ? payload.filters.neighborhoods : prev.neighborhoods || [],
+      }));
+    }
+    if (payload.selectedLocality !== undefined) setSelectedLocality(String(payload.selectedLocality || ""));
+    if (payload.mapSearchInput !== undefined) setMapSearchInput(String(payload.mapSearchInput || ""));
+    if (payload.searchMode === "local" || payload.searchMode === "place") setSearchMode(payload.searchMode);
+    if (payload.placeAnchor && Number.isFinite(payload.placeAnchor.lat)) {
+      setPlaceAnchor({
+        lat: payload.placeAnchor.lat,
+        lng: payload.placeAnchor.lng,
+        label: String(payload.placeAnchor.label || "Saved place"),
+      });
+    } else if (payload.placeAnchor === null) setPlaceAnchor(null);
+    if (payload.workplaceAnchor && Number.isFinite(payload.workplaceAnchor.lat)) {
+      setWorkplaceAnchor({
+        lat: payload.workplaceAnchor.lat,
+        lng: payload.workplaceAnchor.lng,
+        label: String(payload.workplaceAnchor.label || "Office"),
+      });
+    } else if (payload.workplaceAnchor === null) setWorkplaceAnchor(null);
+    if (payload.workplaceInput !== undefined) setWorkplaceInput(String(payload.workplaceInput || ""));
+  }, []);
+
+  useEffect(() => {
     if (!listingIdFromUrl || !listings.length) return;
     const found = listings.find((l) => String(l.id) === String(listingIdFromUrl));
     if (!found) return;
@@ -220,12 +269,38 @@ export default function MapView() {
   }, [listings, filters, selectedLocality]);
 
   const mapListings = useMemo(() => {
-    if (!placeAnchor) return filteredListings;
-    return filteredListings.filter((l) => {
-      if (!Number.isFinite(Number(l.lat)) || !Number.isFinite(Number(l.lng))) return false;
-      return haversineKm(placeAnchor.lat, placeAnchor.lng, Number(l.lat), Number(l.lng)) <= MAP_NEARBY_KM;
-    });
-  }, [filteredListings, placeAnchor]);
+    let rows = filteredListings;
+    if (placeAnchor) {
+      rows = rows.filter((l) => {
+        if (!Number.isFinite(Number(l.lat)) || !Number.isFinite(Number(l.lng))) return false;
+        return haversineKm(placeAnchor.lat, placeAnchor.lng, Number(l.lat), Number(l.lng)) <= MAP_NEARBY_KM;
+      });
+    }
+    if (workplaceAnchor) {
+      rows = rows.filter((l) => {
+        if (!Number.isFinite(Number(l.lat)) || !Number.isFinite(Number(l.lng))) return false;
+        return haversineKm(workplaceAnchor.lat, workplaceAnchor.lng, Number(l.lat), Number(l.lng)) <= COMMUTE_NEARBY_KM;
+      });
+    }
+    return rows;
+  }, [filteredListings, placeAnchor, workplaceAnchor]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      appendFilterHistory(user, {
+        filters: JSON.parse(JSON.stringify(filters)),
+        selectedLocality,
+        searchMode,
+        placeLabel: placeAnchor?.label || "",
+        workplaceLabel: workplaceAnchor?.label || "",
+        placeLat: placeAnchor?.lat,
+        placeLng: placeAnchor?.lng,
+        workLat: workplaceAnchor?.lat,
+        workLng: workplaceAnchor?.lng,
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [user, filters, selectedLocality, searchMode, placeAnchor, workplaceAnchor]);
 
   const runMapPlaceSearch = async () => {
     const q = mapSearchInput.trim();
@@ -255,6 +330,40 @@ export default function MapView() {
     }
   };
 
+  const runMapLocalSearch = () => {
+    const q = mapSearchInput.trim();
+    setMapSearchError("");
+    setPlaceAnchor(null);
+    if (!q) {
+      setSelectedLocality("");
+      return;
+    }
+    setSelectedLocality(q);
+  };
+
+  const submitMapSearch = () => {
+    if (searchMode === "place") {
+      runMapPlaceSearch();
+    } else {
+      runMapLocalSearch();
+    }
+  };
+
+  const openFullFilterPanel = () => {
+    setShowOverlayQuickFilters(false);
+    if (isMobile) {
+      setShowMobileFilters(true);
+    } else {
+      setShowDesktopFilters(true);
+    }
+  };
+
+  const chipLabel = (text, max = 22) => {
+    const t = String(text || "").trim();
+    if (t.length <= max) return t;
+    return `${t.slice(0, max - 1)}…`;
+  };
+
   useEffect(() => {
     if (!filteredListings.length || !selectedLocality.trim()) return;
     const first = filteredListings[0];
@@ -267,6 +376,40 @@ export default function MapView() {
       const next = exists ? prev[key].filter((v) => v !== value) : [...prev[key], value];
       return { ...prev, [key]: next };
     });
+  };
+
+  const toggleNeighborhood = (name) => {
+    setFilters((prev) => {
+      const n = prev.neighborhoods || [];
+      const exists = n.includes(name);
+      const next = exists ? n.filter((x) => x !== name) : [...n, name];
+      return { ...prev, neighborhoods: next };
+    });
+  };
+
+  const runWorkplaceSearch = async () => {
+    const q = workplaceInput.trim();
+    setWorkplaceError("");
+    if (!q) {
+      setWorkplaceAnchor(null);
+      return;
+    }
+    setWorkplaceLoading(true);
+    try {
+      const r = await geocodePlace(q);
+      if (r.ok) {
+        setWorkplaceAnchor({ lat: r.lat, lng: r.lng, label: r.displayName });
+        setMapState({ center: [r.lat, r.lng], zoom: 13 });
+        setWorkplaceError("");
+      } else {
+        setWorkplaceAnchor(null);
+        setWorkplaceError(r.error || "Could not find that workplace.");
+      }
+    } catch {
+      setWorkplaceError("Workplace search failed. Check your connection.");
+    } finally {
+      setWorkplaceLoading(false);
+    }
   };
 
   const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${isMobile}`;
@@ -347,6 +490,13 @@ export default function MapView() {
             >
               Home
             </button>
+            <button
+              type="button"
+              onClick={() => navigate("/activity")}
+              style={{ border: "1px solid #fecdd3", background: "#fff1f2", color: "#b91c1c", borderRadius: "10px", padding: "10px 16px", cursor: "pointer", fontSize: "14px", fontWeight: 700 }}
+            >
+              Saved · activity
+            </button>
             {user?.role === "admin" && (
               <button
                 onClick={() => navigate("/admin")}
@@ -359,48 +509,10 @@ export default function MapView() {
           </div>
           <div style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
             {mapListings.length} properties
-            {placeAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{MAP_NEARBY_KM} km of pin</span> : null}
+            {placeAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{MAP_NEARBY_KM} km of metro pin</span> : null}
+            {workplaceAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{COMMUTE_NEARBY_KM} km of workplace</span> : null}
           </div>
         </div>
-        {isMobile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "8px" }}>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-              <input
-                value={mapSearchInput}
-                onChange={(e) => setMapSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") runMapPlaceSearch();
-                }}
-                placeholder="Place or landmark (e.g. Google Bangalore)"
-                style={{ flex: "1 1 180px", border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 12px", fontSize: "14px", minHeight: "44px" }}
-              />
-              <button
-                type="button"
-                disabled={mapSearchLoading}
-                onClick={runMapPlaceSearch}
-                style={{ border: "1px solid #cbd5e1", background: "#0f172a", color: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px", cursor: mapSearchLoading ? "wait" : "pointer" }}
-              >
-                {mapSearchLoading ? "…" : "Go"}
-              </button>
-            </div>
-            {placeAnchor ? (
-              <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
-                <span style={{ flex: 1, minWidth: 0 }}>Near: {placeAnchor.label}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlaceAnchor(null);
-                    setMapSearchError("");
-                  }}
-                  style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "8px", padding: "4px 10px", fontSize: "12px", fontWeight: 600 }}
-                >
-                  Clear map search
-                </button>
-              </div>
-            ) : null}
-            {mapSearchError ? <div style={{ fontSize: "12px", color: "#b91c1c" }}>{mapSearchError}</div> : null}
-          </div>
-        )}
         {!isMobile && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <select
@@ -423,45 +535,9 @@ export default function MapView() {
             <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}>
               {showDesktopListings ? "Hide Properties" : "Show Properties"}
             </button>
-            <input
-              value={mapSearchInput}
-              onChange={(e) => setMapSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") runMapPlaceSearch();
-              }}
-              placeholder="Search map: landmark or area"
-              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", minWidth: "220px", minHeight: "44px", flex: "1 1 220px" }}
-            />
-            <button
-              type="button"
-              disabled={mapSearchLoading}
-              onClick={runMapPlaceSearch}
-              style={{ border: "1px solid #cbd5e1", background: "#0f172a", color: "white", borderRadius: "10px", padding: "10px 18px", fontSize: "14px", fontWeight: 700, minHeight: "44px", cursor: mapSearchLoading ? "wait" : "pointer" }}
-            >
-              {mapSearchLoading ? "…" : "Search map"}
-            </button>
-            {placeAnchor ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setPlaceAnchor(null);
-                  setMapSearchError("");
-                }}
-                style={{ border: "1px solid #fca5a5", background: "#fff1f2", color: "#b91c1c", borderRadius: "10px", padding: "10px 14px", fontSize: "13px", fontWeight: 700, minHeight: "44px" }}
-              >
-                Clear area pin
-              </button>
-            ) : null}
+            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>Search & filters on the map</span>
           </div>
         )}
-        {!isMobile && mapSearchError ? (
-          <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "4px" }}>{mapSearchError}</div>
-        ) : null}
-        {!isMobile && placeAnchor ? (
-          <div style={{ fontSize: "12px", color: "#64748b", marginTop: "6px", maxWidth: "720px", lineHeight: 1.4 }}>
-            Showing rentals within ~{MAP_NEARBY_KM} km of: <strong style={{ color: "#334155" }}>{placeAnchor.label}</strong>
-          </div>
-        ) : null}
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -472,40 +548,56 @@ export default function MapView() {
             Filters
             <button onClick={() => setShowMobileFilters(false)} style={{ display: "none" }} className="mobile-only-close">×</button>
           </h3>
-          <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0" }}>
-            <div style={{ fontWeight: 700, fontSize: "14px", marginBottom: "8px", color: "#334155" }}>Search map</div>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <input
-                value={mapSearchInput}
-                onChange={(e) => setMapSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") runMapPlaceSearch();
-                }}
-                placeholder="Landmark or address"
-                style={{ flex: "1 1 140px", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "8px 10px", fontSize: "14px" }}
-              />
-              <button
-                type="button"
-                disabled={mapSearchLoading}
-                onClick={runMapPlaceSearch}
-                style={{ border: "none", background: "#0f172a", color: "white", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 700, cursor: mapSearchLoading ? "wait" : "pointer" }}
-              >
-                {mapSearchLoading ? "…" : "Go"}
-              </button>
+          <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0", fontSize: "13px", color: "#64748b", lineHeight: 1.45 }}>
+            Use the <strong style={{ color: "#334155" }}>search card on the map</strong> for area name, landmark, or workplace. Open full filters here for rent range and more.
+          </div>
+          <div style={{ marginBottom: "18px" }}>
+            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "8px" }}>Areas (tap — no typing)</div>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "8px",
+                maxHeight: isMobile ? 200 : 240,
+                overflowY: "auto",
+                padding: "4px 2px",
+                borderRadius: "10px",
+                border: "1px solid #e2e8f0",
+                background: "#fff",
+              }}
+            >
+              {AREA_NAMES_SORTED.map((name) => {
+                const on = (filters.neighborhoods || []).includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => toggleNeighborhood(name)}
+                    style={{
+                      border: on ? "1px solid #b91c1c" : "1px solid #e2e8f0",
+                      background: on ? "#fff1f2" : "#f8fafc",
+                      color: on ? "#9f1239" : "#475569",
+                      borderRadius: "999px",
+                      padding: "6px 11px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
             </div>
-            {placeAnchor ? (
+            {(filters.neighborhoods || []).length > 0 && (
               <button
                 type="button"
-                onClick={() => {
-                  setPlaceAnchor(null);
-                  setMapSearchError("");
-                }}
-                style={{ marginTop: "8px", border: "1px solid #fecdd3", background: "#fff1f2", color: "#be123c", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", fontWeight: 600 }}
+                onClick={() => setFilters((p) => ({ ...p, neighborhoods: [] }))}
+                style={{ marginTop: "8px", border: "none", background: "transparent", color: "#64748b", fontSize: "12px", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
               >
-                Clear map pin & radius
+                Clear selected areas
               </button>
-            ) : null}
-            {mapSearchError ? <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "8px" }}>{mapSearchError}</div> : null}
+            )}
           </div>
           <div style={{ marginBottom: "18px" }}>
             <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "10px" }}>BHK Type</div>
@@ -556,7 +648,13 @@ export default function MapView() {
             <FitListingsBounds
               listings={mapListings}
               enabled={!selectedLocality.trim()}
-              fallbackCenter={placeAnchor ? [placeAnchor.lat, placeAnchor.lng] : null}
+              fallbackCenter={
+                workplaceAnchor
+                  ? [workplaceAnchor.lat, workplaceAnchor.lng]
+                  : placeAnchor
+                    ? [placeAnchor.lat, placeAnchor.lng]
+                    : null
+              }
               fallbackZoom={13}
             />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
@@ -571,6 +669,21 @@ export default function MapView() {
                   <Popup>
                     <div style={{ fontSize: "13px", fontWeight: 600 }}>Searched place</div>
                     <div style={{ fontSize: "12px", color: "#64748b", maxWidth: "220px" }}>{placeAnchor.label}</div>
+                  </Popup>
+                </Marker>
+              </>
+            )}
+            {workplaceAnchor && (
+              <>
+                <Circle
+                  center={[workplaceAnchor.lat, workplaceAnchor.lng]}
+                  radius={COMMUTE_NEARBY_KM * 1000}
+                  pathOptions={{ color: "#b45309", fillColor: "#fcd34d", fillOpacity: 0.12, weight: 2, dashArray: "6 6" }}
+                />
+                <Marker position={[workplaceAnchor.lat, workplaceAnchor.lng]}>
+                  <Popup>
+                    <div style={{ fontSize: "13px", fontWeight: 600 }}>Workplace</div>
+                    <div style={{ fontSize: "12px", color: "#64748b", maxWidth: "220px" }}>{workplaceAnchor.label}</div>
                   </Popup>
                 </Marker>
               </>
@@ -601,6 +714,508 @@ export default function MapView() {
               </Marker>
             ))}
           </MapContainer>
+
+          <div
+            style={{
+              position: "absolute",
+              top: isMobile ? 56 : 14,
+              left: 12,
+              right: isMobile ? 12 : "auto",
+              zIndex: 1005,
+              maxWidth: isMobile ? "none" : 520,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                pointerEvents: "auto",
+                background: "#ffffff",
+                borderRadius: 16,
+                boxShadow: "0 12px 40px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9)",
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+                {(placeAnchor || selectedLocality || workplaceAnchor) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", width: "100%" }}>
+                    {workplaceAnchor && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "#fffbeb",
+                          color: "#92400e",
+                          borderRadius: 999,
+                          padding: "6px 10px 6px 12px",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          maxWidth: "100%",
+                        }}
+                      >
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Office: {chipLabel(workplaceAnchor.label, 24)}</span>
+                        <button
+                          type="button"
+                          aria-label="Remove workplace"
+                          onClick={() => {
+                            setWorkplaceAnchor(null);
+                            setWorkplaceError("");
+                          }}
+                          style={{
+                            border: "none",
+                            background: "rgba(146, 64, 14, 0.12)",
+                            color: "#78350f",
+                            width: 22,
+                            height: 22,
+                            borderRadius: 999,
+                            cursor: "pointer",
+                            fontSize: 14,
+                            lineHeight: 1,
+                            fontWeight: 800,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )}
+                    {placeAnchor && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "#eff6ff",
+                          color: "#1d4ed8",
+                          borderRadius: 999,
+                          padding: "6px 10px 6px 12px",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          maxWidth: "100%",
+                        }}
+                      >
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chipLabel(placeAnchor.label, 28)}</span>
+                        <button
+                          type="button"
+                          aria-label="Remove place pin"
+                          onClick={() => {
+                            setPlaceAnchor(null);
+                            setMapSearchError("");
+                          }}
+                          style={{
+                            border: "none",
+                            background: "rgba(29, 78, 216, 0.12)",
+                            color: "#1e40af",
+                            width: 22,
+                            height: 22,
+                            borderRadius: 999,
+                            cursor: "pointer",
+                            fontSize: 14,
+                            lineHeight: 1,
+                            fontWeight: 800,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )}
+                    {selectedLocality && !placeAnchor && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "#eff6ff",
+                          color: "#1d4ed8",
+                          borderRadius: 999,
+                          padding: "6px 10px 6px 12px",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          maxWidth: "100%",
+                        }}
+                      >
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chipLabel(selectedLocality, 28)}</span>
+                        <button
+                          type="button"
+                          aria-label="Clear area filter"
+                          onClick={() => {
+                            setSelectedLocality("");
+                            setMapSearchInput("");
+                          }}
+                          style={{
+                            border: "none",
+                            background: "rgba(29, 78, 216, 0.12)",
+                            color: "#1e40af",
+                            width: 22,
+                            height: 22,
+                            borderRadius: 999,
+                            cursor: "pointer",
+                            fontSize: 14,
+                            lineHeight: 1,
+                            fontWeight: 800,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+                <input
+                  value={mapSearchInput}
+                  onChange={(e) => setMapSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitMapSearch();
+                  }}
+                  placeholder={searchMode === "place" ? "Metro, office, landmark…" : "Add area, street, society…"}
+                  style={{
+                    flex: "1 1 160px",
+                    minWidth: 0,
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    padding: "10px 12px",
+                    fontSize: 15,
+                    outline: "none",
+                    background: "#f8fafc",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "inline-flex",
+                    borderRadius: 999,
+                    background: "#f1f5f9",
+                    padding: 3,
+                    flexShrink: 0,
+                  }}
+                >
+                  {["local", "place"].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setSearchMode(m)}
+                      style={{
+                        border: "none",
+                        borderRadius: 999,
+                        padding: "7px 12px",
+                        fontSize: 12,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        background: searchMode === m ? "#ffffff" : "transparent",
+                        color: searchMode === m ? "#b91c1c" : "#64748b",
+                        boxShadow: searchMode === m ? "0 1px 4px rgba(15,23,42,0.12)" : "none",
+                      }}
+                    >
+                      {m === "local" ? "Location" : "Metro"}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={mapSearchLoading}
+                  onClick={submitMapSearch}
+                  aria-label="Search"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    flexShrink: 0,
+                    border: "none",
+                    borderRadius: 12,
+                    background: "#b91c1c",
+                    color: "#fff",
+                    cursor: mapSearchLoading ? "wait" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    boxShadow: "0 4px 14px rgba(185, 28, 28, 0.35)",
+                  }}
+                >
+                  {mapSearchLoading ? "…" : "⌕"}
+                </button>
+              </div>
+              <div
+                style={{
+                  width: "100%",
+                  borderTop: "1px solid #f1f5f9",
+                  padding: "10px 14px",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  alignItems: "center",
+                  background: "#fffbeb",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.04em" }}>Workplace</span>
+                <input
+                  value={workplaceInput}
+                  onChange={(e) => setWorkplaceInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runWorkplaceSearch();
+                  }}
+                  placeholder="Company or campus (e.g. Manyata Tech Park)"
+                  style={{
+                    flex: "1 1 180px",
+                    minWidth: 0,
+                    border: "1px solid #fcd34d",
+                    borderRadius: 10,
+                    padding: "9px 11px",
+                    fontSize: 14,
+                    outline: "none",
+                    background: "#fff",
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={workplaceLoading}
+                  onClick={runWorkplaceSearch}
+                  style={{
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "9px 14px",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    background: "#b45309",
+                    color: "#fff",
+                    cursor: workplaceLoading ? "wait" : "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  {workplaceLoading ? "…" : "Near office"}
+                </button>
+              </div>
+              {workplaceError ? (
+                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#b91c1c", fontWeight: 600, background: "#fffbeb" }}>{workplaceError}</div>
+              ) : null}
+              {workplaceAnchor && !workplaceError ? (
+                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#78350f", background: "#fffbeb", lineHeight: 1.45 }}>
+                  Showing homes within ~{COMMUTE_NEARBY_KM} km commute of <strong>{workplaceAnchor.label}</strong>
+                </div>
+              ) : null}
+              {showOverlayQuickFilters && (
+                <div
+                  style={{
+                    borderTop: "1px solid #f1f5f9",
+                    padding: "12px 14px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 10,
+                    alignItems: "center",
+                    background: "#fafafa",
+                  }}
+                >
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 800, color: "#64748b", flex: "1 1 140px", minWidth: 120 }}>
+                    BHK type
+                    <select
+                      value={filters.bhkTypes.length === 1 ? filters.bhkTypes[0] : ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFilters((p) => ({ ...p, bhkTypes: v ? [v] : [] }));
+                      }}
+                      style={{
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 10,
+                        padding: "10px 10px",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: "#fff",
+                      }}
+                    >
+                      <option value="">Any</option>
+                      {FILTER_OPTIONS.bhkTypes.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 800, color: "#64748b", flex: "1 1 160px", minWidth: 140 }}>
+                    Building type
+                    <select
+                      value={filters.propertyTypes.length === 1 ? filters.propertyTypes[0] : ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFilters((p) => ({ ...p, propertyTypes: v ? [v] : [] }));
+                      }}
+                      style={{
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 10,
+                        padding: "10px 10px",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: "#fff",
+                      }}
+                    >
+                      <option value="">Any</option>
+                      {FILTER_OPTIONS.propertyTypes.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+              <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between", background: "#fff" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOverlayQuickFilters((v) => !v)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#475569",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 4px",
+                  }}
+                >
+                  {showOverlayQuickFilters ? "Hide quick filters" : "See all filters"}
+                  <span style={{ fontSize: 11 }}>{showOverlayQuickFilters ? "▲" : "▼"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openFullFilterPanel}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    background: "#fff",
+                    color: "#b91c1c",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Full filter panel
+                </button>
+              </div>
+              {(mapSearchError || placeAnchor) && (
+                <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 14px 10px", fontSize: 12, lineHeight: 1.45 }}>
+                  {mapSearchError ? <div style={{ color: "#b91c1c", fontWeight: 600 }}>{mapSearchError}</div> : null}
+                  {placeAnchor && !mapSearchError ? (
+                    <div style={{ color: "#64748b" }}>
+                      Showing within ~{MAP_NEARBY_KM} km of <strong style={{ color: "#334155" }}>{placeAnchor.label}</strong>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {helpWidgetOpen ? (
+            <div
+              style={{
+                position: "absolute",
+                right: 12,
+                bottom: isMobile ? (showMobileListings ? "calc(45vh + 14px)" : "92px") : 18,
+                zIndex: 1006,
+                maxWidth: 280,
+                pointerEvents: "none",
+              }}
+            >
+              <div
+                style={{
+                  pointerEvents: "auto",
+                  background: "#ffffff",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                  boxShadow: "0 10px 36px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(226, 232, 240, 0.95)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        background: "#b91c1c",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 15,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
+                      M
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>Need help?</div>
+                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2, lineHeight: 1.45 }}>
+                        Reach MovEazy on our contact page — we will get back to you quickly.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Dismiss"
+                    onClick={() => setHelpWidgetOpen(false)}
+                    style={{
+                      border: "none",
+                      background: "#f1f5f9",
+                      color: "#64748b",
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 16,
+                      lineHeight: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/contact")}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    background: "#b91c1c",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 14px rgba(185, 28, 28, 0.3)",
+                  }}
+                >
+                  Go to contact
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setHelpWidgetOpen(true)}
+              aria-label="Need help"
+              style={{
+                position: "absolute",
+                right: 14,
+                bottom: isMobile ? (showMobileListings ? "calc(45vh + 14px)" : "92px") : 18,
+                zIndex: 1006,
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                border: "none",
+                background: "#b91c1c",
+                color: "#fff",
+                fontSize: 20,
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(185, 28, 28, 0.4)",
+              }}
+            >
+              ?
+            </button>
+          )}
           
           {isMobile && (
             <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, display: "flex", gap: "8px" }}>
@@ -633,7 +1248,7 @@ export default function MapView() {
             overflowY: "auto",
             background: "#f8fafc",
             borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
-            padding: isMobile ? "12px" : "16px 18px",
+            padding: isMobile ? `12px 12px ${helpWidgetOpen ? 120 : 72}px` : "16px 18px",
             fontSize: "15px",
             height: isMobile ? "45vh" : "100%",
             flexShrink: 0,
@@ -663,7 +1278,43 @@ export default function MapView() {
                 transition: "all 0.2s",
               }}
             >
-              {l.image && <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "148px", objectFit: "cover", borderRadius: "10px", marginBottom: "10px" }} />}
+              <div style={{ position: "relative", marginBottom: "10px" }}>
+                {l.image ? (
+                  <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "148px", objectFit: "cover", borderRadius: "10px", display: "block" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "148px", borderRadius: "10px", background: "#e2e8f0" }} aria-hidden />
+                )}
+                <button
+                  type="button"
+                  aria-label={isListingSaved(user, l.id) ? "Remove from saved" : "Save listing"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const now = toggleSavedListing(user, l.id, l.title);
+                    void logSavedListingChange(user, l.id, now, l.title);
+                    setSavedRevision((v) => v + 1);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    border: "1px solid rgba(255,255,255,0.9)",
+                    background: "rgba(255,255,255,0.95)",
+                    boxShadow: "0 2px 10px rgba(15,23,42,0.15)",
+                    cursor: "pointer",
+                    fontSize: 18,
+                    lineHeight: 1,
+                    color: isListingSaved(user, l.id) ? "#b91c1c" : "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {isListingSaved(user, l.id) ? "♥" : "♡"}
+                </button>
+              </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", alignItems: "center", gap: "8px" }}>
                 <span style={{ background: bhkColors[l.bhk] || "#6b7280", color: "white", padding: "4px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700 }}>{l.bhk}</span>
                 <span style={{ fontWeight: 800, color: "#16a34a", fontSize: "15px", flexShrink: 0 }}>{l.price}</span>
@@ -682,6 +1333,7 @@ export default function MapView() {
           property={viewingProperty}
           listings={listings}
           onSelectListing={(l) => setViewingProperty(l)}
+          onSavedChange={() => setSavedRevision((v) => v + 1)}
           onClose={() => {
             setViewingProperty(null);
             if (listingIdFromUrl) {

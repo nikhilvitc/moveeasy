@@ -3,8 +3,8 @@ import { test, expect } from "@playwright/test";
 test.describe("MovEazy core smoke", () => {
   test("home page renders primary CTA", async ({ page }) => {
     await page.goto("./");
-    await expect(page.getByRole("heading", { name: /Move To A New City/i })).toBeVisible();
-    await expect(page.getByText(/Start Your Move/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Find Verified Properties/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Search$/i }).first()).toBeVisible();
   });
 
   test("map page loads with listings UI", async ({ page }) => {
@@ -16,7 +16,7 @@ test.describe("MovEazy core smoke", () => {
   test("map page mobile shows filter and properties controls", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("./#/map");
-    await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filters", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Properties|Hide/i })).toBeVisible();
   });
 

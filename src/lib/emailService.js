@@ -71,6 +71,135 @@ export async function triggerVerifiedOnboardingEmails({ firebaseUser, profile })
   }
 }
 
+function adminEmailsFromEnv() {
+  return String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Sends EmailJS messages to each admin and to the listing seller (if email present).
+ * Uses VITE_EMAILJS_INTEREST_TEMPLATE_ID when set, otherwise the same template as visit/onboarding.
+ */
+export async function triggerListingInterestEmails({
+  listingId,
+  listingTitle,
+  customerEmail,
+  customerName,
+  sellerEmail,
+  sellerName,
+  preference,
+  adultsSharing,
+  notes,
+}) {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY) {
+    console.warn("EmailJS not configured; skipping listing-interest emails.");
+    return { ok: false, skipped: true };
+  }
+  const templateId = import.meta.env.VITE_EMAILJS_INTEREST_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
+  if (!templateId) {
+    console.warn("No EmailJS template id; set VITE_EMAILJS_TEMPLATE_ID or VITE_EMAILJS_INTEREST_TEMPLATE_ID.");
+    return { ok: false, skipped: true };
+  }
+
+  const baseParams = {
+    listing_id: String(listingId ?? ""),
+    listing_title: String(listingTitle ?? ""),
+    customer_email: String(customerEmail ?? ""),
+    customer_name: String(customerName ?? ""),
+    seller_email: String(sellerEmail ?? ""),
+    seller_name: String(sellerName ?? ""),
+    preference: String(preference ?? ""),
+    adults_sharing: String(adultsSharing ?? 1),
+    notes: String(notes ?? "").slice(0, 800),
+  };
+
+  const sendOne = async (to_email) => {
+    const template_params = { ...baseParams, to_email };
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: templateId,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params,
+      }),
+    });
+    return res.ok;
+  };
+
+  const results = [];
+  for (const em of adminEmailsFromEnv()) {
+    results.push(await sendOne(em));
+  }
+  const se = String(sellerEmail || "").trim().toLowerCase();
+  if (se.includes("@")) {
+    results.push(await sendOne(se));
+  }
+  return { ok: results.some(Boolean), results };
+}
+
+/**
+ * Email to the renter when application / assignment status changes.
+ * Template should accept to_email, customer_name, listing_title, listing_id, status, status_label, previous_status, message.
+ * Uses VITE_EMAILJS_STATUS_TEMPLATE_ID, then interest template, then VITE_EMAILJS_TEMPLATE_ID.
+ */
+export async function triggerCustomerApplicationStatusEmail({
+  to_email,
+  customer_name,
+  listing_title,
+  listing_id,
+  status,
+  status_label,
+  previous_status,
+  message,
+}) {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY) {
+    console.warn("EmailJS not configured; skipping customer status email.");
+    return { ok: false, skipped: true };
+  }
+  const templateId =
+    import.meta.env.VITE_EMAILJS_STATUS_TEMPLATE_ID ||
+    import.meta.env.VITE_EMAILJS_INTEREST_TEMPLATE_ID ||
+    EMAILJS_TEMPLATE_ID;
+  if (!templateId) {
+    console.warn("No EmailJS template for customer status; set VITE_EMAILJS_STATUS_TEMPLATE_ID or VITE_EMAILJS_TEMPLATE_ID.");
+    return { ok: false, skipped: true };
+  }
+  const to = String(to_email || "").trim().toLowerCase();
+  if (!to.includes("@") || to.includes("guest@local")) {
+    return { ok: false, skipped: true };
+  }
+  const template_params = {
+    to_email: to,
+    customer_name: String(customer_name || "there"),
+    listing_title: String(listing_title || ""),
+    listing_id: String(listing_id ?? ""),
+    status: String(status || ""),
+    status_label: String(status_label || ""),
+    previous_status: String(previous_status ?? ""),
+    message: String(message || "").slice(0, 2000),
+  };
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: templateId,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params,
+      }),
+    });
+    return { ok: res.ok };
+  } catch (e) {
+    console.error("Customer status email failed", e);
+    return { ok: false };
+  }
+}
+
 export async function triggerVisitNotificationEmail({ customerEmail, customerPhone, sellerEmail, visitTime, notes, listingId }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
     console.warn("EmailJS not configured, skipping visit notification.");

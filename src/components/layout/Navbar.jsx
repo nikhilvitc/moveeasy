@@ -33,6 +33,7 @@ export default function Navbar() {
         <span onClick={() => closeAndGo("/services")} className="cursor-pointer hover:text-primary-darker transition-colors">Services</span>
         <span onClick={() => closeAndGo("/guarantee")} className="cursor-pointer hover:text-primary-darker transition-colors">Guarantee</span>
         <span onClick={() => closeAndGo("/map")} className="cursor-pointer hover:text-primary-darker transition-colors">Listings</span>
+        <span onClick={() => closeAndGo("/activity")} className="cursor-pointer hover:text-primary-darker transition-colors">Saved</span>
         <span onClick={() => closeAndGo("/contact")} className="cursor-pointer hover:text-primary-darker transition-colors">Contact</span>
         
         {/* EXPLORE MAP BUTTON */}
@@ -108,6 +109,7 @@ export default function Navbar() {
             <button onClick={() => closeAndGo("/services")} className="text-left">Services</button>
             <button onClick={() => closeAndGo("/guarantee")} className="text-left">Guarantee</button>
             <button onClick={() => closeAndGo("/map")} className="text-left">Listings / Map</button>
+            <button onClick={() => closeAndGo("/activity")} className="text-left">Saved and activity</button>
             <button onClick={() => closeAndGo("/contact")} className="text-left">Contact</button>
             {user?.role === "customer" && <button onClick={() => closeAndGo("/customer")} className="text-left">Customer Dashboard</button>}
             {user?.role === "seller" && <button onClick={() => closeAndGo("/seller")} className="text-left">Seller Dashboard</button>}

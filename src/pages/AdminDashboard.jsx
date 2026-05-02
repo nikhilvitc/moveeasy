@@ -1,13 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getAllUsers, getListings, getSellerRequests, removeListing, upsertListing, addUserLocally, removeUserLocally, updateUserLocally } from "../lib/store";
+import {
+  getAllUsers,
+  getListings,
+  getSellerRequests,
+  removeListing,
+  upsertListing,
+  addUserLocally,
+  removeUserLocally,
+  updateUserLocally,
+  getInterestsGlobal,
+  updateInterestGlobal,
+  getAssignments,
+  addAssignment,
+  getNotificationsLocal,
+  markNotificationLocalRead,
+  getUserActivityEvents,
+  pushNotificationLocal,
+} from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { addUserProfileData, getAllUsersData, getListingsData, getSellerRequestsData, removeListingData, removeUserProfileData, uploadListingFiles, upsertListingData, getVisitsData, updateUserProfileData } from "../lib/firestoreStore";
+import {
+  addUserProfileData,
+  getAllUsersData,
+  getListingsData,
+  getSellerRequestsData,
+  removeListingData,
+  removeUserProfileData,
+  uploadListingFiles,
+  upsertListingData,
+  getVisitsData,
+  updateUserProfileData,
+  getInterestsData,
+  getAssignmentsData,
+  getAdminNotificationsData,
+  markNotificationReadData,
+  updateInterestStatusData,
+  getActivityEventsForEmail,
+  addAssignmentData,
+  addNotificationData,
+} from "../lib/firestoreStore";
+import { notifyCustomerInterestStatusChanged, notifyCustomerListingAssigned } from "../lib/crmSync";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import MediaUploadField from "../components/MediaUploadField";
+import { getBookings } from "../lib/userActivity";
 
 const DEFAULT_FORM = {
   title: "",
@@ -136,23 +174,46 @@ export default function AdminDashboard() {
   const [sellerReqsState, setSellerReqsState] = useState([]);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
+  const [interestsState, setInterestsState] = useState([]);
+  const [assignmentsState, setAssignmentsState] = useState([]);
+  const [adminNotifs, setAdminNotifs] = useState([]);
+  const [userListTab, setUserListTab] = useState("all");
+  const [historyUser, setHistoryUser] = useState(null);
+  const [historyBundle, setHistoryBundle] = useState(null);
+  const [assignCustomerEmail, setAssignCustomerEmail] = useState("");
+  const [assignListingId, setAssignListingId] = useState("");
+  const [assignNotes, setAssignNotes] = useState("");
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
 
   useEffect(() => {
     let alive = true;
     async function load() {
       if (isFirebaseConfigured) {
-        const [remoteListings, remoteUsers, remoteSellerReqs, remoteVisits] = await Promise.all([getListingsData(), getAllUsersData(), getSellerRequestsData(), getVisitsData()]);
+        const [remoteListings, remoteUsers, remoteSellerReqs, remoteVisits, remoteInterests, remoteAssigns, remoteNotifs] = await Promise.all([
+          getListingsData(),
+          getAllUsersData(),
+          getSellerRequestsData(),
+          getVisitsData(),
+          getInterestsData(),
+          getAssignmentsData(),
+          getAdminNotificationsData(),
+        ]);
         if (!alive) return;
         setListingsState(remoteListings);
         setUsersState(remoteUsers);
         setSellerReqsState(remoteSellerReqs);
         setVisitRequests(remoteVisits);
+        setInterestsState(remoteInterests);
+        setAssignmentsState(remoteAssigns);
+        setAdminNotifs(remoteNotifs);
       } else {
         setListingsState(getListings());
         setUsersState(getAllUsers());
         setSellerReqsState(getSellerRequests().filter((r) => r.status === "pending"));
         setVisitRequests([]);
+        setInterestsState(getInterestsGlobal());
+        setAssignmentsState(getAssignments());
+        setAdminNotifs(getNotificationsLocal().filter((n) => n.audience === "admin"));
       }
     }
     load().catch(() => undefined);
@@ -267,6 +328,124 @@ export default function AdminDashboard() {
     setEditingUserEmail(null);
     setRefreshTick((v) => v + 1);
   };
+
+  const customersList = useMemo(
+    () => users.filter((u) => u.role === "customer" && !String(u.uid || "").startsWith("reserved")),
+    [users]
+  );
+  const sellersList = useMemo(() => users.filter((u) => u.role === "seller"), [users]);
+  const displayUsers = useMemo(() => {
+    if (userListTab === "customer") return customersList;
+    if (userListTab === "seller") return sellersList;
+    return users;
+  }, [users, userListTab, customersList, sellersList]);
+
+  const handleInterestStatus = async (row, status) => {
+    if (isFirebaseConfigured) await updateInterestStatusData(row.id, status);
+    else updateInterestGlobal(row.id, { status });
+    await notifyCustomerInterestStatusChanged(row, status);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleNotifRead = async (n) => {
+    if (isFirebaseConfigured) await markNotificationReadData(n.id);
+    else markNotificationLocalRead(n.id);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    const listing = listings.find((l) => String(l.id) === String(assignListingId));
+    if (!listing || !assignCustomerEmail.trim()) {
+      alert("Pick a listing and customer email.");
+      return;
+    }
+    const sellerEmail = (listing.sellerEmail || "").trim().toLowerCase();
+    if (isFirebaseConfigured) {
+      await addAssignmentData({
+        listingId: assignListingId,
+        customerEmail: assignCustomerEmail.trim().toLowerCase(),
+        sellerEmail,
+        notes: assignNotes,
+        createdBy: user?.email,
+      });
+    } else {
+      addAssignment({
+        listingId: assignListingId,
+        customerEmail: assignCustomerEmail.trim().toLowerCase(),
+        sellerEmail,
+        notes: assignNotes,
+        createdBy: user?.email,
+      });
+    }
+    if (sellerEmail) {
+      const body = `Admin assigned listing #${assignListingId} to ${assignCustomerEmail.trim().toLowerCase()}.`;
+      try {
+        if (isFirebaseConfigured) {
+          await addNotificationData({
+            audience: "seller",
+            targetEmail: sellerEmail,
+            title: "New lead assignment",
+            body,
+            type: "assignment",
+            meta: { listingId: String(assignListingId), customerEmail: assignCustomerEmail.trim().toLowerCase() },
+          });
+        } else {
+          pushNotificationLocal({
+            audience: "seller",
+            targetEmail: sellerEmail,
+            title: "New lead assignment",
+            body,
+            type: "assignment",
+            meta: { listingId: String(assignListingId) },
+          });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
+    await notifyCustomerListingAssigned({
+      customerEmail: assignCustomerEmail.trim().toLowerCase(),
+      listingId: assignListingId,
+      listingTitle: listing.title,
+      notes: assignNotes,
+      sellerEmail: listing.sellerEmail,
+    });
+    setAssignNotes("");
+    setAssignListingId("");
+    setAssignCustomerEmail("");
+    alert("Assignment recorded. The seller sees this on their dashboard.");
+    setRefreshTick((v) => v + 1);
+  };
+
+  useEffect(() => {
+    if (!historyUser?.email) {
+      setHistoryBundle(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const email = String(historyUser.email).toLowerCase().trim();
+      let acts = [];
+      if (isFirebaseConfigured) {
+        try {
+          acts = await getActivityEventsForEmail(email);
+        } catch {
+          acts = [];
+        }
+      } else {
+        acts = getUserActivityEvents(email);
+      }
+      const visits = visitRequests.filter((v) => String(v.customerEmail || "").toLowerCase() === email);
+      const interests = interestsState.filter((i) => String(i.customerEmail || "").toLowerCase() === email);
+      const bookings = getBookings().filter((b) => String(b.customerEmail || "").toLowerCase() === email);
+      const assigns = assignmentsState.filter((a) => String(a.customerEmail || "").toLowerCase() === email);
+      if (alive) setHistoryBundle({ acts, visits, interests, bookings, assigns });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [historyUser, visitRequests, interestsState, assignmentsState, refreshTick]);
 
   const handleFeedImport = async () => {
     if (!feedJson.trim()) return;
@@ -383,9 +562,164 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {adminNotifs.length > 0 && (
+          <div style={{ ...sectionCard, border: "1px solid #fecdd3", background: "#fff1f2" }}>
+            <div style={{ fontSize: "18px", fontWeight: 800, color: "#9f1239", marginBottom: "10px" }}>Admin notifications ({adminNotifs.filter((n) => !n.read).length} unread)</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: 280, overflowY: "auto" }}>
+              {adminNotifs.map((n) => (
+                <div key={n.id} style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: n.read ? "1px solid #e2e8f0" : "2px solid #f43f5e", opacity: n.read ? 0.85 : 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a" }}>{n.title}</div>
+                  <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px", lineHeight: 1.45 }}>{n.body}</div>
+                  {!n.read ? (
+                    <button type="button" onClick={() => handleNotifRead(n)} style={{ ...btn, marginTop: "8px", background: "#0f172a", color: "white", fontSize: "12px" }}>
+                      Mark read
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={sectionCard}>
+          <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "10px", color: "#0f172a" }}>Listing interests and applications</div>
+          <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "12px", lineHeight: 1.5 }}>
+            Every “Submit interest” from the map is stored here. Update status as your team progresses the lead.
+          </p>
+          {interestsState.length === 0 ? (
+            <div style={{ fontSize: "14px", color: "#64748b" }}>No interests yet.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>
+                    <th style={{ padding: "8px 6px" }}>When</th>
+                    <th style={{ padding: "8px 6px" }}>Customer</th>
+                    <th style={{ padding: "8px 6px" }}>Listing</th>
+                    <th style={{ padding: "8px 6px" }}>Preference</th>
+                    <th style={{ padding: "8px 6px" }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {interestsState.map((row) => (
+                    <tr key={row.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "8px 6px", color: "#64748b", whiteSpace: "nowrap" }}>
+                        {row.createdAt?.toDate ? row.createdAt.toDate().toLocaleString() : row.submittedAt || row.createdAt || "—"}
+                      </td>
+                      <td style={{ padding: "8px 6px" }}>
+                        <div style={{ fontWeight: 700 }}>{row.customerName}</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>{row.customerEmail}</div>
+                      </td>
+                      <td style={{ padding: "8px 6px", maxWidth: 220 }}>
+                        <div style={{ fontWeight: 600 }}>{row.listingTitle}</div>
+                        <div style={{ fontSize: "11px", color: "#94a3b8" }}>#{row.listingId}</div>
+                      </td>
+                      <td style={{ padding: "8px 6px", fontSize: "12px" }}>
+                        {row.tenancyPreference} · {row.adultsSharing} people
+                      </td>
+                      <td style={{ padding: "8px 6px" }}>
+                        <select
+                          value={row.status || "new"}
+                          onChange={(e) => handleInterestStatus(row, e.target.value)}
+                          style={{ padding: "6px 8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="visit_scheduled">Visit scheduled</option>
+                          <option value="closed_won">Closed — won</option>
+                          <option value="closed_lost">Closed — lost</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div style={sectionCard}>
+          <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "8px", color: "#0f172a" }}>Assign apartment to customer</div>
+          <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "12px", lineHeight: 1.5 }}>
+            Links a listing to a customer email and notifies the listing&apos;s seller on their dashboard (assignments list).
+          </p>
+          <form onSubmit={handleAssignSubmit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "10px", alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Customer email</label>
+              <input
+                value={assignCustomerEmail}
+                onChange={(e) => setAssignCustomerEmail(e.target.value)}
+                placeholder="customer@email.com"
+                required
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}
+              />
+            </div>
+            <div style={{ gridColumn: isMobile ? "auto" : "span 2" }}>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Listing</label>
+              <select
+                value={assignListingId}
+                onChange={(e) => setAssignListingId(e.target.value)}
+                required
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}
+              >
+                <option value="">Select listing…</option>
+                {listings.map((l) => (
+                  <option key={l.id} value={String(l.id)}>
+                    #{l.id} — {l.title?.slice(0, 60)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Notes (optional)</label>
+              <input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Internal note" style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+            </div>
+            <button type="submit" style={{ ...btn, background: "#b91c1c", color: "white", gridColumn: isMobile ? "auto" : "1 / -1" }}>
+              Save assignment
+            </button>
+          </form>
+          {assignmentsState.length > 0 && (
+            <div style={{ marginTop: "16px" }}>
+              <div style={{ fontWeight: 700, marginBottom: "8px", fontSize: "14px" }}>Recent assignments</div>
+              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
+                {assignmentsState.slice(0, 15).map((a) => (
+                  <li key={a.id}>
+                    Listing #{a.listingId} → customer {a.customerEmail} (seller {a.sellerEmail || "—"})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
         {/* User Management Section */}
         <div style={sectionCard}>
-          <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>User Management ({users.length} total)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{ fontSize: "18px", fontWeight: 700 }}>Users</div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {[
+                ["all", `All (${users.length})`],
+                ["customer", `Customers (${customersList.length})`],
+                ["seller", `Sellers (${sellersList.length})`],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setUserListTab(key)}
+                  style={{
+                    ...btn,
+                    fontSize: "12px",
+                    padding: "6px 12px",
+                    background: userListTab === key ? "#1e3a8a" : "#f1f5f9",
+                    color: userListTab === key ? "white" : "#334155",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "10px", color: "#64748b" }}>Directory · {displayUsers.length} shown</div>
           
           <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) minmax(100px,0.75fr) auto", gap: "10px", marginBottom: "16px" }}>
             <input placeholder="Full Name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
@@ -400,7 +734,7 @@ export default function AdminDashboard() {
           </form>
 
           <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
-            {users.map((u) => (
+            {displayUsers.map((u) => (
               <div key={u.uid || u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
                 {editingUserEmail === u.email ? (
                   <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -439,6 +773,11 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {(u.role === "customer" || u.role === "seller") && !String(u.uid || "").startsWith("reserved") ? (
+                        <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#ecfdf5", color: "#166534", fontSize: "12px", padding: "6px 12px" }}>
+                          History
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "6px 12px" }}>Edit</button>
                       {String(u.uid || "").startsWith("reserved-admin") ? null : (
                         <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
@@ -546,6 +885,114 @@ export default function AdminDashboard() {
             </div>
           ))}
         </div>
+
+        {historyUser ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 10000,
+              background: "rgba(15, 23, 42, 0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+            onClick={() => setHistoryUser(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "white",
+                borderRadius: 16,
+                maxWidth: 720,
+                width: "100%",
+                maxHeight: "90vh",
+                overflow: "auto",
+                padding: isMobile ? "16px" : "22px 24px",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>User journey</div>
+                  <div style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>
+                    {historyUser.name} · {historyUser.email} · {historyUser.role}
+                  </div>
+                </div>
+                <button type="button" onClick={() => setHistoryUser(null)} style={{ ...btn, background: "#f1f5f9", color: "#334155" }}>
+                  Close
+                </button>
+              </div>
+              {!historyBundle ? (
+                <div style={{ color: "#64748b" }}>Loading…</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <section>
+                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#1e293b" }}>Timeline (saves, interests)</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
+                      {(historyBundle.acts || []).slice(0, 80).map((a) => (
+                        <li key={a.id}>
+                          <strong>{a.type}</strong> — {a.summary}{" "}
+                          <span style={{ color: "#94a3b8" }}>
+                            ({a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString() : a.createdAt})
+                          </span>
+                        </li>
+                      ))}
+                      {!(historyBundle.acts || []).length ? <li>No logged events yet.</li> : null}
+                    </ul>
+                  </section>
+                  <section>
+                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#1e293b" }}>Interests / applications</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
+                      {(historyBundle.interests || []).map((i) => (
+                        <li key={i.id}>
+                          {i.listingTitle} (#{i.listingId}) — {i.status} — {i.tenancyPreference}
+                        </li>
+                      ))}
+                      {!(historyBundle.interests || []).length ? <li>None.</li> : null}
+                    </ul>
+                  </section>
+                  <section>
+                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#1e293b" }}>Visit requests</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
+                      {(historyBundle.visits || []).map((v) => (
+                        <li key={v.id}>
+                          Listing #{v.listingId} — {v.visitTime} — {v.customerPhone}
+                        </li>
+                      ))}
+                      {!(historyBundle.visits || []).length ? <li>None.</li> : null}
+                    </ul>
+                  </section>
+                  <section>
+                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#1e293b" }}>Bookings (this device)</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
+                      {(historyBundle.bookings || []).map((b, idx) => (
+                        <li key={idx}>
+                          {b.listingTitle} — {b.status} — {b.date ? new Date(b.date).toLocaleString() : ""}
+                        </li>
+                      ))}
+                      {!(historyBundle.bookings || []).length ? <li>None.</li> : null}
+                    </ul>
+                  </section>
+                  <section>
+                    <div style={{ fontWeight: 800, marginBottom: 8, color: "#1e293b" }}>Assignments</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
+                      {(historyBundle.assigns || []).map((a) => (
+                        <li key={a.id}>
+                          Listing #{a.listingId} — seller {a.sellerEmail || "—"} — {a.notes || "no notes"}
+                        </li>
+                      ))}
+                      {!(historyBundle.assigns || []).length ? <li>None.</li> : null}
+                    </ul>
+                  </section>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

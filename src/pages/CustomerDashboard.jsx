@@ -1,10 +1,23 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getAssignments, getListings } from "../lib/store";
+import {
+  getAssignments,
+  getListings,
+  getInterestsGlobal,
+  getNotificationsLocal,
+  markNotificationLocalRead,
+} from "../lib/store";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { addVisitRequestData } from "../lib/firestoreStore";
+import {
+  addVisitRequestData,
+  getInterestsData,
+  getCustomerNotificationsData,
+  getAssignmentsData,
+  markNotificationReadData,
+} from "../lib/firestoreStore";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
+import { interestStatusToCustomerLabel } from "../lib/crmSync";
 
 export default function CustomerDashboard() {
   const { user, logout, requestSeller, refreshRole } = useAuth();
@@ -17,15 +30,61 @@ export default function CustomerDashboard() {
   const [visitForms, setVisitForms] = useState({});
   const [openVisitFor, setOpenVisitFor] = useState(null);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
+  const [crmInterests, setCrmInterests] = useState([]);
+  const [customerNotifs, setCustomerNotifs] = useState([]);
+  const [myAssignments, setMyAssignments] = useState([]);
+  const [dashTick, setDashTick] = useState(0);
 
   useEffect(() => {
     setListings(getListings());
-    const b = localStorage.getItem("moveasy_bookings");
-    setBookings(b ? JSON.parse(b) : []);
     refreshRole();
     const reqs = JSON.parse(localStorage.getItem("moveasy_seller_requests") || "[]");
     setSellerRequested(reqs.some((r) => r.email === user?.email));
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const em = String(user?.email || "").toLowerCase().trim();
+    const b = JSON.parse(localStorage.getItem("moveasy_bookings") || "[]");
+    if (alive) setBookings(b);
+    if (!em) {
+      setCrmInterests([]);
+      setCustomerNotifs([]);
+      setMyAssignments([]);
+      return () => {
+        alive = false;
+      };
+    }
+    (async () => {
+      if (isFirebaseConfigured) {
+        try {
+          const [allInt, notifs, assigns] = await Promise.all([
+            getInterestsData(),
+            getCustomerNotificationsData(em),
+            getAssignmentsData(),
+          ]);
+          if (!alive) return;
+          setCrmInterests((allInt || []).filter((i) => String(i.customerEmail || "").toLowerCase() === em));
+          setCustomerNotifs(Array.isArray(notifs) ? notifs : []);
+          setMyAssignments((assigns || []).filter((a) => String(a.customerEmail || "").toLowerCase() === em));
+        } catch (e) {
+          console.error("Customer CRM load failed", e);
+        }
+      } else {
+        if (!alive) return;
+        setCrmInterests(getInterestsGlobal().filter((i) => String(i.customerEmail || "").toLowerCase() === em));
+        setCustomerNotifs(
+          getNotificationsLocal().filter(
+            (n) => n.audience === "customer" && String(n.targetEmail || "").toLowerCase() === em
+          )
+        );
+        setMyAssignments(getAssignments().filter((a) => String(a.customerEmail || "").toLowerCase() === em));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user?.email, dashTick]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 900);
@@ -53,12 +112,14 @@ export default function CustomerDashboard() {
     const updated = [...bookings, booking];
     setBookings(updated);
     localStorage.setItem("moveasy_bookings", JSON.stringify(updated));
+    setDashTick((t) => t + 1);
   };
 
   const handleUnapply = (listingId) => {
     const updated = bookings.filter((b) => !(b.listingId === listingId && b.customerEmail === user?.email));
     setBookings(updated);
     localStorage.setItem("moveasy_bookings", JSON.stringify(updated));
+    setDashTick((t) => t + 1);
   };
 
   const updateVisitForm = (listingId, key, value) => {
@@ -119,8 +180,49 @@ export default function CustomerDashboard() {
   const isBooked = (id) => bookings.some((b) => b.listingId === id && b.customerEmail === user?.email);
   const bhkTypes = ["All", "1RK", "1BHK", "2BHK", "3BHK", "3+BHK", "4BHK"];
   const filtered = listings.filter((l) => (filter === "All" || l.bhk === filter || l.bhk.replace(" ", "") === filter) && (!search || l.title.toLowerCase().includes(search.toLowerCase()) || l.address.toLowerCase().includes(search.toLowerCase())));
-  const myAssignments = getAssignments().filter((a) => a.customerEmail === user?.email);
   const btn = { padding: "8px 16px", borderRadius: "10px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
+
+  const markCustomerNotifRead = async (n) => {
+    if (isFirebaseConfigured) await markNotificationReadData(n.id);
+    else markNotificationLocalRead(n.id);
+    setDashTick((t) => t + 1);
+  };
+
+  const formatWhen = (ts) => {
+    if (ts?.toDate) return ts.toDate().toLocaleString();
+    if (ts?.toMillis) return new Date(ts.toMillis()).toLocaleString();
+    if (typeof ts === "string") return new Date(ts).toLocaleString();
+    return "";
+  };
+
+  const applicationRows = (() => {
+    const em = String(user?.email || "").toLowerCase().trim();
+    if (!em) return [];
+    const byLid = new Map();
+    for (const b of bookings.filter((x) => String(x.customerEmail || "").toLowerCase() === em)) {
+      byLid.set(String(b.listingId), { booking: b, interest: null });
+    }
+    for (const i of crmInterests) {
+      const k = String(i.listingId);
+      const cur = byLid.get(k) || { booking: null, interest: null };
+      cur.interest = i;
+      byLid.set(k, cur);
+    }
+    return [...byLid.entries()].map(([listingId, { booking, interest }]) => {
+      const title = interest?.listingTitle || booking?.listingTitle || `Listing #${listingId}`;
+      const rawStatus = interest?.status || booking?.applicationStatusCode || null;
+      const statusLabel = rawStatus
+        ? interestStatusToCustomerLabel(rawStatus)
+        : booking?.status || "Applied — awaiting admin review";
+      const source = interest ? "Listing / map application" : "Dashboard apply";
+      const when =
+        formatWhen(interest?.updatedAt) ||
+        formatWhen(interest?.createdAt) ||
+        interest?.submittedAt ||
+        (booking?.date ? new Date(booking.date).toLocaleString() : "");
+      return { listingId, title, statusLabel, source, when, interest, booking };
+    });
+  })();
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #eef4ff 0%, #f7f9ff 42%, #f8fafc 100%)" }}>
@@ -142,6 +244,62 @@ export default function CustomerDashboard() {
         </div>
       </div>
       <div style={{ padding: isMobile ? "12px" : "16px 24px" }}>
+        <div style={{ display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
+          <button type="button" onClick={() => setDashTick((t) => t + 1)} style={{ ...btn, background: "#1e3a8a", color: "white" }}>
+            Refresh status
+          </button>
+          <span style={{ fontSize: "12px", color: "#64748b" }}>Pull latest application steps and messages from MovEazy.</span>
+        </div>
+        {customerNotifs.length > 0 && (
+          <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 800, fontSize: "15px", color: "#1e3a8a", marginBottom: "8px" }}>
+              Updates from MovEazy ({customerNotifs.filter((n) => !n.read).length} unread)
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: 240, overflowY: "auto" }}>
+              {customerNotifs.map((n) => (
+                <div key={n.id} style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: n.read ? "1px solid #e2e8f0" : "2px solid #2563eb" }}>
+                  <div style={{ fontWeight: 700, fontSize: "14px" }}>{n.title}</div>
+                  <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px", lineHeight: 1.45 }}>{n.body}</div>
+                  {!n.read ? (
+                    <button type="button" onClick={() => markCustomerNotifRead(n)} style={{ ...btn, marginTop: "8px", background: "#0f172a", color: "white", fontSize: "12px" }}>
+                      Mark read
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {applicationRows.length > 0 && (
+          <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" }}>
+            <div style={{ fontWeight: 800, fontSize: "16px", color: "#0f172a", marginBottom: "6px" }}>Your applications</div>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px", lineHeight: 1.5 }}>
+              Each row is a home you applied for. Status updates when the MovEazy team moves your application forward; you also get an email when your inbox is a real address (not guest mode).
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <thead>
+                  <tr style={{ textAlign: "left", color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
+                    <th style={{ padding: "8px 6px" }}>Listing</th>
+                    <th style={{ padding: "8px 6px" }}>Source</th>
+                    <th style={{ padding: "8px 6px" }}>Status</th>
+                    <th style={{ padding: "8px 6px" }}>Last update</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applicationRows.map((row) => (
+                    <tr key={row.listingId} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "10px 6px", fontWeight: 600, color: "#1e293b" }}>{row.title}</td>
+                      <td style={{ padding: "10px 6px", color: "#475569" }}>{row.source}</td>
+                      <td style={{ padding: "10px 6px", color: "#b45309", fontWeight: 600 }}>{row.statusLabel}</td>
+                      <td style={{ padding: "10px 6px", color: "#64748b", whiteSpace: "nowrap" }}>{row.when || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", gap: "10px", marginBottom: "12px", flexWrap: "wrap", alignItems: "center" }}>
           <input placeholder="Search by title or area..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ padding: "10px 12px", border: "1px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", width: isMobile ? "100%" : "260px" }} />
           {bhkTypes.map((b) => (
@@ -193,6 +351,27 @@ export default function CustomerDashboard() {
               <div key={i} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px", display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                 <div>
                   <b>{b.listingTitle}</b> — {new Date(b.date).toLocaleDateString()} — <span style={{ color: "#f59e0b", fontWeight: 600 }}>{b.status}</span>
+                  {b.tenancyPreference ? (
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                      Preference:{" "}
+                      <strong style={{ color: "#334155" }}>
+                        {b.tenancyPreference === "entire_unit"
+                          ? "Whole unit"
+                          : b.tenancyPreference === "seeking_flatmate"
+                            ? "Seeking flatmate"
+                            : b.tenancyPreference === "open_to_share"
+                              ? "Open to share"
+                              : b.tenancyPreference}
+                      </strong>
+                      {b.adultsSharing ? (
+                        <>
+                          {" "}
+                          · Split among <strong>{b.adultsSharing}</strong> people
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {b.notes ? <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", fontStyle: "italic" }}>{b.notes}</div> : null}
                 </div>
                 <button onClick={() => handleUnapply(b.listingId)} style={{ ...btn, background: "#ef4444", color: "white", padding: "6px 10px", fontSize: "12px" }}>Unapply</button>
               </div>
@@ -201,10 +380,11 @@ export default function CustomerDashboard() {
         )}
         {myAssignments.length > 0 && (
           <div style={{ marginTop: "24px" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px" }}>Listings Assigned By Admin</div>
+            <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px" }}>Listings assigned by admin</div>
             {myAssignments.map((a) => (
               <div key={a.id} style={{ background: "#ecfeff", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px" }}>
-                Listing #{a.listingId} assigned with broker <b>{a.sellerEmail}</b>{a.notes ? ` — ${a.notes}` : ""}
+                Listing #{a.listingId} — broker <b>{a.sellerEmail}</b>
+                {a.notes ? ` — ${a.notes}` : ""}
               </div>
             ))}
           </div>
