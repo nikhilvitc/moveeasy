@@ -18,40 +18,49 @@ const fadeUp = (delay = 0) => ({
 
 export default function Hero() {
   const navigate = useNavigate();
+  /** Permissive defaults so first-time visitors see homes on the map, not an empty filter. */
   const [quickFilters, setQuickFilters] = useState({
     locality: "",
-    bhk: "2 BHK",
-    propertyType: "Apartment",
-    budget: "30000-70000",
+    bhk: "",
+    propertyType: "",
+    budget: "any",
   });
   const featuredLocalities = ["Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
   const budgetRanges = useMemo(
     () => ({
+      any: { min: 10000, max: 100000 },
       "15000-35000": { min: 15000, max: 35000 },
       "30000-70000": { min: 30000, max: 70000 },
       "70000-120000": { min: 70000, max: 120000 },
     }),
     []
   );
-  const runSearch = () => {
-    const budget = budgetRanges[quickFilters.budget] || budgetRanges["30000-70000"];
+
+  const goToMap = (overrides = {}, { openFilters = false } = {}) => {
+    const q = { ...quickFilters, ...overrides };
+    const budget = budgetRanges[q.budget] || budgetRanges.any;
     const match = pickFirstListingForHeroSearch({
-      locality: quickFilters.locality,
-      bhk: quickFilters.bhk,
-      propertyType: quickFilters.propertyType,
+      locality: q.locality,
+      bhk: q.bhk || undefined,
+      propertyType: q.propertyType || undefined,
       minRent: budget.min,
       maxRent: budget.max,
     });
-    const params = new URLSearchParams({
-      locality: quickFilters.locality,
-      bhk: quickFilters.bhk,
-      propertyType: quickFilters.propertyType,
-      minRent: String(budget.min),
-      maxRent: String(budget.max),
-    });
+    const params = new URLSearchParams();
+    if (q.locality?.trim()) params.set("locality", q.locality.trim());
+    if (q.bhk?.trim()) params.set("bhk", q.bhk.trim());
+    if (q.propertyType?.trim()) params.set("propertyType", q.propertyType.trim());
+    if (q.budget && q.budget !== "any") {
+      params.set("minRent", String(budget.min));
+      params.set("maxRent", String(budget.max));
+    }
     if (match?.id != null) params.set("listingId", String(match.id));
-    navigate(`/map?${params.toString()}`);
+    if (openFilters) params.set("openFilters", "1");
+    const qs = params.toString();
+    navigate(qs ? `/map?${qs}` : "/map");
   };
+
+  const runSearch = () => goToMap();
 
   return (
     <section className="relative z-[1] w-full min-h-[min(560px,85vh)] overflow-hidden lg:min-h-[calc(100vh-64px)]">
@@ -96,6 +105,9 @@ export default function Hero() {
                 <input
                   value={quickFilters.locality}
                   onChange={(e) => setQuickFilters((p) => ({ ...p, locality: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runSearch();
+                  }}
                   placeholder="Search locality or project"
                   className="h-11 rounded-xl border border-white/30 bg-white/95 px-3 text-[14px] text-stone-800 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-primary/50"
                 />
@@ -113,16 +125,19 @@ export default function Hero() {
                   onChange={(e) => setQuickFilters((p) => ({ ...p, propertyType: e.target.value }))}
                   className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
                 >
-                  <option>Property Type</option>
+                  <option value="">Any property type</option>
                   <option>Apartment</option>
                   <option>Independent House/Villa</option>
                   <option>Gated Societies</option>
+                  <option>Gated Community Villa</option>
                 </select>
                 <select
                   value={quickFilters.bhk}
                   onChange={(e) => setQuickFilters((p) => ({ ...p, bhk: e.target.value }))}
                   className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
                 >
+                  <option value="">Any BHK</option>
+                  <option>1 RK</option>
                   <option>1 BHK</option>
                   <option>2 BHK</option>
                   <option>3 BHK</option>
@@ -133,13 +148,14 @@ export default function Hero() {
                   onChange={(e) => setQuickFilters((p) => ({ ...p, budget: e.target.value }))}
                   className="h-10 rounded-xl border border-white/30 bg-white/95 px-2 text-[12px] font-medium text-stone-700 outline-none"
                 >
+                  <option value="any">Any budget (10k – 1L)</option>
                   <option value="15000-35000">Budget 15k – 35k</option>
                   <option value="30000-70000">Budget 30k – 70k</option>
                   <option value="70000-120000">Budget 70k – 1.2L</option>
                 </select>
                 <button
                   type="button"
-                  onClick={runSearch}
+                  onClick={() => goToMap({}, { openFilters: true })}
                   className="h-10 rounded-xl border border-white/35 bg-white/15 text-[12px] font-semibold text-white backdrop-blur-sm hover:bg-white/25"
                 >
                   More Filters
@@ -151,7 +167,10 @@ export default function Hero() {
                   <button
                     key={loc}
                     type="button"
-                    onClick={() => setQuickFilters((p) => ({ ...p, locality: loc }))}
+                    onClick={() => {
+                      setQuickFilters((p) => ({ ...p, locality: loc }));
+                      goToMap({ locality: loc });
+                    }}
                     className={`text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors ${
                       quickFilters.locality === loc
                         ? "border-white bg-white text-primary-darker"

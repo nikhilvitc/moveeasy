@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import L from "leaflet";
@@ -183,6 +183,15 @@ export default function MapView() {
   const [workplaceError, setWorkplaceError] = useState("");
   const [savedRevision, setSavedRevision] = useState(0);
 
+  const openFullFilterPanel = useCallback(() => {
+    setShowOverlayQuickFilters(false);
+    if (isMobile) {
+      setShowMobileFilters(true);
+    } else {
+      setShowDesktopFilters(true);
+    }
+  }, [isMobile]);
+
   useEffect(() => {
     let alive = true;
     async function loadListings() {
@@ -202,23 +211,38 @@ export default function MapView() {
 
   const listingIdFromUrl = useMemo(() => new URLSearchParams(location.search).get("listingId") || "", [location.search]);
 
+  /** Hero / deep link: always derive filters from URL (avoids stale BHK/rent from a previous session). */
   useEffect(() => {
     const qs = new URLSearchParams(location.search);
+    const base = getFiltersInitialState();
+    const locality = qs.get("locality") || "";
     const bhk = qs.get("bhk");
     const propertyType = qs.get("propertyType");
-    const locality = qs.get("locality") || "";
     const minRent = Number(qs.get("minRent") || 0);
     const maxRent = Number(qs.get("maxRent") || 0);
     setSelectedLocality(locality);
-    if (locality) setMapSearchInput(locality);
-    setFilters((prev) => ({
-      ...prev,
-      bhkTypes: bhk ? [bhk] : prev.bhkTypes,
-      propertyTypes: propertyType ? [propertyType] : prev.propertyTypes,
-      minRent: minRent > 0 ? minRent : prev.minRent,
-      maxRent: maxRent > 0 ? maxRent : prev.maxRent,
-    }));
+    setMapSearchInput(locality);
+    setFilters({
+      ...base,
+      bhkTypes: bhk ? [bhk] : [],
+      propertyTypes: propertyType ? [propertyType] : [],
+      minRent: minRent > 0 ? minRent : base.minRent,
+      maxRent: maxRent > 0 ? maxRent : base.maxRent,
+    });
   }, [location.search]);
+
+  /** Hero “More Filters” opens the map with the filter drawer visible. */
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("openFilters") !== "1") return;
+    const id = requestAnimationFrame(() => {
+      openFullFilterPanel();
+      qs.delete("openFilters");
+      const rest = qs.toString();
+      navigate({ pathname: location.pathname, search: rest ? `?${rest}` : "" }, { replace: true });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [location.search, location.pathname, navigate, openFullFilterPanel]);
 
   useEffect(() => {
     const payload = consumeMapRestorePayload();
@@ -285,6 +309,33 @@ export default function MapView() {
     return rows;
   }, [filteredListings, placeAnchor, workplaceAnchor]);
 
+  /** If strict filters + commute pins hide everything, still show pins so the map is never a blank void. */
+  const relaxedFallbackListings = useMemo(() => {
+    if (mapListings.length > 0) return [];
+    let rows = listings.filter((l) => Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng)));
+    const loc = selectedLocality.trim().toLowerCase();
+    if (loc) {
+      rows = rows.filter((l) =>
+        [l.title, l.address, l.location].filter(Boolean).some((text) => String(text).toLowerCase().includes(loc))
+      );
+    }
+    if (placeAnchor) {
+      rows = rows.filter((l) => haversineKm(placeAnchor.lat, placeAnchor.lng, Number(l.lat), Number(l.lng)) <= MAP_NEARBY_KM);
+    }
+    if (workplaceAnchor) {
+      rows = rows.filter((l) => haversineKm(workplaceAnchor.lat, workplaceAnchor.lng, Number(l.lat), Number(l.lng)) <= COMMUTE_NEARBY_KM);
+    }
+    return rows.slice(0, 45);
+  }, [mapListings.length, listings, selectedLocality, placeAnchor, workplaceAnchor]);
+
+  const displayPins = useMemo(() => {
+    if (mapListings.length > 0) return mapListings;
+    if (relaxedFallbackListings.length > 0) return relaxedFallbackListings;
+    return listings.filter((l) => Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng))).slice(0, 35);
+  }, [mapListings, relaxedFallbackListings, listings]);
+
+  const usingRelaxedPins = mapListings.length === 0 && displayPins.length > 0;
+
   useEffect(() => {
     const t = setTimeout(() => {
       appendFilterHistory(user, {
@@ -349,15 +400,6 @@ export default function MapView() {
     }
   };
 
-  const openFullFilterPanel = () => {
-    setShowOverlayQuickFilters(false);
-    if (isMobile) {
-      setShowMobileFilters(true);
-    } else {
-      setShowDesktopFilters(true);
-    }
-  };
-
   const chipLabel = (text, max = 22) => {
     const t = String(text || "").trim();
     if (t.length <= max) return t;
@@ -369,6 +411,20 @@ export default function MapView() {
     const first = filteredListings[0];
     setMapState({ center: [first.lat, first.lng], zoom: 14 });
   }, [filteredListings, selectedLocality]);
+
+  /** Area search with zero strict rows: center map on the neighborhood name. */
+  useEffect(() => {
+    if (!selectedLocality.trim() || filteredListings.length > 0 || listingIdFromUrl) return;
+    let cancelled = false;
+    (async () => {
+      const r = await geocodePlace(`${selectedLocality.trim()}, Bengaluru, India`);
+      if (cancelled || !r.ok) return;
+      setMapState({ center: [r.lat, r.lng], zoom: 14 });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLocality, filteredListings.length, listingIdFromUrl]);
 
   const toggleFilter = (key, value) => {
     setFilters((prev) => {
@@ -508,9 +564,19 @@ export default function MapView() {
             <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: 800, color: "#0f172a" }}>Map Listings</div>
           </div>
           <div style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
-            {mapListings.length} properties
-            {placeAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{MAP_NEARBY_KM} km of metro pin</span> : null}
-            {workplaceAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{COMMUTE_NEARBY_KM} km of workplace</span> : null}
+            {usingRelaxedPins ? (
+              <span>
+                <span style={{ color: "#b45309" }}>0 exact matches</span>
+                {" · "}
+                showing {displayPins.length} nearby homes — widen filters in the panel
+              </span>
+            ) : (
+              <span>
+                {mapListings.length} properties
+                {placeAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{MAP_NEARBY_KM} km of metro pin</span> : null}
+                {workplaceAnchor ? <span style={{ fontWeight: 500, color: "#94a3b8" }}> · within ~{COMMUTE_NEARBY_KM} km of workplace</span> : null}
+              </span>
+            )}
           </div>
         </div>
         {!isMobile && (
@@ -646,14 +712,16 @@ export default function MapView() {
             <InvalidateMapSize layoutRevision={mapLayoutKey} />
             <ChangeView center={mapState.center} zoom={mapState.zoom} />
             <FitListingsBounds
-              listings={mapListings}
-              enabled={!selectedLocality.trim()}
+              listings={displayPins}
+              enabled={displayPins.length > 0}
               fallbackCenter={
                 workplaceAnchor
                   ? [workplaceAnchor.lat, workplaceAnchor.lng]
                   : placeAnchor
                     ? [placeAnchor.lat, placeAnchor.lng]
-                    : null
+                    : mapState.center && Number.isFinite(mapState.center[0])
+                      ? mapState.center
+                      : null
               }
               fallbackZoom={13}
             />
@@ -688,7 +756,7 @@ export default function MapView() {
                 </Marker>
               </>
             )}
-            {mapListings.map((l) => (
+            {displayPins.map((l) => (
               <Marker 
                 key={l.id} 
                 position={[l.lat, l.lng]} 
@@ -1262,8 +1330,15 @@ export default function MapView() {
             transition: "transform 0.25s ease",
           }}
         >
-          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "12px", color: "#1e293b" }}>Properties ({mapListings.length})</div>
-          {mapListings.map((l) => (
+          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "8px", color: "#1e293b" }}>
+            Properties ({displayPins.length})
+            {usingRelaxedPins ? (
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#b45309", marginTop: "4px" }}>
+                Shown for context — adjust filters for exact matches.
+              </div>
+            ) : null}
+          </div>
+          {displayPins.map((l) => (
             <div
               key={l.id}
               onClick={() => setViewingProperty(l)}
