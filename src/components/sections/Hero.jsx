@@ -177,13 +177,13 @@ export default function Hero() {
           {/* Desktop / large-tablet: glass stats panel. Mobile: compact row so it does not fight Stats below */}
           <motion.div
             {...fadeUp(0.14)}
-            className="relative flex min-h-0 flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:h-[min(520px,calc(100vh-180px))] lg:min-h-[280px]"
+            className="relative flex min-h-0 flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:h-auto lg:min-h-0 lg:self-start lg:justify-start lg:max-w-md xl:max-w-lg"
           >
             <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 sm:rounded-[28px]" />
-            <p className="relative z-10 mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100/90 sm:mb-3 sm:text-right sm:text-[11px] sm:tracking-[0.2em]">
+            <p className="relative z-10 mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-100/90 sm:mb-3 sm:text-right sm:text-[11px] sm:tracking-[0.2em] lg:text-left">
               Trusted moves
             </p>
-            <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
+            <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3 lg:justify-start">
               <div className="min-w-0 rounded-xl bg-white/95 px-3 py-2.5 shadow-lg ring-1 ring-stone-200/80 sm:rounded-2xl sm:px-4 sm:py-3">
                 <div className="text-[17px] font-extrabold text-primary-darker sm:text-[20px]">1K+</div>
                 <div className="text-[10px] font-medium leading-snug text-ink-muted sm:text-[12px]">People moved happily</div>

@@ -1,0 +1,14 @@
+---
+description: Deploy and push after code changes without waiting for user confirmation
+globs: "**/*"
+---
+
+# MovEazy — ship after every change
+
+Whenever you finish edits in this repository (`moveazy-git`):
+
+1. Run `npm run build` and fix any failures before committing.
+2. `git add` the relevant files, commit with a clear message, and `git push origin main`.
+3. Deploy hosting: `npx firebase-tools@13 deploy --only hosting --non-interactive` (project is configured in `.firebaserc`).
+
+Do **not** wait for the user to say “deploy” or “push” — do this as part of the same turn after changes are complete, unless the user explicitly asks to skip deploy or only work locally.
