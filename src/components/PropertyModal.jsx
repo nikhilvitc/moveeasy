@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
-import { addVisitRequestData } from "../lib/firestoreStore";
+import { addVisitRequestData, isListingPubliclyVisible } from "../lib/firestoreStore";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
 import { findNearbyListings } from "../lib/geo";
@@ -66,12 +66,14 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
     if (!property || !Number.isFinite(Number(property.lat)) || !Number.isFinite(Number(property.lng))) return [];
     return findNearbyListings(
       { lat: Number(property.lat), lng: Number(property.lng) },
-      listings,
+      listings.filter(isListingPubliclyVisible),
       { excludeId: property.id, limit: 4, maxKm: 35 }
     );
   }, [property?.id, property?.lat, property?.lng, listings]);
 
   if (!property) return null;
+
+  const offMarket = !isListingPubliclyVisible(property);
 
   const images = property.images && property.images.length > 0 ? property.images : [property.image].filter(Boolean);
   if (images.length === 0) images.push("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000");
@@ -133,6 +135,10 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
 
   const submitVisit = async (e) => {
     e.preventDefault();
+    if (offMarket) {
+      alert("This listing is no longer on the market.");
+      return;
+    }
     if (!user) {
       alert("Please log in to schedule a visit.");
       return;
@@ -190,6 +196,10 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   };
 
   const submitInterest = async () => {
+    if (offMarket) {
+      setApplyMessage("This listing is no longer on the market.");
+      return;
+    }
     try {
       await submitListingInterestFull(user, {
         listingId: property.id,
@@ -294,6 +304,24 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
               </button>
             </div>
           </div>
+
+          {offMarket ? (
+            <div
+              role="status"
+              style={{
+                padding: "10px 16px",
+                background: "#fffbeb",
+                borderBottom: "1px solid #fcd34d",
+                color: "#92400e",
+                fontSize: "13px",
+                fontWeight: 600,
+                textAlign: "center",
+                lineHeight: 1.45,
+              }}
+            >
+              This home is off market — new interest and tour requests are closed. (Same policy as major rental marketplaces: sellers withdraw; only MovEasy admin can permanently remove a listing.)
+            </div>
+          ) : null}
 
           <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}>
             {/* Gallery: column layout so dots + thumbnails sit above the title (no overlap) */}
@@ -621,12 +649,13 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   </div>
                   <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>Rent per month</div>
 
-                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px", marginBottom: "16px", background: "#fafafa" }}>
+                  <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px", marginBottom: "16px", background: offMarket ? "#f1f5f9" : "#fafafa", opacity: offMarket ? 0.85 : 1 }}>
                     <div style={{ fontSize: "14px", fontWeight: 800, color: "#0f172a", marginBottom: "10px" }}>Apply interest</div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "6px" }}>How do you want to rent?</label>
                     <select
                       value={applyMode}
                       onChange={(e) => setApplyMode(e.target.value)}
+                      disabled={offMarket}
                       style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
                     >
                       <option value="entire_unit">Whole unit (family / solo)</option>
@@ -637,6 +666,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                     <select
                       value={adultsSharing}
                       onChange={(e) => setAdultsSharing(Number(e.target.value))}
+                      disabled={offMarket}
                       style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", boxSizing: "border-box" }}
                     >
                       {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -649,22 +679,24 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                       rows={2}
                       value={applyNotes}
                       onChange={(e) => setApplyNotes(e.target.value)}
+                      disabled={offMarket}
                       placeholder="Optional note (move-in date, budget, pets…)"
                       style={{ width: "100%", marginBottom: "10px", padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box", resize: "vertical" }}
                     />
                     <button
                       type="button"
                       onClick={submitInterest}
+                      disabled={offMarket}
                       style={{
                         width: "100%",
                         padding: "12px",
-                        background: "#0f172a",
+                        background: offMarket ? "#94a3b8" : "#0f172a",
                         color: "white",
                         border: "none",
                         borderRadius: "8px",
                         fontWeight: 800,
                         fontSize: "14px",
-                        cursor: "pointer",
+                        cursor: offMarket ? "not-allowed" : "pointer",
                       }}
                     >
                       Submit interest
@@ -690,7 +722,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   </div>
 
                   {showVisitForm ? (
-                    <form onSubmit={submitVisit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <form onSubmit={submitVisit} style={{ display: "flex", flexDirection: "column", gap: "12px", opacity: offMarket ? 0.6 : 1, pointerEvents: offMarket ? "none" : "auto" }}>
                       <h3 style={{ margin: "0 0 8px", fontSize: "16px" }}>Schedule a Visit</h3>
                       {visitSuccess ? (
                         <div style={{ background: "#dcfce7", color: "#166534", padding: "12px", borderRadius: "8px", fontWeight: 600, textAlign: "center", fontSize: "13px" }}>
@@ -710,10 +742,10 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                     </form>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <button onClick={() => setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: "#e11d48", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#cbd5e1" : "#e11d48", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                         Request a tour
                       </button>
-                      <button onClick={() => setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: "white", color: "#e11d48", border: "1px solid #e11d48", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#f1f5f9" : "white", color: offMarket ? "#94a3b8" : "#e11d48", border: offMarket ? "1px solid #e2e8f0" : "1px solid #e11d48", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                         Check availability
                       </button>
                       <a href={`tel:${property.contact}`} style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#f8fafc", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>

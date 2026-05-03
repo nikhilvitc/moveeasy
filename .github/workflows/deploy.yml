@@ -1,26 +1,21 @@
-name: Deploy to GitHub Pages
+name: Deploy to Firebase Hosting
 on:
-  workflow_dispatch:
   push:
     branches: [main]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 jobs:
-  build:
+  build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
+          
       - run: npm ci
-
-      # Inject Firebase secrets from GitHub Secrets into .env for Vite
+      
+      # Inject ALL secrets from GitHub into .env for Vite production build
       - name: Create .env for production build
         run: |
           echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
@@ -30,28 +25,25 @@ jobs:
           echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
           echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
           echo "VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}" >> .env
-          echo "VITE_WELCOME_EMAIL_FUNCTION_URL=${{ secrets.VITE_WELCOME_EMAIL_FUNCTION_URL }}" >> .env
-          echo "VITE_EMAILJS_PUBLIC_KEY=${{ secrets.VITE_EMAILJS_PUBLIC_KEY }}" >> .env
           echo "VITE_EMAILJS_SERVICE_ID=${{ secrets.VITE_EMAILJS_SERVICE_ID }}" >> .env
+          echo "VITE_EMAILJS_PUBLIC_KEY=${{ secrets.VITE_EMAILJS_PUBLIC_KEY }}" >> .env
+          echo "VITE_EMAILJS_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_TEMPLATE_ID }}" >> .env
+          echo "VITE_EMAILJS_INTEREST_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_INTEREST_TEMPLATE_ID }}" >> .env
+          echo "VITE_EMAILJS_STATUS_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_STATUS_TEMPLATE_ID }}" >> .env
           echo "VITE_EMAILJS_WELCOME_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_WELCOME_TEMPLATE_ID }}" >> .env
           echo "VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID=${{ secrets.VITE_EMAILJS_ADMIN_NOTIFY_TEMPLATE_ID }}" >> .env
-          echo "VITE_ADMIN_NOTIFY_EMAIL=${{ secrets.VITE_ADMIN_NOTIFY_EMAIL }}" >> .env
           echo "VITE_ADMIN_EMAILS=${{ secrets.VITE_ADMIN_EMAILS }}" >> .env
+          echo "VITE_CREATE_PROFILE_FUNCTION_URL=${{ secrets.VITE_CREATE_PROFILE_FUNCTION_URL }}" >> .env
+          echo "VITE_ONBOARDING_EMAIL_FUNCTION_URL=${{ secrets.VITE_ONBOARDING_EMAIL_FUNCTION_URL }}" >> .env
+          echo "VITE_WELCOME_EMAIL_FUNCTION_URL=${{ secrets.VITE_WELCOME_EMAIL_FUNCTION_URL }}" >> .env
+          echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}" >> .env
+          echo "VITE_APPCHECK_RECAPTCHA_SITE_KEY=${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}" >> .env
 
       - run: npm run build
-        env:
-          GITHUB_ACTIONS: true
-
-      - uses: actions/upload-pages-artifact@v3
+      
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}'
+          channelId: live
+          projectId: moveasy-30eed

@@ -1,0 +1,32 @@
+---
+description: Premium UI/design work must not change Firebase backend, security, or CI
+globs: "**/*"
+---
+
+# Frontend-only design (e.g. Kombai / visual refactors)
+
+When improving layout, styling, branding, or “premium” visuals:
+
+## Allowed (typical touch targets)
+
+- `src/**/*.jsx`, `src/**/*.tsx`, `src/**/*.js`, `src/**/*.ts` — **UI-only** changes (components, pages, hooks used for presentation).
+- `src/index.css`, Tailwind usage, `public/**`, image assets under `src/assets` or `public/`.
+- `index.html` for meta/title/fonts only when needed for the design.
+
+## Do not change without explicit user instruction
+
+These are **backend / security / ops** — treat as read-only for design tasks:
+
+- `functions/**` (Cloud Functions)
+- `firestore.rules`, `storage.rules`, `firestore.indexes.json`
+- `firebase.json` (except `hosting` presentation tweaks the user explicitly asked for — never change `firestore`, `storage`, or `functions` blocks on your own)
+- `.github/workflows/**`
+- Any `**/secrets**`, `.env`, `.env.*` (never commit real secrets)
+- `src/lib/firebase.js`, `src/lib/sentry.js` — only if the user explicitly asks for App Check/Sentry/Firebase **configuration** changes, not for visual design.
+
+## Data and API shape
+
+- Do **not** rename Firestore fields, collection paths, or Cloud Function URLs used by the app unless the user asked for a **backend migration** with coordinated updates.
+- Prefer presentational refactors: CSS, component structure, copy, spacing, typography, motion.
+
+If a design requirement seems to need a backend change, **stop** and summarize what would need to change in `functions/` or rules, and ask the user to approve that scope separately.

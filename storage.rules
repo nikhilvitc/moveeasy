@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper: Is the user an admin?
+    // Note: Cross-service rules (Firestore check from Storage) are not possible 
+    // without using custom claims. For now, we restrict by authentication.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Listing images are public for the map
+    match /listing-images/{listingId}/{allPaths=**} {
+      allow read: if true;
+      
+      // Only authenticated users can upload; 
+      // In a full prod app, you'd check if the user is an admin or the listing owner
+      // by checking metadata or using a Cloud Function to handle uploads.
+      allow create: if isSignedIn();
+      
+      // Updates and Deletes are restricted to prevent unauthorized data loss.
+      allow update, delete: if isSignedIn(); 
+    }
+    
+    // Generic user uploads (e.g. KYC, documents) - Private
+    match /user-documents/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+  }
+}

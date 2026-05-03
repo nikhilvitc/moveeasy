@@ -3,8 +3,13 @@
  * @see https://operations.osmfoundation.org/policies/nominatim/
  */
 export async function geocodePlace(query) {
-  const q = String(query || "").trim();
+  let q = String(query || "").trim();
   if (!q) return { ok: false, error: "Enter a place or landmark" };
+
+  // Bias company / landmark searches to Bangalore (matches product focus; improves Nominatim hits).
+  if (!/bangalore|bengaluru|karnataka|india/i.test(q)) {
+    q = `${q}, Bengaluru, Karnataka, India`;
+  }
 
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("format", "jsonv2");

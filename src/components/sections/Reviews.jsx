@@ -35,125 +35,90 @@ const REVIEWS = [
   },
 ];
 
-function Star() {
+function StarRating({ rating }) {
+  const full  = Math.floor(rating);
+  const frac  = rating - full;
   return (
-    <svg width="10" height="10" viewBox="0 0 13 13" fill="#F59E0B">
-      <path d="M6.5 0.5l1.545 3.13 3.455.503-2.5 2.437.59 3.44L6.5 8.385l-3.09 1.625.59-3.44L.5 4.133l3.455-.503L6.5.5z" />
-    </svg>
-  );
-}
-
-/* Desktop Review Node */
-// function ReviewNode({ reviewer, isActive, onClick, className }) {
-//   return (
-//     <button
-//       onClick={onClick}
-//       className={`absolute flex items-center gap-3 text-left transition-all duration-300 ${className}`}
-//     >
-//       <div
-//         className={`rounded-full overflow-hidden shrink-0 transition-all duration-300 ${
-//           isActive
-//             ? "w-14 h-14 ring-2 ring-[#EF4444] ring-offset-2 ring-offset-white"
-//             : "w-10 h-10 opacity-70"
-//         }`}
-//       >
-//         <img
-//           src={reviewer.avatar}
-//           alt={reviewer.name}
-//           className="w-full h-full object-cover"
-//         />
-//       </div>
-
-//       <div>
-//         <p
-//           className={`${
-//             isActive
-//               ? "text-[14px] font-bold text-black"
-//               : "text-[12px] text-gray-600"
-//           }`}
-//         >
-//           {reviewer.name}
-//         </p>
-
-//         <div className="flex items-center gap-1 mt-0.5">
-//           <Star />
-//           <span className="text-[11px] text-gray-700">{reviewer.rating}</span>
-//         </div>
-//       </div>
-//     </button>
-//   );
-// }
-function ReviewNode({ reviewer, isActive, onClick, className }) {
-  return (
-    <div
-      className={`absolute -translate-x-1/2 -translate-y-1/2 ${className}`}
-    >
-      <button
-        onClick={onClick}
-        className="relative flex items-center"
-      >
-        {/* Avatar */}
-        <div
-          className={`rounded-full overflow-hidden shrink-0 transition-all duration-300 ${isActive
-              ? "w-14 h-14 ring-2 ring-[#EF4444] ring-offset-2 ring-offset-white"
-              : "w-10 h-10 opacity-70"
-            }`}
-        >
-          <img
-            src={reviewer.avatar}
-            alt={reviewer.name}
-            className="w-full h-full object-cover"
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <svg key={i} width="11" height="11" viewBox="0 0 13 13">
+          <defs>
+            <linearGradient id={`star-${i}-${rating}`}>
+              <stop offset={`${i < full ? 100 : i === full ? Math.round(frac * 100) : 0}%`} stopColor="#F59E0B" />
+              <stop offset={`${i < full ? 100 : i === full ? Math.round(frac * 100) : 0}%`} stopColor="#D1D5DB" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M6.5 0.5l1.545 3.13 3.455.503-2.5 2.437.59 3.44L6.5 8.385l-3.09 1.625.59-3.44L.5 4.133l3.455-.503L6.5.5z"
+            fill={i < full ? "#F59E0B" : "#D1D5DB"}
           />
-        </div>
-
-        {/* Text beside avatar */}
-        <div className="ml-3 whitespace-nowrap text-left">
-          <p
-            className={`${isActive
-                ? "text-[14px] font-bold text-black"
-                : "text-[12px] text-gray-600"
-              }`}
-          >
-            {reviewer.name}
-          </p>
-
-          <div className="flex items-center gap-1 mt-0.5">
-            <Star />
-            <span className="text-[11px]">{reviewer.rating}</span>
-          </div>
-        </div>
-      </button>
+        </svg>
+      ))}
+      <span className="ml-1 text-[11px] text-gray-500 font-semibold">{rating}</span>
     </div>
   );
 }
-/* Mobile Review Node */
+
+function ReviewNode({ reviewer, isActive, onClick, className }) {
+  return (
+    <div className={`absolute -translate-x-1/2 -translate-y-1/2 ${className}`}>
+      <motion.button
+        onClick={onClick}
+        className="relative flex items-center"
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.97 }}
+      >
+        <motion.div
+          className="rounded-full overflow-hidden shrink-0 transition-all duration-300"
+          animate={{
+            width: isActive ? 56 : 40,
+            height: isActive ? 56 : 40,
+            opacity: isActive ? 1 : 0.65,
+          }}
+          style={{
+            boxShadow: isActive
+              ? "0 0 0 3px #EF4444, 0 0 16px rgba(239,68,68,0.45)"
+              : "none",
+          }}
+        >
+          <img src={reviewer.avatar} alt={reviewer.name} className="w-full h-full object-cover" />
+        </motion.div>
+        <div className="ml-3 whitespace-nowrap text-left">
+          <p className={`${isActive ? "text-[14px] font-bold text-gray-900" : "text-[12px] text-gray-500"}`}>
+            {reviewer.name}
+          </p>
+          {isActive && <StarRating rating={reviewer.rating} />}
+        </div>
+      </motion.button>
+    </div>
+  );
+}
+
 function MobileReviewNode({ reviewer, isActive, onClick }) {
   return (
-    <button onClick={onClick} className="transition-all duration-300">
+    <motion.button
+      onClick={onClick}
+      className="transition-all duration-300"
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.97 }}
+    >
       <div className="flex flex-col items-center text-center">
-        <div
-          className={`rounded-full overflow-hidden transition-all duration-300 ${isActive
-              ? "w-16 h-16 ring-2 ring-[#EF4444] ring-offset-2 ring-offset-white"
-              : "w-14 h-14 opacity-70"
-            }`}
+        <motion.div
+          className="rounded-full overflow-hidden transition-all duration-300"
+          animate={{ width: isActive ? 64 : 56, height: isActive ? 64 : 56 }}
+          style={{
+            boxShadow: isActive
+              ? "0 0 0 3px #EF4444, 0 0 16px rgba(239,68,68,0.40)"
+              : "0 2px 8px rgba(0,0,0,0.10)",
+            opacity: isActive ? 1 : 0.7,
+          }}
         >
-          <img
-            src={reviewer.avatar}
-            alt={reviewer.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        <p className="mt-2 text-[13px] font-semibold text-black">
-          {reviewer.name}
-        </p>
-
-        <div className="flex items-center gap-1 mt-1">
-          <Star />
-          <span className="text-[11px]">{reviewer.rating}</span>
-        </div>
+          <img src={reviewer.avatar} alt={reviewer.name} className="w-full h-full object-cover" />
+        </motion.div>
+        <p className="mt-2 text-[13px] font-semibold text-gray-800">{reviewer.name}</p>
+        {isActive && <StarRating rating={reviewer.rating} />}
       </div>
-    </button>
+    </motion.button>
   );
 }
 
@@ -161,27 +126,40 @@ export default function Reviews() {
   const [activeIndex, setActiveIndex] = useState(1);
   const activeReview = REVIEWS[activeIndex];
 
-  const { ref, inView } = useInView({
-    threshold: 0.15,
-    triggerOnce: true,
-  });
+  const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
 
   return (
-    <section className="relative bg-white py-12 sm:py-16 overflow-hidden min-h-screen flex items-center">
-      {/* Background Red Shape */}
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[220px] sm:w-[320px] z-0">
-        <img
-          src={ellipseImg}
-          alt=""
-          className="w-full"
-          draggable={false}
-        />
+    <section
+      className="relative py-12 sm:py-16 overflow-hidden min-h-screen flex items-center"
+      style={{
+        background:
+          "radial-gradient(ellipse 80% 60% at 0% 50%, rgba(232,90,79,0.06) 0%, transparent 55%), #ffffff",
+      }}
+    >
+      {/* Background ellipse image */}
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[220px] sm:w-[320px] z-0 opacity-60">
+        <img src={ellipseImg} alt="" className="w-full" draggable={false} />
       </div>
+
+      {/* Ambient glow */}
+      <div
+        className="absolute right-0 top-1/2 -translate-y-1/2 w-[280px] h-[280px] rounded-full pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(14,165,233,0.06) 0%, transparent 70%)" }}
+        aria-hidden="true"
+      />
 
       <div className="w-[90%] max-w-7xl mx-auto relative z-10">
         <div
           ref={ref}
-          className="bg-white border border-gray-300 shadow-md px-6 rounded-md sm:px-10 py-8 sm:py-12"
+          className="px-6 rounded-2xl sm:px-10 py-8 sm:py-12"
+          style={{
+            background: "rgba(255,255,255,0.80)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(232,90,79,0.12)",
+            boxShadow:
+              "0 8px 40px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)",
+          }}
         >
           {/* Heading */}
           <motion.div
@@ -190,22 +168,27 @@ export default function Reviews() {
             transition={{ duration: 0.45, ease: EASE }}
             className="mb-8"
           >
-            <div className="w-10 h-[3px] bg-[#EF4444] rounded-full mb-3" />
-            <h2 className="text-[26px] sm:text-[44px] font-extrabold text-black">
-              Customer Reviews
+            {/* Gradient accent bar */}
+            <div
+              className="w-10 h-[3px] rounded-full mb-3"
+              style={{ background: "linear-gradient(90deg, #e85a4f, #f97316)" }}
+            />
+            <h2 className="text-[26px] sm:text-[44px] font-extrabold text-gray-900">
+              Customer{" "}
+              <span className="gradient-text">Reviews</span>
             </h2>
           </motion.div>
 
           {/* Main Layout */}
           <div className="grid md:grid-cols-2 gap-10 items-center">
-            {/* ================= DESKTOP LEFT ================= */}
+            {/* ─ DESKTOP LEFT ─ */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={inView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.45 }}
               className="relative h-[260px] hidden md:block"
             >
-              {/* Curve */}
+              {/* Gradient curve */}
               <svg
                 className="absolute left-[75px] top-[15px]"
                 width="130"
@@ -213,40 +196,42 @@ export default function Reviews() {
                 viewBox="0 0 130 230"
                 fill="none"
               >
+                <defs>
+                  <linearGradient id="curve-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%"   stopColor="#e85a4f" stopOpacity="0.6" />
+                    <stop offset="50%"  stopColor="#f97316" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#ec4899" stopOpacity="0.3" />
+                  </linearGradient>
+                </defs>
                 <path
                   d="M20 0 C120 45,120 185,20 230"
-                  stroke="#D1D5DB"
-                  strokeWidth="1.4"
+                  stroke="url(#curve-grad)"
+                  strokeWidth="2"
                   fill="none"
                 />
               </svg>
 
-              <ReviewNode
-                reviewer={REVIEWS[0]}
-                isActive={activeIndex === 0}
-                onClick={() => setActiveIndex(0)}
-                className="top-[16px] left-[140px]"
-              />
-
-              <ReviewNode
-                reviewer={REVIEWS[1]}
-                isActive={activeIndex === 1}
-                onClick={() => setActiveIndex(1)}
-                className="top-[120px] left-[200px]"
-              />
-
-              <ReviewNode
-                reviewer={REVIEWS[2]}
-                isActive={activeIndex === 2}
-                onClick={() => setActiveIndex(2)}
-                className="top-[240px] left-[140px]"
-              />
+              {REVIEWS.map((reviewer, i) => {
+                const positions = [
+                  "top-[16px] left-[140px]",
+                  "top-[120px] left-[200px]",
+                  "top-[240px] left-[140px]",
+                ];
+                return (
+                  <ReviewNode
+                    key={reviewer.id}
+                    reviewer={reviewer}
+                    isActive={activeIndex === i}
+                    onClick={() => setActiveIndex(i)}
+                    className={positions[i]}
+                  />
+                );
+              })}
             </motion.div>
 
-            {/* ================= MOBILE ================= */}
+            {/* ─ MOBILE ─ */}
             <div className="md:hidden flex flex-col items-center">
-              {/* Avatars */}
-              <div className="flex justify-center gap-4 mb-8 flex-wrap">
+              <div className="flex justify-center gap-6 mb-8 flex-wrap">
                 {REVIEWS.map((reviewer, i) => (
                   <MobileReviewNode
                     key={reviewer.id}
@@ -257,7 +242,6 @@ export default function Reviews() {
                 ))}
               </div>
 
-              {/* Review Card */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeIndex}
@@ -265,20 +249,23 @@ export default function Reviews() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-[#F9F9F9] rounded-2xl px-5 py-6 text-center shadow-sm"
+                  className="rounded-2xl px-5 py-6 text-center"
+                  style={{
+                    background: "rgba(255,244,242,0.7)",
+                    border: "1px solid rgba(232,90,79,0.12)",
+                  }}
                 >
-                  <h3 className="text-[20px] font-bold italic text-black leading-snug">
-                    “{activeReview.quote}”
+                  <h3 className="text-[20px] font-bold italic text-gray-900 leading-snug">
+                    "{activeReview.quote}"
                   </h3>
-
-                  <p className="mt-3 text-[13px] text-gray-600 leading-[1.8]">
+                  <p className="mt-3 text-[13px] text-gray-500 leading-[1.8]">
                     {activeReview.body}
                   </p>
                 </motion.div>
               </AnimatePresence>
             </div>
 
-            {/* ================= DESKTOP RIGHT ================= */}
+            {/* ─ DESKTOP RIGHT ─ */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={inView ? { opacity: 1, x: 0 } : {}}
@@ -294,13 +281,18 @@ export default function Reviews() {
                   transition={{ duration: 0.3 }}
                   className="max-w-[430px]"
                 >
-                  <h3 className="text-[42px] font-bold italic text-black leading-tight">
-                    “{activeReview.quote}”
+                  <h3
+                    className="text-[38px] font-bold italic text-gray-900 leading-tight"
+                    style={{ textShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+                  >
+                    "{activeReview.quote}"
                   </h3>
-
-                  <p className="mt-5 text-[16px] text-gray-600 italic leading-[1.9]">
+                  <p className="mt-5 text-[16px] text-gray-500 italic leading-[1.9]">
                     {activeReview.body}
                   </p>
+                  <div className="mt-4">
+                    <StarRating rating={activeReview.rating} />
+                  </div>
                 </motion.div>
               </AnimatePresence>
             </motion.div>

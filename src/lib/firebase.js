@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -19,6 +20,25 @@ export const isFirebaseConfigured =
   firebaseConfig.projectId !== "demo-project";
 
 const app = initializeApp(firebaseConfig);
+
+if (typeof window !== "undefined" && isFirebaseConfigured) {
+  const siteKey = import.meta.env.VITE_APPCHECK_RECAPTCHA_SITE_KEY?.trim();
+  const debugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN?.trim();
+  if (import.meta.env.DEV && debugToken) {
+    globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken === "true" ? true : debugToken;
+  }
+  if (siteKey) {
+    try {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch (e) {
+      console.warn("App Check init failed:", e?.message || e);
+    }
+  }
+}
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);

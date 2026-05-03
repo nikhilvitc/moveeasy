@@ -13,19 +13,24 @@
 
 @layer base {
   :root {
-    --me-coral: #e85a4f;
-    --me-coral-deep: #b91c1c;
-    --me-ink: #292524;
-    --me-ink-muted: #57534e;
-    --me-surface: #fffaf8;
+    --me-coral:        #e85a4f;
+    --me-coral-deep:   #b91c1c;
+    --me-coral-glow:   #ff8a7a;
+    --me-orange:       #f97316;
+    --me-pink:         #ec4899;
+    --me-ink:          #292524;
+    --me-ink-muted:    #57534e;
+    --me-surface:      #fffaf8;
     --me-surface-cool: #f0f9ff;
+    /* gradient stops */
+    --grad-premium-start: #e85a4f;
+    --grad-premium-mid:   #f97316;
+    --grad-premium-end:   #ec4899;
   }
 
   *,
   *::before,
-  *::after {
-    box-sizing: border-box;
-  }
+  *::after { box-sizing: border-box; }
 
   html,
   body,
@@ -42,7 +47,6 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     overflow-y: scroll;
-    /* Keep mobile from auto-shrinking type; stepped rem scales Tailwind on large desktops */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     font-size: 100%;
@@ -58,32 +62,17 @@
     overflow: visible;
   }
 
-  #root {
-    overflow: visible;
-  }
+  #root { overflow: visible; }
 
-  /* Prevent accidental nested horizontal scroll */
-  section,
-  div,
-  main,
-  header,
-  footer {
-    max-width: 100%;
-  }
+  section, div, main, header, footer { max-width: 100%; }
 
-  img,
-  video,
-  canvas,
-  svg {
+  img, video, canvas, svg {
     display: block;
     max-width: 100%;
   }
 
-  /* Avoid height:auto on cover / full-bleed media (Tailwind h-full + object-cover) */
   img:not([class~="h-full"]):not([height]),
-  video:not([class~="h-full"]):not([height]) {
-    height: auto;
-  }
+  video:not([class~="h-full"]):not([height]) { height: auto; }
 
   button {
     cursor: pointer;
@@ -91,21 +80,169 @@
   }
 }
 
-/* Outside @layer so it always applies; scales rem-based Tailwind on large desktops */
-@media (min-width: 1024px) {
-  html {
-    font-size: 106.25%;
+/* ── Responsive font scaling ──────────────────────────────────────────────── */
+@media (min-width: 1024px)  { html { font-size: 106.25%; } }
+@media (min-width: 1536px)  { html { font-size: 112.5%; } }
+@media (min-width: 1920px)  { html { font-size: 118.75%; } }
+
+/* ── Premium utility classes ──────────────────────────────────────────────── */
+@layer utilities {
+  /* Gradient text — coral → orange → pink */
+  .gradient-text {
+    background: linear-gradient(
+      110deg,
+      var(--grad-premium-start) 0%,
+      var(--grad-premium-mid) 50%,
+      var(--grad-premium-end) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Animated shimmer text */
+  .gradient-text-shimmer {
+    background: linear-gradient(
+      90deg,
+      #e85a4f 0%,
+      #f97316 25%,
+      #ec4899 50%,
+      #f97316 75%,
+      #e85a4f 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* Blue-purple gradient text for accents */
+  .gradient-text-cool {
+    background: linear-gradient(110deg, #0ea5e9 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Glassmorphism panel */
+  .glass {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  /* Dark glass panel */
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.30);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Light glass panel */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.80);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.07);
+  }
+
+  /* 3D perspective wrapper */
+  .perspective-1200 { perspective: 1200px; }
+  .perspective-800  { perspective: 800px; }
+  .preserve-3d      { transform-style: preserve-3d; }
+
+  /* Gradient border trick (coral) — uses outline + bg approach for wide compat */
+  .gradient-border-coral {
+    position: relative;
+    border-radius: inherit;
+    background-clip: padding-box;
+    border: 1.5px solid transparent;
+    background-image: linear-gradient(var(--bg-color, #fff), var(--bg-color, #fff)),
+      linear-gradient(135deg, #e85a4f, #f97316, #ec4899);
+    background-origin: border-box;
+  }
+
+  /* Coral neon glow on text */
+  .glow-text-coral {
+    text-shadow: 0 0 25px rgba(232, 90, 79, 0.7), 0 0 50px rgba(232, 90, 79, 0.35);
+  }
+
+  /* Subtle mesh gradient background */
+  .bg-mesh-light {
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 20%, rgba(232, 90, 79, 0.07), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 90% 80%, rgba(14, 165, 233, 0.06), transparent 55%),
+      radial-gradient(ellipse 60% 70% at 50% 50%, rgba(249, 115, 22, 0.04), transparent 65%),
+      #ffffff;
+  }
+
+  /* Animated glow pulse on CTA buttons */
+  .btn-glow-pulse {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
+
+  /* Scrollbar hide (existing .scrollbar-hide referenced in SmartMatch) */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
-@media (min-width: 1536px) {
-  html {
-    font-size: 112.5%;
-  }
+/* ── Global keyframe declarations (mirrors tailwind.config.js but ensures CSS cascade) */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
 
-@media (min-width: 1920px) {
-  html {
-    font-size: 118.75%;
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-14px) rotate(1deg); }
+  66%       { transform: translateY(-8px) rotate(-0.5deg); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-22px) scale(1.04); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 24px rgba(232,90,79,0.45), 0 4px 20px rgba(232,90,79,0.30); }
+  50%       { box-shadow: 0 0 55px rgba(232,90,79,0.85), 0 0 90px rgba(232,90,79,0.35), 0 4px 20px rgba(232,90,79,0.40); }
+}
+
+@keyframes blob-move {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: scale(1); }
+  25%       { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: scale(1.05); }
+  50%       { border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%; transform: scale(0.96); }
+  75%       { border-radius: 60% 40% 60% 40% / 70% 30% 60% 50%; transform: scale(1.03); }
+}
+
+@keyframes glow-number {
+  0%, 100% { text-shadow: 0 0 20px rgba(232,90,79,0.5); }
+  50%       { text-shadow: 0 0 50px rgba(232,90,79,0.9), 0 0 80px rgba(232,90,79,0.4); }
+}
+
+@keyframes draw-line {
+  0%   { stroke-dashoffset: 200; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+@keyframes spin-slow {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

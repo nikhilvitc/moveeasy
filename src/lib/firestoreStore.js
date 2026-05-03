@@ -9,6 +9,12 @@ const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
 
+/** Shown on map / discovery; withdrawn = off-market (seller hid listing; admin can still delete doc). */
+export function isListingPubliclyVisible(listing) {
+  const s = String(listing?.marketStatus || "published").toLowerCase();
+  return s !== "withdrawn" && s !== "archived";
+}
+
 export async function uploadListingFiles(files = [], listingId = crypto.randomUUID()) {
   const uploads = Array.from(files).filter(Boolean).map(async (file) => {
     const safeName = file.name.replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
@@ -19,15 +25,37 @@ export async function uploadListingFiles(files = [], listingId = crypto.randomUU
   return Promise.all(uploads);
 }
 
-export async function getListingsData() {
-  const snap = await getDocs(query(collection(db, "listings"), orderBy("updatedAt", "desc")));
+export async function getListingsData(options = {}) {
+  const { limitCount = 100, bhk, maxRent, locality } = options;
+  
+  let q = query(collection(db, "listings"), orderBy("updatedAt", "desc"));
+  
+  // Filter out withdrawn/archived listings by default unless specified
+  q = query(q, where("marketStatus", "==", "published"));
+  
+  if (bhk) q = query(q, where("bhk", "==", bhk));
+  if (maxRent) q = query(q, where("monthlyRent", "<=", maxRent));
+  // Note: locality prefix search requires specific indexing; for now we limit the read size
+  
+  q = query(q, limit(limitCount));
+
+  const snap = await getDocs(q);
   const firestoreListings = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
-  // Always include the 50+ sample listings from the Lovable prototype
-  return [...firestoreListings, ...listingsData];
+  
+  // If we have few results from Firestore, supplement with sample data for the demo feel
+  const combined = [...firestoreListings];
+  if (combined.length < limitCount) {
+    const remaining = limitCount - combined.length;
+    combined.push(...listingsData.slice(0, remaining));
+  }
+  
+  return combined;
 }
 
 export async function upsertListingData(listing, actor) {
   const id = String(listing.id || crypto.randomUUID());
+  const rawStatus = String(listing.marketStatus || "published").toLowerCase();
+  const marketStatus = rawStatus === "withdrawn" || rawStatus === "archived" ? rawStatus : "published";
   const payload = {
     ...listing,
     id,
@@ -36,12 +64,32 @@ export async function upsertListingData(listing, actor) {
     lat: Number(listing.lat || 12.9716),
     lng: Number(listing.lng || 77.5946),
     monthlyRent: Number(listing.monthlyRent || 0),
+    marketStatus,
     updatedAt: serverTimestamp(),
   };
   await setDoc(doc(db, "listings", id), payload, { merge: true });
   return { ...payload, updatedAt: new Date().toISOString() };
 }
 
+/** Seller: hide listing from search/map (no document delete). */
+export async function withdrawListingBySeller(listingId) {
+  await updateDoc(doc(db, "listings", String(listingId)), {
+    marketStatus: "withdrawn",
+    withdrawnAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Seller: show listing again on map/search. */
+export async function republishListingBySeller(listingId) {
+  await updateDoc(doc(db, "listings", String(listingId)), {
+    marketStatus: "published",
+    withdrawnAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Admin-only hard delete (sellers cannot remove Firestore rows). */
 export async function removeListingData(id) {
   await deleteDoc(doc(db, "listings", String(id)));
 }
@@ -213,6 +261,52 @@ export async function addInterestRequestData(payload) {
 
 export async function getInterestsData() {
   const snap = await getDocs(query(collection(db, "interests"), limit(200)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+/** Scoped queries for production Firestore rules (no full-table read for sellers/customers). */
+export async function getInterestsForCustomerEmail(customerEmail) {
+  const em = String(customerEmail || "").toLowerCase().trim();
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "interests"), where("customerEmail", "==", em), limit(200)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function getInterestsForSellerEmail(sellerEmail) {
+  const em = String(sellerEmail || "").toLowerCase().trim();
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "interests"), where("sellerEmail", "==", em), limit(200)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function getAssignmentsForCustomerEmail(customerEmail) {
+  const em = String(customerEmail || "").toLowerCase().trim();
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "assignments"), where("customerEmail", "==", em), limit(80)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function getAssignmentsForSellerEmail(sellerEmail) {
+  const em = String(sellerEmail || "").toLowerCase().trim();
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "assignments"), where("sellerEmail", "==", em), limit(80)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+export async function getVisitsForSellerEmail(sellerEmail) {
+  const em = String(sellerEmail || "").toLowerCase().trim();
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "visits"), where("sellerEmail", "==", em), limit(120)));
   const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   return rows;

@@ -3,15 +3,17 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isFirebaseConfigured } from "../lib/firebase";
 import {
-  getAssignmentsData,
+  getAssignmentsForSellerEmail,
   getListingsData,
-  removeListingData,
+  withdrawListingBySeller,
+  republishListingBySeller,
   uploadListingFiles,
   upsertListingData,
-  getVisitsData,
-  getInterestsData,
+  getVisitsForSellerEmail,
+  getInterestsForSellerEmail,
   getSellerNotificationsData,
   markNotificationReadData,
+  isListingPubliclyVisible,
 } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 import MediaUploadField from "../components/MediaUploadField";
@@ -28,7 +30,7 @@ async function readUserRow(email) {
 }
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { getAssignments, getListings, upsertListing, removeListing, getInterestsGlobal, getNotificationsLocal, markNotificationLocalRead } from "../lib/store";
+import { getAssignments, getListings, upsertListing, withdrawListingLocal, republishListingLocal, getInterestsGlobal, getNotificationsLocal, markNotificationLocalRead } from "../lib/store";
 
 function LocationPicker({ position, setPosition }) {
   useMapEvents({
@@ -66,19 +68,19 @@ export default function SellerDashboard() {
       const [allListings, allAssignments, row, allVisits, interestsAll, notifs] = isFirebaseConfigured
         ? await Promise.all([
             getListingsData(),
-            getAssignmentsData(),
+            getAssignmentsForSellerEmail(em),
             readUserRow(user?.email),
-            getVisitsData(),
-            getInterestsData(),
+            getVisitsForSellerEmail(em),
+            getInterestsForSellerEmail(em),
             getSellerNotificationsData(user?.email),
           ])
         : [getListings(), getAssignments(), await readUserRow(user?.email), [], getInterestsGlobal(), getNotificationsLocal().filter((n) => n.audience === "seller" && String(n.targetEmail || "").toLowerCase() === em)];
       if (!alive) return;
       setListings(allListings.filter((l) => l.sellerEmail === user?.email));
-      setMyAssignments(allAssignments.filter((a) => a.sellerEmail === user?.email));
+      setMyAssignments(Array.isArray(allAssignments) ? allAssignments : []);
       setSellerRow(row);
-      setVisitRequests(allVisits.filter((v) => v.sellerEmail === user?.email));
-      setLeadInterests((interestsAll || []).filter((i) => String(i.sellerEmail || "").toLowerCase() === em));
+      setVisitRequests(Array.isArray(allVisits) ? allVisits : []);
+      setLeadInterests(Array.isArray(interestsAll) ? interestsAll : []);
       setSellerNotifs(Array.isArray(notifs) ? notifs : []);
     }
     load().catch(() => undefined);
@@ -163,9 +165,26 @@ export default function SellerDashboard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDelete = async (id) => {
-    if (isFirebaseConfigured) await removeListingData(id);
-    else removeListing(id);
+  const handleWithdrawListing = async (id) => {
+    try {
+      if (isFirebaseConfigured) await withdrawListingBySeller(id);
+      else withdrawListingLocal(id);
+    } catch {
+      alert("Could not withdraw listing. Try again or contact support.");
+      return;
+    }
+    const all = isFirebaseConfigured ? await getListingsData() : getListings();
+    setListings(all.filter((l) => l.sellerEmail === user?.email));
+  };
+
+  const handleRelist = async (id) => {
+    try {
+      if (isFirebaseConfigured) await republishListingBySeller(id);
+      else republishListingLocal(id);
+    } catch {
+      alert("Could not relist. Try again or contact support.");
+      return;
+    }
     const all = isFirebaseConfigured ? await getListingsData() : getListings();
     setListings(all.filter((l) => l.sellerEmail === user?.email));
   };
@@ -293,21 +312,36 @@ export default function SellerDashboard() {
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
-          {listings.map((l) => (
-            <div key={l.id} style={{ background: "white", borderRadius: "12px", padding: "16px" }}>
+          {listings.map((l) => {
+            const live = isListingPubliclyVisible(l);
+            return (
+            <div key={l.id} style={{ background: "white", borderRadius: "12px", padding: "16px", border: live ? "1px solid #e2e8f0" : "2px solid #f59e0b" }}>
               {l.image && <img src={l.image} alt={l.title} loading="lazy" style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px", marginBottom: "10px" }} />}
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ background: "#dbeafe", color: "#1e40af", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>{l.bhk}</span>
-                <span style={{ fontWeight: 800, color: "#16a34a" }}>{l.price}</span>
+                {!live ? (
+                  <span style={{ background: "#fff7ed", color: "#c2410c", padding: "2px 8px", borderRadius: "10px", fontSize: "10px", fontWeight: 800 }}>OFF MARKET</span>
+                ) : null}
+                <span style={{ fontWeight: 800, color: "#16a34a", marginLeft: "auto" }}>{l.price}</span>
               </div>
               <div style={{ fontWeight: 700, fontSize: "15px" }}>{l.title}</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
+              <p style={{ fontSize: "11px", color: "#64748b", margin: "8px 0 0", lineHeight: 1.45 }}>
+                {live
+                  ? "Withdraw hides this home from search and the map. Permanent removal is done by MovEasy admin (audit trail)."
+                  : "This listing is hidden from renters. Relist when it is available again."}
+              </p>
               <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
                 <button onClick={() => handleEdit(l)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "1px solid #cbd5e1", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "white", color: "#334155" }}>Edit</button>
-                <button onClick={() => handleDelete(l.id)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "#fef2f2", color: "#dc2626" }}>Remove</button>
+                {live ? (
+                  <button type="button" onClick={() => handleWithdrawListing(l.id)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "#fff7ed", color: "#c2410c" }}>Withdraw</button>
+                ) : (
+                  <button type="button" onClick={() => handleRelist(l.id)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "12px", cursor: "pointer", background: "#ecfdf5", color: "#047857" }}>Relist</button>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

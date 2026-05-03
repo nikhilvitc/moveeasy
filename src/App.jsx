@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
@@ -10,12 +9,12 @@ import SellerDashboard from "./pages/SellerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import Services from "./pages/Services";
 import Guarantee from "./pages/Guarantee";
-import Listings from "./pages/Listings";
 import Contact from "./pages/Contact";
 import MyActivity from "./pages/MyActivity";
 import Checkout from "./pages/Checkout";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function OnboardingEmailWarning() {
   // Disabled the confusing email warning for the live demo
@@ -39,7 +38,7 @@ function AppRoutes() {
       <Route path="/map" element={<MapView />} />
       <Route path="/services" element={<Services />} />
       <Route path="/guarantee" element={<Guarantee />} />
-      <Route path="/listings" element={<Listings />} />
+      <Route path="/listings" element={<Navigate to="/map?openFilters=1" replace />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/activity" element={<MyActivity />} />
       <Route path="/checkout" element={<Checkout />} />
@@ -56,10 +55,12 @@ function AppRoutes() {
 export default function App() {
   return (
     <HashRouter>
-      <AuthProvider>
-        <AppRoutes />
-        <OnboardingEmailWarning />
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AppRoutes />
+          <OnboardingEmailWarning />
+        </AuthProvider>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

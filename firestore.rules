@@ -2,9 +2,119 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access for testing the platform prototype
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 6, 1);
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function authEmail() {
+      return request.auth.token.email;
+    }
+
+    function accountRole() {
+      return exists(/databases/$(database)/documents/userRoles/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/userRoles/$(request.auth.uid)).data.role
+        : "customer";
+    }
+
+    function isAdmin() {
+      return isSignedIn() && accountRole() == "admin";
+    }
+
+    function isSeller() {
+      return isSignedIn() && accountRole() == "seller";
+    }
+
+    // Console-only seed list: doc id must equal the user's auth email (lowercase).
+    function isBootstrapListedAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/bootstrapAdmins/$(authEmail()));
+    }
+
+    // Not readable from clients; exists() for rules does not recurse into this match.
+    match /bootstrapAdmins/{email} {
+      allow read, write: if false;
+    }
+
+    // Listings: public read; sellers create/update own rows (incl. withdraw / relist).
+    // Hard delete is admin-only (marketplace-style audit trail; matches Housing / NoBroker-style policy).
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        || (isSeller() && request.resource.data.sellerEmail == authEmail());
+      allow delete: if isAdmin();
+    }
+
+    // Roles: admins manage all; users create own customer/seller; bootstrap email can set own admin once.
+    match /userRoles/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid
+            && request.resource.data.uid == uid
+            && request.resource.data.email == authEmail()
+            && request.resource.data.role in ["customer", "seller"])
+        || (isSignedIn() && request.auth.uid == uid && isBootstrapListedAdmin()
+            && request.resource.data.uid == uid
+            && request.resource.data.email == authEmail()
+            && request.resource.data.role == "admin");
+
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid && isBootstrapListedAdmin()
+            && request.resource.data.uid == uid
+            && request.resource.data.email == authEmail()
+            && request.resource.data.role == "admin")
+        || (isSignedIn() && request.auth.uid == uid
+            && resource.data.role == request.resource.data.role
+            && request.resource.data.role in ["customer", "seller"]);
+
+      allow delete: if isAdmin();
+    }
+
+    // Profiles: own doc or admin (badge / user management).
+    match /userProfiles/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /assignments/{id} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.customerEmail == authEmail() || resource.data.sellerEmail == authEmail());
+      allow write: if isAdmin();
+    }
+
+    match /sellerRequests/{id} {
+      allow create: if isSignedIn();
+      allow read, write: if isAdmin();
+    }
+
+    match /visits/{id} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (isAdmin() || resource.data.customerEmail == authEmail() || resource.data.sellerEmail == authEmail());
+      allow write: if isAdmin();
+    }
+
+    match /interests/{id} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (isAdmin() || resource.data.customerEmail == authEmail() || resource.data.sellerEmail == authEmail());
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{id} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.targetEmail == authEmail());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isAdmin() || resource.data.targetEmail == authEmail());
+      allow delete: if isAdmin();
+    }
+
+    match /activityEvents/{id} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin();
+    }
+
+    // Public marketing copy: contact cards, support emails (Terms / Privacy). Admin-only writes.
+    match /siteSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() && docId == "public";
     }
   }
 }

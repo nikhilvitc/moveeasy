@@ -71,13 +71,33 @@ export async function getProfileForUser(firebaseUser) {
 export async function ensureUserProfileDocuments(firebaseUser) {
   if (!firebaseUser?.email) return;
   const email = firebaseUser.email.toLowerCase().trim();
-  if (ADMIN_EMAILS.includes(email)) return;
-
   const uid = firebaseUser.uid;
   const [profileSnap, roleSnap] = await Promise.all([
     getDoc(doc(db, "userProfiles", uid)),
     getDoc(doc(db, "userRoles", uid)),
   ]);
+
+  if (ADMIN_EMAILS.includes(email)) {
+    const profile = profileSnap.exists() ? profileSnap.data() : {};
+    await setDoc(
+      doc(db, "userRoles", uid),
+      { uid, email, role: "admin", updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, "userProfiles", uid),
+      {
+        uid,
+        email,
+        name: profile.name || firebaseUser.displayName || email.split("@")[0],
+        phone: profile.phone || "",
+        sellerBadgeStatus: null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return;
+  }
 
   const profile = profileSnap.exists() ? profileSnap.data() : {};
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};

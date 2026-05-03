@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import L from "leaflet";
@@ -6,11 +6,12 @@ import "leaflet/dist/leaflet.css";
 import { applyListingFilters, FILTER_OPTIONS, getFiltersInitialState, getListings } from "../lib/store";
 import { useAuth } from "../context/AuthContext";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { getListingsData } from "../lib/firestoreStore";
+import { getListingsData, isListingPubliclyVisible } from "../lib/firestoreStore";
 import { geocodePlace } from "../lib/geocode";
 import { haversineKm } from "../lib/geo";
 import PropertyModal from "./PropertyModal";
 import { AREA_NAMES_SORTED } from "../data/listingsData";
+import { BANGALORE_WORKPLACES } from "../data/bangaloreWorkplaces";
 import {
   appendFilterHistory,
   consumeMapRestorePayload,
@@ -72,30 +73,35 @@ function ChangeView({ center, zoom }) {
   return null;
 }
 
-/** Zoom map to show listing pins; optional fallback center when the filtered set is empty. */
-function FitListingsBounds({ listings, enabled, fallbackCenter, fallbackZoom = 13 }) {
+/** Zoom map to show listing pins; optional fallback center when the filtered set is empty.
+ *  Important: do not put `fallbackCenter` in the effect dependency array — it was tied to map pan/hover
+ *  and caused fitBounds to re-run on every listing-card hover (zoomed-out map). */
+function FitListingsBounds({ listings, enabled, fallbackCenter, fallbackZoom = 14 }) {
   const map = useMap();
   const signature = listings.map((l) => l.id).join(",");
+  const fallbackRef = useRef(fallbackCenter);
+  fallbackRef.current = fallbackCenter;
   useEffect(() => {
     if (!enabled) return;
     const pts = listings
       .filter((l) => Number.isFinite(l.lat) && Number.isFinite(l.lng))
       .map((l) => [l.lat, l.lng]);
+    const fc = fallbackRef.current;
     requestAnimationFrame(() => {
       if (pts.length === 1) {
-        map.setView(pts[0], 15, { animate: false });
+        map.setView(pts[0], 17, { animate: false });
         return;
       }
       if (pts.length > 1) {
         const b = L.latLngBounds(pts);
-        map.fitBounds(b, { padding: [72, 72], maxZoom: 15, animate: false });
+        map.fitBounds(b, { padding: [36, 36], maxZoom: 17, animate: false });
         return;
       }
-      if (fallbackCenter && Number.isFinite(fallbackCenter[0]) && Number.isFinite(fallbackCenter[1])) {
-        map.setView(fallbackCenter, fallbackZoom, { animate: false });
+      if (fc && Number.isFinite(fc[0]) && Number.isFinite(fc[1])) {
+        map.setView(fc, fallbackZoom, { animate: false });
       }
     });
-  }, [map, signature, enabled, listings.length, fallbackCenter, fallbackZoom]);
+  }, [map, signature, enabled, listings.length, fallbackZoom]);
   return null;
 }
 
@@ -158,7 +164,8 @@ export default function MapView() {
   const location = useLocation();
   const { user } = useAuth();
   const [listings, setListings] = useState([]);
-  const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 14 });
+  /** Central Bangalore — street-level default for local inventory */
+  const [mapState, setMapState] = useState({ center: [12.9716, 77.5946], zoom: 15 });
   const [selected, setSelected] = useState(null);
   const [viewingProperty, setViewingProperty] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -174,6 +181,8 @@ export default function MapView() {
   /** Desktop: start collapsed so the map uses full width; use map search card + “Show Filters” for the panel. */
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
   const [showDesktopListings, setShowDesktopListings] = useState(true);
+  /** On-map search card (area / metro / workplace) — independent from sidebar “Filters”. */
+  const [showMapSearchOverlay, setShowMapSearchOverlay] = useState(true);
   /** 'local' = filter listings by area name; 'place' = geocode landmark / metro and radius filter */
   const [searchMode, setSearchMode] = useState("local");
   const [showOverlayQuickFilters, setShowOverlayQuickFilters] = useState(false);
@@ -188,20 +197,39 @@ export default function MapView() {
     setShowOverlayQuickFilters(false);
     if (isMobile) {
       setShowMobileFilters(true);
+      setShowMobileListings(true);
     } else {
       setShowDesktopFilters(true);
+      setShowDesktopListings(true);
+      setDesktopMode("split");
     }
   }, [isMobile]);
 
   useEffect(() => {
     let alive = true;
     async function loadListings() {
-      const rows = isFirebaseConfigured ? await getListingsData() : getListings();
-      if (alive) setListings(rows);
+      // Extract primary filters for server-side optimization
+      const bhk = filters.bhkTypes.length === 1 ? filters.bhkTypes[0] : null;
+      const maxRent = filters.maxRent < 100000 ? filters.maxRent : null;
+      
+      const options = {
+        limitCount: isMobile ? 40 : 100,
+        bhk,
+        maxRent
+      };
+
+      const rows = isFirebaseConfigured ? await getListingsData(options) : getListings();
+      if (alive) {
+        // Still apply client-side filtering for complex multi-selects
+        setListings(rows.filter(isListingPubliclyVisible));
+      }
     }
-    loadListings().catch(() => setListings(getListings()));
+    loadListings().catch((err) => {
+      console.warn("Firestore query failed (possibly missing index):", err);
+      setListings(getListings().filter(isListingPubliclyVisible));
+    });
     return () => { alive = false; };
-  }, []);
+  }, [filters.bhkTypes, filters.maxRent, filters.neighborhoods, isMobile]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
@@ -223,12 +251,15 @@ export default function MapView() {
     const maxRent = Number(qs.get("maxRent") || 0);
     setSelectedLocality(locality);
     setMapSearchInput(locality);
+    const locNorm = locality.trim();
+    const neighborhoodFromUrl = locNorm && AREA_NAMES_SORTED.includes(locNorm) ? [locNorm] : [];
     setFilters({
       ...base,
       bhkTypes: bhk ? [bhk] : [],
       propertyTypes: propertyType ? [propertyType] : [],
       minRent: minRent > 0 ? minRent : base.minRent,
       maxRent: maxRent > 0 ? maxRent : base.maxRent,
+      neighborhoods: neighborhoodFromUrl,
     });
   }, [location.search]);
 
@@ -281,7 +312,7 @@ export default function MapView() {
     if (!found) return;
     setViewingProperty(found);
     setSelected(found);
-    setMapState({ center: [found.lat, found.lng], zoom: 16 });
+    setMapState({ center: [found.lat, found.lng], zoom: 17 });
   }, [listingIdFromUrl, listings]);
 
   const filteredListings = useMemo(() => {
@@ -367,7 +398,7 @@ export default function MapView() {
       const r = await geocodePlace(q);
       if (r.ok) {
         setPlaceAnchor({ lat: r.lat, lng: r.lng, label: r.displayName });
-        setMapState({ center: [r.lat, r.lng], zoom: 15 });
+        setMapState({ center: [r.lat, r.lng], zoom: 16 });
         setSelectedLocality("");
         setMapSearchError("");
       } else {
@@ -407,11 +438,17 @@ export default function MapView() {
     return `${t.slice(0, max - 1)}…`;
   };
 
+  const firstLocalitySig = filteredListings[0]
+    ? `${filteredListings[0].id}:${filteredListings[0].lat}:${filteredListings[0].lng}`
+    : "";
   useEffect(() => {
-    if (!filteredListings.length || !selectedLocality.trim()) return;
+    const loc = selectedLocality.trim();
+    if (!loc || !firstLocalitySig) return;
     const first = filteredListings[0];
-    setMapState({ center: [first.lat, first.lng], zoom: 14 });
-  }, [filteredListings, selectedLocality]);
+    if (!first) return;
+    setMapState({ center: [first.lat, first.lng], zoom: 15 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- firstLocalitySig tracks the first row; avoid running on every filteredListings identity change
+  }, [selectedLocality, firstLocalitySig]);
 
   /** Area search with zero strict rows: center map on the neighborhood name. */
   useEffect(() => {
@@ -420,7 +457,7 @@ export default function MapView() {
     (async () => {
       const r = await geocodePlace(`${selectedLocality.trim()}, Bengaluru, India`);
       if (cancelled || !r.ok) return;
-      setMapState({ center: [r.lat, r.lng], zoom: 14 });
+      setMapState({ center: [r.lat, r.lng], zoom: 15 });
     })();
     return () => {
       cancelled = true;
@@ -444,6 +481,13 @@ export default function MapView() {
     });
   };
 
+  const applyWorkplaceFromList = useCallback((wp) => {
+    setWorkplaceError("");
+    setWorkplaceInput(wp.name);
+    setWorkplaceAnchor({ lat: wp.lat, lng: wp.lng, label: wp.name });
+    setMapState({ center: [wp.lat, wp.lng], zoom: 16 });
+  }, []);
+
   const runWorkplaceSearch = async () => {
     const q = workplaceInput.trim();
     setWorkplaceError("");
@@ -451,16 +495,24 @@ export default function MapView() {
       setWorkplaceAnchor(null);
       return;
     }
+    const qLower = q.toLowerCase();
+    const preset = BANGALORE_WORKPLACES.find(
+      (w) => w.name.toLowerCase() === qLower || w.id === qLower.replace(/\s+/g, "-")
+    );
+    if (preset) {
+      applyWorkplaceFromList(preset);
+      return;
+    }
     setWorkplaceLoading(true);
     try {
       const r = await geocodePlace(q);
       if (r.ok) {
         setWorkplaceAnchor({ lat: r.lat, lng: r.lng, label: r.displayName });
-        setMapState({ center: [r.lat, r.lng], zoom: 13 });
+        setMapState({ center: [r.lat, r.lng], zoom: 16 });
         setWorkplaceError("");
       } else {
         setWorkplaceAnchor(null);
-        setWorkplaceError(r.error || "Could not find that workplace.");
+        setWorkplaceError(r.error || "Could not find that workplace. Pick a campus below or add “Bengaluru”.");
       }
     } catch {
       setWorkplaceError("Workplace search failed. Check your connection.");
@@ -469,9 +521,9 @@ export default function MapView() {
     }
   };
 
-  const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${isMobile}`;
-  /** Desktop: map search card and left filter panel are mutually exclusive so the map stays uncluttered. */
-  const showMapSearchCard = isMobile || !showDesktopFilters;
+  const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${showMapSearchOverlay}|${isMobile}`;
+  /** Map search card and desktop sidebar filters are mutually exclusive; overlay can also be dismissed for a clear map. */
+  const showMapSearchCard = showMapSearchOverlay && (isMobile || !showDesktopFilters);
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}>
@@ -591,6 +643,7 @@ export default function MapView() {
                 setDesktopMode(v);
                 if (v === "map") {
                   setShowDesktopListings(false);
+                  setShowDesktopFilters(false);
                 }
               }}
               style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 14px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}
@@ -598,24 +651,71 @@ export default function MapView() {
               <option value="split">Split View</option>
               <option value="map">Full Map</option>
             </select>
+            <button
+              type="button"
+              onClick={() => setShowMapSearchOverlay((v) => !v)}
+              style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}
+            >
+              {showMapSearchOverlay ? "Hide search" : "Show search"}
+            </button>
             <button type="button" onClick={() => setShowDesktopFilters((v) => !v)} style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}>
               {showDesktopFilters ? "Hide Filters" : "Show Filters"}
             </button>
             <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={{ border: "1px solid #cbd5e1", background: "white", borderRadius: "10px", padding: "10px 16px", fontSize: "14px", fontWeight: 700, minHeight: "44px" }}>
               {showDesktopListings ? "Hide Properties" : "Show Properties"}
             </button>
-            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>Map search on canvas · Show Filters for rent & area chips</span>
+            <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 500 }}>Hide search clears the on-map card · Show Filters opens rent & area panel</span>
           </div>
         )}
       </div>
+
+      {isMobile && showMobileFilters ? (
+        <button
+          type="button"
+          aria-label="Close filters"
+          onClick={() => setShowMobileFilters(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9998,
+            border: "none",
+            padding: 0,
+            margin: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            cursor: "pointer",
+          }}
+        />
+      ) : null}
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {(isMobile ||
           (showDesktopFilters && (desktopMode === "split" || desktopMode === "map"))) && (
         <aside className={`desktop-sidebar ${showMobileFilters ? "open" : ""}`}>
-          <h3 style={{ margin: "0 0 12px", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: 800 }}>
+          <h3 style={{ margin: "0 0 12px", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: 800, gap: 10 }}>
             Filters
-            <button onClick={() => setShowMobileFilters(false)} style={{ display: "none" }} className="mobile-only-close">×</button>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {!isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDesktopFilters(false)}
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    background: "#fff",
+                    borderRadius: 10,
+                    padding: "6px 12px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#475569",
+                    cursor: "pointer",
+                  }}
+                >
+                  Close
+                </button>
+              ) : null}
+              <button type="button" onClick={() => setShowMobileFilters(false)} className="mobile-only-close" aria-label="Close filters">
+                ×
+              </button>
+            </span>
           </h3>
           <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0", fontSize: "13px", color: "#64748b", lineHeight: 1.45 }}>
             {isMobile ? (
@@ -734,9 +834,12 @@ export default function MapView() {
                       ? mapState.center
                       : null
               }
-              fallbackZoom={13}
+              fallbackZoom={15}
             />
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution='&copy; OpenStreetMap &copy; CARTO' />
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            />
             {placeAnchor && (
               <>
                 <Circle
@@ -815,6 +918,37 @@ export default function MapView() {
                 overflow: "hidden",
               }}
             >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "10px 14px",
+                  background: "#f8fafc",
+                  borderBottom: "1px solid #e2e8f0",
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#334155" }}>Search & location</span>
+                <button
+                  type="button"
+                  aria-label="Hide search panel"
+                  onClick={() => setShowMapSearchOverlay(false)}
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    background: "#fff",
+                    borderRadius: 10,
+                    padding: "6px 12px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#475569",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  Hide
+                </button>
+              </div>
               <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
                 {(placeAnchor || selectedLocality || workplaceAnchor) && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", width: "100%" }}>
@@ -1071,6 +1205,43 @@ export default function MapView() {
                   Showing homes within ~{COMMUTE_NEARBY_KM} km commute of <strong>{workplaceAnchor.label}</strong>
                 </div>
               ) : null}
+              <div
+                style={{
+                  width: "100%",
+                  borderTop: "1px solid #fde68a",
+                  padding: "10px 14px 12px",
+                  background: "#fffbeb",
+                  maxHeight: 160,
+                  overflowY: "auto",
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#92400e", marginBottom: 8, letterSpacing: "0.03em" }}>
+                  POPULAR BENGALURU CAMPUSES (TAP)
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {BANGALORE_WORKPLACES.map((wp) => (
+                    <button
+                      key={wp.id}
+                      type="button"
+                      onClick={() => applyWorkplaceFromList(wp)}
+                      style={{
+                        border: workplaceAnchor?.label === wp.name ? "2px solid #b45309" : "1px solid #fcd34d",
+                        background: workplaceAnchor?.label === wp.name ? "#fef3c7" : "#fff",
+                        borderRadius: 999,
+                        padding: "5px 10px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#78350f",
+                        cursor: "pointer",
+                        maxWidth: "100%",
+                        textAlign: "left",
+                      }}
+                    >
+                      {wp.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {showOverlayQuickFilters && (
                 <div
                   style={{
@@ -1299,7 +1470,25 @@ export default function MapView() {
           )}
           
           {isMobile && (
-            <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, display: "flex", gap: "8px" }}>
+            <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "calc(100% - 24px)" }}>
+              {!showMapSearchOverlay ? (
+                <button
+                  type="button"
+                  onClick={() => setShowMapSearchOverlay(true)}
+                  style={{
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    border: "1px solid #e2e8f0",
+                    padding: "10px 16px",
+                    borderRadius: "24px",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  Show search
+                </button>
+              ) : null}
               <button className="mobile-filter-btn" onClick={() => setShowMobileFilters(true)} style={{ position: "static", transform: "none", margin: 0 }}>
                 Filters
               </button>
@@ -1355,7 +1544,7 @@ export default function MapView() {
             <div
               key={l.id}
               onClick={() => setViewingProperty(l)}
-              onMouseEnter={() => setMapState({ center: [l.lat, l.lng], zoom: 17 })}
+              onMouseEnter={() => setMapState({ center: [l.lat, l.lng], zoom: 18 })}
               style={{
                 background: "white",
                 borderRadius: "12px",

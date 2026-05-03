@@ -11,9 +11,9 @@ import {
 import { isFirebaseConfigured } from "../lib/firebase";
 import {
   addVisitRequestData,
-  getInterestsData,
+  getInterestsForCustomerEmail,
   getCustomerNotificationsData,
-  getAssignmentsData,
+  getAssignmentsForCustomerEmail,
   markNotificationReadData,
 } from "../lib/firestoreStore";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
@@ -59,14 +59,14 @@ export default function CustomerDashboard() {
       if (isFirebaseConfigured) {
         try {
           const [allInt, notifs, assigns] = await Promise.all([
-            getInterestsData(),
+            getInterestsForCustomerEmail(em),
             getCustomerNotificationsData(em),
-            getAssignmentsData(),
+            getAssignmentsForCustomerEmail(em),
           ]);
           if (!alive) return;
-          setCrmInterests((allInt || []).filter((i) => String(i.customerEmail || "").toLowerCase() === em));
+          setCrmInterests(Array.isArray(allInt) ? allInt : []);
           setCustomerNotifs(Array.isArray(notifs) ? notifs : []);
-          setMyAssignments((assigns || []).filter((a) => String(a.customerEmail || "").toLowerCase() === em));
+          setMyAssignments(Array.isArray(assigns) ? assigns : []);
         } catch (e) {
           console.error("Customer CRM load failed", e);
         }

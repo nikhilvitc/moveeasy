@@ -187,6 +187,22 @@ export function removeListing(id) {
   saveListings(filtered);
 }
 
+export function withdrawListingLocal(id) {
+  const all = getListings();
+  const idx = all.findIndex((l) => String(l.id) === String(id));
+  if (idx < 0) return;
+  all[idx] = { ...all[idx], marketStatus: "withdrawn" };
+  saveListings(all);
+}
+
+export function republishListingLocal(id) {
+  const all = getListings();
+  const idx = all.findIndex((l) => String(l.id) === String(id));
+  if (idx < 0) return;
+  all[idx] = { ...all[idx], marketStatus: "published" };
+  saveListings(all);
+}
+
 export function getAllUsers() {
   const users = readJson(KEYS.users, {});
   return Object.entries(users).map(([email, value]) => ({

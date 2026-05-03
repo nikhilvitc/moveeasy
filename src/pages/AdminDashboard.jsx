@@ -46,6 +46,12 @@ import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import MediaUploadField from "../components/MediaUploadField";
 import { getBookings } from "../lib/userActivity";
+import {
+  CONTACT_GRADIENTS,
+  DEFAULT_SITE_PUBLIC,
+  fetchSitePublicSettings,
+  saveSitePublicSettings,
+} from "../lib/sitePublicSettings";
 
 const DEFAULT_FORM = {
   title: "",
@@ -184,12 +190,26 @@ export default function AdminDashboard() {
   const [assignListingId, setAssignListingId] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
+  const [sitePublicDraft, setSitePublicDraft] = useState(() => ({
+    ...DEFAULT_SITE_PUBLIC,
+    contacts: DEFAULT_SITE_PUBLIC.contacts.map((c) => ({ ...c })),
+  }));
+  const [sitePublicStatus, setSitePublicStatus] = useState("");
 
   useEffect(() => {
     let alive = true;
     async function load() {
       if (isFirebaseConfigured) {
-        const [remoteListings, remoteUsers, remoteSellerReqs, remoteVisits, remoteInterests, remoteAssigns, remoteNotifs] = await Promise.all([
+        const [
+          remoteListings,
+          remoteUsers,
+          remoteSellerReqs,
+          remoteVisits,
+          remoteInterests,
+          remoteAssigns,
+          remoteNotifs,
+          sitePub,
+        ] = await Promise.all([
           getListingsData(),
           getAllUsersData(),
           getSellerRequestsData(),
@@ -197,6 +217,7 @@ export default function AdminDashboard() {
           getInterestsData(),
           getAssignmentsData(),
           getAdminNotificationsData(),
+          fetchSitePublicSettings(),
         ]);
         if (!alive) return;
         setListingsState(remoteListings);
@@ -206,6 +227,10 @@ export default function AdminDashboard() {
         setInterestsState(remoteInterests);
         setAssignmentsState(remoteAssigns);
         setAdminNotifs(remoteNotifs);
+        setSitePublicDraft({
+          ...sitePub,
+          contacts: (sitePub.contacts || []).map((c) => ({ ...c })),
+        });
       } else {
         setListingsState(getListings());
         setUsersState(getAllUsers());
@@ -237,6 +262,52 @@ export default function AdminDashboard() {
     }
     return [];
   }, [getPendingSellerBadgeApplications]);
+
+  const addContactRow = () => {
+    setSitePublicDraft((p) => ({
+      ...p,
+      contacts: [
+        ...p.contacts,
+        {
+          name: "",
+          title: "",
+          phone: "",
+          phoneRaw: "",
+          avatar: "",
+          gradient: CONTACT_GRADIENTS[p.contacts.length % CONTACT_GRADIENTS.length],
+        },
+      ].slice(0, 12),
+    }));
+  };
+
+  const removeContactRow = (idx) => {
+    setSitePublicDraft((p) => ({
+      ...p,
+      contacts: p.contacts.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const updateContactField = (idx, field, value) => {
+    setSitePublicDraft((p) => ({
+      ...p,
+      contacts: p.contacts.map((row, i) => (i === idx ? { ...row, [field]: value } : row)),
+    }));
+  };
+
+  const handleSaveSitePublic = async () => {
+    if (!isFirebaseConfigured) {
+      alert("Firebase is not configured — site settings save is disabled.");
+      return;
+    }
+    setSitePublicStatus("Saving…");
+    try {
+      await saveSitePublicSettings(sitePublicDraft);
+      setSitePublicStatus("Saved. Contact page and Terms/Privacy will pick this up on refresh.");
+      setTimeout(() => setSitePublicStatus(""), 5000);
+    } catch (e) {
+      setSitePublicStatus(String(e?.message || e || "Save failed"));
+    }
+  };
 
   const handleSubmitListing = async (e) => {
     e.preventDefault();
@@ -507,6 +578,100 @@ export default function AdminDashboard() {
       </div>
 
       <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
+        <div style={{ ...sectionCard, border: "1px solid #bfdbfe", background: "#f0f9ff", marginBottom: "20px" }}>
+          <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "6px", color: "#0c4a6e" }}>Website — Contact page & legal lines</div>
+          <p style={{ fontSize: "13px", color: "#0369a1", marginBottom: "14px", lineHeight: 1.5 }}>
+            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/public</code>). Contact cards appear on{" "}
+            <strong>/contact</strong>; support email, privacy email, and main phone appear in Terms &amp; Privacy.
+          </p>
+          <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Consultant cards ({sitePublicDraft.contacts.length} / 12)</div>
+          {sitePublicDraft.contacts.map((c, idx) => (
+            <div
+              key={`row-${idx}`}
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 10,
+                background: "#fff",
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+                <input
+                  placeholder="Name"
+                  value={c.name}
+                  onChange={(e) => updateContactField(idx, "name", e.target.value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+                />
+                <input
+                  placeholder="Title (e.g. Sales Lead)"
+                  value={c.title}
+                  onChange={(e) => updateContactField(idx, "title", e.target.value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+                />
+                <input
+                  placeholder="Phone (+91 … or digits for WhatsApp)"
+                  value={c.phone}
+                  onChange={(e) => updateContactField(idx, "phone", e.target.value)}
+                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }}
+                />
+                <label style={{ fontSize: 12, color: "#64748b", gridColumn: isMobile ? undefined : "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
+                  Optional: WhatsApp digits only (auto-filled from phone if empty)
+                  <input
+                    placeholder="9170…"
+                    value={c.phoneRaw}
+                    onChange={(e) => updateContactField(idx, "phoneRaw", e.target.value.replace(/\D/g, ""))}
+                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+                  />
+                </label>
+              </div>
+              <button type="button" onClick={() => removeContactRow(idx)} style={{ ...btn, marginTop: 8, background: "#f1f5f9", color: "#64748b", fontSize: "12px" }}>
+                Remove card
+              </button>
+            </div>
+          ))}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            <button type="button" onClick={addContactRow} disabled={sitePublicDraft.contacts.length >= 12} style={{ ...btn, background: "#0ea5e9", color: "white" }}>
+              + Add contact card
+            </button>
+            <button type="button" onClick={() => navigate("/contact")} style={{ ...btn, background: "#e0f2fe", color: "#0369a1" }}>
+              Preview contact page
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4 }}>
+              Terms — support email
+              <input
+                value={sitePublicDraft.supportEmail}
+                onChange={(e) => setSitePublicDraft((p) => ({ ...p, supportEmail: e.target.value }))}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+              />
+            </label>
+            <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4 }}>
+              Privacy — DPO email
+              <input
+                value={sitePublicDraft.privacyEmail}
+                onChange={(e) => setSitePublicDraft((p) => ({ ...p, privacyEmail: e.target.value }))}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+              />
+            </label>
+            <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4, gridColumn: isMobile ? undefined : "1 / -1" }}>
+              Terms &amp; Privacy — main phone (display text)
+              <input
+                value={sitePublicDraft.legalPhoneDisplay}
+                onChange={(e) => setSitePublicDraft((p) => ({ ...p, legalPhoneDisplay: e.target.value }))}
+                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
+              />
+            </label>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+            <button type="button" onClick={handleSaveSitePublic} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>
+              Save to Firestore
+            </button>
+            {sitePublicStatus ? <span style={{ fontSize: 13, color: sitePublicStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{sitePublicStatus}</span> : null}
+          </div>
+        </div>
+
         {pendingSellerBadgeApps.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
@@ -880,7 +1045,7 @@ export default function AdminDashboard() {
               <div style={{ fontWeight: 700, color: "#16a34a", marginRight: isMobile ? 0 : "16px" }}>{l.price}</div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button onClick={() => handleEdit(l)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px" }}>Edit</button>
-                <button onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px" }}>Delete</button>
+                <button type="button" title="Permanent removal from database. Sellers can only withdraw (hide) their listings." onClick={() => handleDelete(l.id)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px" }}>Delete</button>
               </div>
             </div>
           ))}

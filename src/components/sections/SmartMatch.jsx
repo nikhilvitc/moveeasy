@@ -9,8 +9,7 @@ import logoSvg from "../../assets/logo/moveasy.svg";
 import { MapPin } from "lucide-react";
 import { getListings } from "../../lib/store";
 import { isFirebaseConfigured } from "../../lib/firebase";
-import { getListingsData } from "../../lib/firestoreStore";
-import { pickFirstListingForHeroSearch } from "../../lib/searchResolve";
+import { getListingsData, isListingPubliclyVisible } from "../../lib/firestoreStore";
 import PropertyModal from "../PropertyModal";
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -23,6 +22,9 @@ const SMART_FEATURES = [
 ];
 
 const BADGE_ROTATION = ["Verified on map", "Sample listing", "Budget-friendly", "Great commute", "Fast availability"];
+
+/** Default “Top Matches” strip: one sample per area (Bangalore map inventory). */
+const POPULAR_AREAS_ORDER = ["Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
 
 function isBangaloreListing(listing) {
   const t = `${listing.address || ""} ${listing.location || ""}`.toLowerCase();
@@ -41,7 +43,11 @@ function listingMatchesArea(listing, areaFilter) {
   if (areaFilter === "All areas") return true;
   const loc = localityFromListing(listing).toLowerCase();
   const want = areaFilter.toLowerCase().trim();
-  return loc === want || loc.includes(want) || want.includes(loc);
+  if (loc === want) return true;
+  if (loc.includes(want) || want.includes(loc)) return true;
+  // e.g. "Mahadevapura" vs seed "Mahadevpura"
+  if (want.includes("mahadev") && loc.includes("mahadev")) return true;
+  return false;
 }
 
 function listingMatchesBhk(listing, bhkFilter) {
@@ -95,13 +101,13 @@ function PropertyCard({ listing, badge, delay, onClick }) {
       </div>
 
       <div className="px-4 py-4">
-        <div className="flex items-center gap-1.5">
-          <MapPin size={13} className="text-[#EF4444] flex-shrink-0 mt-[1px]" fill="#EF4444" />
-          <span className="text-[15px] font-bold text-gray-950">
-            {loc} • {bhkCompact}
+        <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-start">
+          <MapPin size={14} className="text-[#EF4444] flex-shrink-0 mt-0.5" fill="#EF4444" aria-hidden />
+          <span className="text-[15px] font-bold text-gray-950 leading-snug">
+            {loc} · {bhkCompact}
           </span>
+          <span className="col-start-2 text-[13px] text-gray-500 leading-relaxed line-clamp-2">{subtitle || "Tap for full details"}</span>
         </div>
-        <p className="mt-1 text-[13.5px] text-gray-400 pl-[18px]">{subtitle || "Tap for full details"}</p>
       </div>
     </motion.div>
   );
@@ -120,9 +126,9 @@ export default function SmartMatch() {
     async function load() {
       try {
         const rows = isFirebaseConfigured ? await getListingsData() : getListings();
-        if (alive) setListings(rows);
+        if (alive) setListings(rows.filter(isListingPubliclyVisible));
       } catch {
-        if (alive) setListings(getListings());
+        if (alive) setListings(getListings().filter(isListingPubliclyVisible));
       }
     }
     load();
@@ -131,15 +137,31 @@ export default function SmartMatch() {
     };
   }, []);
 
-  const areaOptions = ["All areas", "Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
+  const areaOptions = ["All areas", ...POPULAR_AREAS_ORDER];
   const bhkOptions = ["All BHK", "1 BHK", "2 BHK", "3 BHK", "3+ BHK"];
 
   const visibleMatches = useMemo(() => {
     const blr = listings.filter(isBangaloreListing);
-    return blr
-      .filter((l) => listingMatchesArea(l, areaFilter))
-      .filter((l) => listingMatchesBhk(l, bhkFilter))
-      .slice(0, 24);
+    if (areaFilter !== "All areas") {
+      return blr
+        .filter((l) => listingMatchesArea(l, areaFilter))
+        .filter((l) => listingMatchesBhk(l, bhkFilter))
+        .slice(0, 24);
+    }
+    if (bhkFilter === "All BHK") {
+      const picked = [];
+      for (const area of POPULAR_AREAS_ORDER) {
+        const found = blr.find((l) => listingMatchesArea(l, area));
+        if (found && !picked.some((p) => p.id === found.id)) picked.push(found);
+      }
+      return picked;
+    }
+    const pickedBhk = [];
+    for (const area of POPULAR_AREAS_ORDER) {
+      const found = blr.find((l) => listingMatchesArea(l, area) && listingMatchesBhk(l, bhkFilter));
+      if (found && !pickedBhk.some((p) => p.id === found.id)) pickedBhk.push(found);
+    }
+    return pickedBhk;
   }, [listings, areaFilter, bhkFilter]);
 
   return (
@@ -150,22 +172,17 @@ export default function SmartMatch() {
           initial={{ opacity: 0, y: 24 }}
           animate={titleInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: EASE }}
-          className="mb-10 sm:mb-12"
+          className="mb-10 sm:mb-12 text-left"
         >
-          <h2
-            className="
-            text-[26px] sm:text-[34px] lg:text-[40px]
-            font-extrabold text-gray-950 leading-[1.15] tracking-tight
-          "
-          >
+          <h2 className="text-[26px] sm:text-[34px] lg:text-[40px] font-extrabold text-gray-950 leading-[1.15] tracking-tight max-w-3xl">
             Find the Right Home — Without the Guesswork
           </h2>
           <p className="mt-3 text-[14.5px] sm:text-[15.5px] text-gray-500 max-w-2xl leading-relaxed">
-            Answer a few quick questions and we'll guide you to the best areas, brokers, and homes based on your needs.
+            Answer a few quick questions and we&apos;ll guide you to the best areas, brokers, and homes based on your needs.
           </p>
         </motion.div>
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-0">
+        <div className="flex flex-col lg:flex-row lg:items-stretch gap-8 lg:gap-0">
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -180,9 +197,12 @@ export default function SmartMatch() {
               shadow-[0_2px_16px_rgba(0,0,0,0.06)]
             "
           >
-            <div className="flex items-center gap-3 mb-7">
+            <div className="flex items-center gap-3 mb-7 pb-5 border-b border-gray-100">
               <img src={logoSvg} alt="MovEASY" className="h-7 w-auto" />
-              <span className="text-[16px] font-bold text-gray-950">Smart Match</span>
+              <div className="min-w-0">
+                <div className="text-[16px] font-bold text-gray-950 leading-tight">Smart Match</div>
+                <div className="text-[12px] font-medium text-gray-400 mt-0.5">Your move, simplified</div>
+              </div>
             </div>
 
             <ul className="flex flex-col gap-4 flex-1">
@@ -196,17 +216,7 @@ export default function SmartMatch() {
 
             <button
               type="button"
-              onClick={() => {
-                const m = pickFirstListingForHeroSearch({
-                  locality: "",
-                  bhk: "",
-                  propertyType: "",
-                  minRent: 10000,
-                  maxRent: 100000,
-                });
-                if (m) navigate(`/map?listingId=${encodeURIComponent(m.id)}`);
-                else navigate("/map");
-              }}
+              onClick={() => navigate("/map?openFilters=1")}
               className="
               mt-8 w-full py-[14px]
               text-[14.5px] font-semibold text-white
@@ -226,26 +236,21 @@ export default function SmartMatch() {
             aria-hidden="true"
           />
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-5">
-              <span
-                className="
-                text-[15px] sm:text-[16px] font-semibold
-                text-[#EF4444]
-                underline underline-offset-4 decoration-[#EF4444]
-              "
-              >
-                Top Matches
-              </span>
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4 mb-4">
+              <div className="min-w-0">
+                <h3 className="text-[18px] sm:text-[20px] font-extrabold text-gray-950 tracking-tight">Top Matches</h3>
+                <p className="text-[12.5px] sm:text-[13px] text-gray-500 mt-1 font-medium">Popular areas · sample homes you can open on the map</p>
+              </div>
               <button
                 type="button"
-                onClick={() => navigate("/listings")}
-                className="text-[14.5px] font-semibold text-gray-950 hover:text-[#EF4444] transition-colors"
+                onClick={() => navigate("/map?openFilters=1")}
+                className="self-start sm:self-auto shrink-0 text-[14px] font-bold text-[#EF4444] hover:text-[#DC2626] transition-colors py-1"
               >
-                View All
+                View all on map →
               </button>
             </div>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               <select
                 value={areaFilter}
                 onChange={(e) => setAreaFilter(e.target.value)}

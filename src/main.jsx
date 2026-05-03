@@ -1,3 +1,4 @@
+import { captureException } from "./lib/sentry.js";
 import { StrictMode, Component } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
@@ -12,6 +13,10 @@ class RootErrorBoundary extends Component {
 
   static getDerivedStateFromError(err) {
     return { err };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    captureException(error, { contexts: { react: { componentStack: errorInfo?.componentStack } } });
   }
 
   render() {

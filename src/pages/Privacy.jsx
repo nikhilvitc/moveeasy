@@ -1,7 +1,9 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 
 export default function Privacy() {
+  const { sitePublic } = useSitePublicSettings();
   return (
     <div className="min-h-screen bg-white antialiased">
       <Navbar />
@@ -68,8 +70,15 @@ export default function Privacy() {
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-3">7. Contact</h2>
             <p>
               For privacy-related inquiries, contact our Data Protection Officer at{" "}
-              <a href="mailto:privacy@moveazy.in" className="text-red-500 hover:underline">privacy@moveazy.in</a>
-              {" "}or call +91 70559 54373.
+              <a href={`mailto:${sitePublic.privacyEmail}`} className="text-red-500 hover:underline">
+                {sitePublic.privacyEmail}
+              </a>
+              {" "}
+              or call{" "}
+              <a href={sitePublic.legalPhoneTel} className="text-red-500 hover:underline">
+                {sitePublic.legalPhoneDisplay}
+              </a>
+              .
             </p>
           </section>
         </div>

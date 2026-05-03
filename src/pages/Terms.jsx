@@ -1,7 +1,9 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 
 export default function Terms() {
+  const { sitePublic } = useSitePublicSettings();
   return (
     <div className="min-h-screen bg-white antialiased">
       <Navbar />
@@ -66,8 +68,15 @@ export default function Terms() {
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-3">7. Contact</h2>
             <p>
               For questions about these terms, contact us at{" "}
-              <a href="mailto:support@moveazy.in" className="text-red-500 hover:underline">support@moveazy.in</a>
-              {" "}or call +91 70559 54373.
+              <a href={`mailto:${sitePublic.supportEmail}`} className="text-red-500 hover:underline">
+                {sitePublic.supportEmail}
+              </a>
+              {" "}
+              or call{" "}
+              <a href={sitePublic.legalPhoneTel} className="text-red-500 hover:underline">
+                {sitePublic.legalPhoneDisplay}
+              </a>
+              .
             </p>
           </section>
         </div>

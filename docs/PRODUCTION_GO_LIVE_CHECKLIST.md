@@ -1,48 +1,23 @@
-# MovEasy Production Go-Live Checklist
+# Production Go-Live Checklist
 
-This checklist is the minimum required to call the website production-ready.
+A comprehensive checklist for moving from a "prototype" to a "business-ready" product.
 
-## A) Authentication and Email (must pass)
+## Phase 1: Technical Hardening
+- [ ] **Custom Domain:** Connect your own domain (e.g. `moveazy.in`) to Firebase Hosting.
+- [ ] **Monitoring:** Integrate an error tracking tool like **Sentry** or **LogRocket** to catch client-side crashes.
+- [ ] **Analytics:** Setup Google Analytics 4 (GA4) via the Firebase config to track user conversion.
+- [ ] **Performance:** Run a Lighthouse audit and optimize image sizes in Storage.
 
-- [ ] Set real `VITE_FIREBASE_*` values in deployment environment.
-- [ ] Enable Firebase Auth Email/Password sign-in.
-- [ ] Configure Firebase email verification template in console.
-- [ ] Deploy `sendWelcomeEmail` Cloud Function.
-- [ ] Set function secrets: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
-- [ ] Set frontend `VITE_WELCOME_EMAIL_FUNCTION_URL` to deployed function URL.
-- [ ] Verify flow:
-  - signup sends verification mail
-  - unverified login is blocked
-  - verified login succeeds
-  - first verified login sends welcome email
+## Phase 2: Operations & Support
+- [ ] **Admin Notify:** Ensure `VITE_ADMIN_EMAILS` includes the actual operations team.
+- [ ] **Backup Strategy:** Enable automated Firestore backups (requires Blaze plan).
+- [ ] **Email Limits:** Verify your EmailJS plan covers your expected launch traffic (Free plan is 200 emails/month).
 
-## B) Security and Access Control
+## Phase 3: Legal & Trust
+- [ ] **Privacy Policy:** Update `/privacy` with actual company details.
+- [ ] **Terms of Service:** Review `/terms` for liability clauses related to real estate.
+- [ ] **Verification Badges:** Define the internal process for verifying sellers before granting the "Verified" badge.
 
-- [ ] Keep admin credentials out of repository history (move to secret manager/server-side auth).
-- [ ] Add brute-force protections (Firebase/Auth + WAF/rate limits where applicable).
-- [ ] Keep seller trust badge review non-blocking for account login.
-- [ ] Audit admin actions (listing edits/deletes, badge approvals).
-
-## C) Data and Listings
-
-- [ ] Use authorized partner feeds/MLS/IDX only (no unauthorized scraping).
-- [ ] Validate feed schema and deduplicate listing IDs.
-- [ ] Add source attribution and `sourceUrl` integrity checks.
-
-## D) Quality Gates
-
-- [ ] CI passes on every push: install + tests + build.
-- [ ] Smoke test completed on live URL for customer, seller, and admin flows.
-- [ ] Error monitoring and uptime checks configured (Sentry + uptime monitor recommended).
-
-## E) Performance Baseline
-
-- [ ] Capture Lighthouse baseline for home, map, login pages.
-- [ ] Add map marker clustering for large listing counts.
-- [ ] Run initial load test for API/email endpoints before launch.
-
-## F) Launch Sign-off
-
-- [ ] Founder sign-off on flows, legal text, and contact support email.
-- [ ] Backup and rollback plan documented.
-- [ ] Final live test evidence stored (screenshots + timestamps).
+## Phase 4: Final Smoke Test
+- [ ] Perform a full end-to-end flow: Search -> Filter -> Visit Request -> Admin Assignment -> Status Update.
+- [ ] Verify that all automated emails contain correct links to the live site.
