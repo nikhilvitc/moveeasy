@@ -1,15 +1,22 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 
 export default function Privacy() {
   const { sitePublic } = useSitePublicSettings();
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="relative min-h-screen overflow-x-hidden antialiased">
+      <PremiumPageBackdrop variant="subtle" />
       <Navbar />
-      <main className="max-w-3xl mx-auto px-6 py-16">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Privacy Policy</h1>
-        <p className="text-gray-400 text-sm mb-10">Last updated: April 2026</p>
+      <main className="relative z-10 max-w-3xl mx-auto px-6 py-16">
+        <div className="rounded-2xl border border-stone-200/70 bg-white/92 p-8 shadow-xl backdrop-blur-md ring-1 ring-stone-900/[0.04] md:p-10">
+        <h1 className="text-4xl font-extrabold tracking-tight mb-2">
+          <span className="bg-gradient-to-r from-stone-900 via-rose-900 to-orange-800 bg-clip-text text-transparent">
+            Privacy Policy
+          </span>
+        </h1>
+        <p className="text-slate-500 text-sm mb-10 font-medium">Last updated: April 2026</p>
 
         <div className="prose prose-gray max-w-none space-y-6 text-[15px] leading-relaxed text-gray-600">
           <section>
@@ -82,8 +89,11 @@ export default function Privacy() {
             </p>
           </section>
         </div>
+        </div>
       </main>
-      <Footer />
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   );
 }

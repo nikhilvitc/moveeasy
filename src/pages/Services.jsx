@@ -1,5 +1,6 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
 import ServicesHero from "../components/sections/ServicesHero";
 import StorySection from "../components/sections/StorySection";
 import CoreValues from "../components/sections/CoreValues";
@@ -10,10 +11,12 @@ import ServicesCTA from "../components/sections/ServicesCTA";
 
 export default function Services() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased">
+      <PremiumPageBackdrop variant="subtle" overlayOnly />
+
       <Navbar />
 
-      <main className="relative">
+      <main className="relative z-10">
         <ServicesHero />
         <StorySection />
         <CoreValues />
@@ -23,7 +26,9 @@ export default function Services() {
         <ServicesCTA />
       </main>
 
-      <Footer />
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </div>
   );
 }

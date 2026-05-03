@@ -227,17 +227,17 @@ export default function SmartMatch() {
               w-full max-w-md mx-auto lg:mx-0 lg:w-[300px] xl:w-[320px] lg:flex-shrink-0
               rounded-2xl border border-rose-100/90
               bg-white/95 backdrop-blur-md p-7
-              flex flex-col
+              flex flex-col min-w-0 overflow-hidden
               shadow-[0_8px_32px_rgba(15,23,42,0.08)]
             "
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 mb-7 pb-5 border-b border-rose-100/80 w-full min-w-0">
-              <img src={logoSvg} alt="MovEASY" className="h-8 w-auto flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <div className="text-[17px] font-extrabold leading-tight bg-gradient-to-r from-stone-900 to-rose-900 bg-clip-text text-transparent">
-                  Smart Match
-                </div>
-                <div className="text-[12.5px] font-medium text-slate-500 mt-1">Your move, simplified</div>
+            <div className="mb-7 pb-5 border-b border-rose-100/80 w-full min-w-0">
+              <img src={logoSvg} alt="MovEASY" className="h-8 w-auto mb-3.5" />
+              <div className="min-w-0">
+                <div className="text-[17px] font-extrabold leading-tight text-stone-900">Smart Match</div>
+                <p className="text-[12.5px] font-medium text-slate-500 mt-1.5 leading-snug">
+                  Your move, simplified
+                </p>
               </div>
             </div>
 
@@ -308,31 +308,32 @@ export default function SmartMatch() {
               </select>
             </div>
 
-            <div className="relative">
-              <button
-                type="button"
-                aria-label="Scroll top matches left"
-                onClick={() => scrollBy(-300)}
-                className="absolute left-1 sm:left-0 top-1/2 z-10 flex h-9 w-9 sm:h-10 sm:w-10 -translate-y-1/2 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-md hover:bg-rose-50"
-              >
-                <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
-              </button>
-              <button
-                type="button"
-                aria-label="Scroll top matches right"
-                onClick={() => scrollBy(300)}
-                className="absolute right-1 sm:right-0 top-1/2 z-10 flex h-9 w-9 sm:h-10 sm:w-10 -translate-y-1/2 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-md hover:bg-rose-50"
-              >
-                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-end gap-2" role="group" aria-label="Scroll top matches">
+                <button
+                  type="button"
+                  aria-label="Scroll top matches left"
+                  onClick={() => scrollBy(-300)}
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-sm hover:bg-rose-50"
+                >
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Scroll top matches right"
+                  onClick={() => scrollBy(300)}
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-sm hover:bg-rose-50"
+                >
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
+                </button>
+              </div>
 
               <div
                 ref={scrollRef}
                 className="
                   flex gap-4 sm:gap-5
                   overflow-x-auto overflow-y-visible py-1
-                  pl-11 pr-11 sm:pl-12 sm:pr-12
-                  -mx-1 px-1
+                  pl-0.5 pr-0.5
                   scroll-smooth
                   scrollbar-hide
                   snap-x snap-mandatory
