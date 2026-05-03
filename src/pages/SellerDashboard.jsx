@@ -327,8 +327,13 @@ export default function SellerDashboard() {
           <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
             <div style={{ fontWeight: 700, marginBottom: "6px" }}>Assigned Leads ({myAssignments.length})</div>
             {myAssignments.map((a) => (
-              <div key={a.id} style={{ fontSize: "12px", marginBottom: "4px" }}>
-                Customer: {a.customerEmail} | Listing #{a.listingId}
+              <div key={a.id} style={{ fontSize: "12px", marginBottom: "10px", padding: "8px 10px", background: "#fff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
+                <div style={{ fontWeight: 700, color: "#0c4a6e" }}>{a.listingTitle || `Listing #${a.listingId}`}</div>
+                <div style={{ marginTop: "4px" }}>
+                  <strong>Customer:</strong> {a.customerName ? `${a.customerName} · ` : ""}{a.customerEmail}
+                  {a.customerPhone ? <span> · <strong>Phone:</strong> {a.customerPhone}</span> : null}
+                </div>
+                {a.notes ? <div style={{ marginTop: "4px", color: "#64748b", fontStyle: "italic" }}>{a.notes}</div> : null}
               </div>
             ))}
           </div>

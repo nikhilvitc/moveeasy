@@ -387,9 +387,19 @@ export default function CustomerDashboard() {
           <div style={{ marginTop: "24px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "12px" }}>Listings assigned by admin</div>
             {myAssignments.map((a) => (
-              <div key={a.id} style={{ background: "#ecfeff", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px" }}>
-                Listing #{a.listingId} — broker <b>{a.sellerEmail}</b>
-                {a.notes ? ` — ${a.notes}` : ""}
+              <div key={a.id} style={{ background: "#ecfeff", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", fontSize: "13px", lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 700 }}>{a.listingTitle || `Listing #${a.listingId}`}</div>
+                <div style={{ marginTop: "6px" }}>
+                  <strong>Broker / seller:</strong> {a.sellerName ? `${a.sellerName} · ` : ""}
+                  <b>{a.sellerEmail || "—"}</b>
+                  {a.sellerContactPhone ? <span> · <strong>Phone:</strong> {a.sellerContactPhone}</span> : null}
+                </div>
+                {(a.customerPhone || a.customerName) ? (
+                  <div style={{ marginTop: "4px", fontSize: "12px", color: "#64748b" }}>
+                    Your details on this assignment: {a.customerName ? `${a.customerName} · ` : ""}{a.customerPhone || "—"}
+                  </div>
+                ) : null}
+                {a.notes ? <div style={{ marginTop: "6px", color: "#475569" }}><strong>Note:</strong> {a.notes}</div> : null}
               </div>
             ))}
           </div>

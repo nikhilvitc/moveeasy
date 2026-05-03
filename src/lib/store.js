@@ -249,12 +249,28 @@ export function getAssignments() {
   return readJson(KEYS.assignments, []);
 }
 
-export function addAssignment({ listingId, customerEmail, sellerEmail, notes, createdBy }) {
+export function addAssignment({
+  listingId,
+  customerEmail,
+  customerName = "",
+  customerPhone = "",
+  sellerEmail,
+  sellerName = "",
+  sellerContactPhone = "",
+  listingTitle = "",
+  notes,
+  createdBy,
+}) {
   const record = {
     id: Date.now(),
     listingId,
+    listingTitle: String(listingTitle || "").slice(0, 200),
     customerEmail,
+    customerName: String(customerName || "").trim().slice(0, 120),
+    customerPhone: String(customerPhone || "").trim().slice(0, 40),
     sellerEmail,
+    sellerName: String(sellerName || "").trim().slice(0, 120),
+    sellerContactPhone: String(sellerContactPhone || "").trim().slice(0, 40),
     notes: notes || "",
     status: "assigned",
     createdBy: createdBy || "admin",
@@ -270,6 +286,8 @@ export function addAssignment({ listingId, customerEmail, sellerEmail, notes, cr
     listings[idx] = {
       ...listings[idx],
       assignedCustomerEmail: customerEmail,
+      assignedCustomerName: record.customerName || null,
+      assignedCustomerPhone: record.customerPhone || null,
       assignedSellerEmail: sellerEmail,
       updatedAt: new Date().toISOString(),
     };

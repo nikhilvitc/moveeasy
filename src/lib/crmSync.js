@@ -87,13 +87,30 @@ export async function notifyCustomerInterestStatusChanged(row, newStatus) {
 }
 
 /** After admin assigns a customer to a listing + broker. */
-export async function notifyCustomerListingAssigned({ customerEmail, listingId, listingTitle, notes, sellerEmail }) {
+export async function notifyCustomerListingAssigned({
+  customerEmail,
+  customerName = "",
+  customerPhone = "",
+  listingId,
+  listingTitle,
+  notes,
+  sellerEmail,
+  sellerName = "",
+  sellerContactPhone = "",
+}) {
   const cust = String(customerEmail || "").toLowerCase().trim();
   if (!cust) return;
   const title = "You have been matched to a listing";
   const lt = listingTitle || `Listing #${listingId}`;
   const broker = String(sellerEmail || "").trim().toLowerCase();
-  const body = `An admin assigned you to “${lt}”.${broker ? ` Broker contact: ${broker}.` : ""}${notes ? ` Note: ${notes}` : ""}`;
+  const brokerLabel = String(sellerName || "").trim() || broker;
+  const parts = [`An admin assigned you to “${lt}”.`];
+  if (String(customerName || "").trim()) parts.push(` We have you on file as ${String(customerName).trim()}.`);
+  if (String(customerPhone || "").trim()) parts.push(` Your phone on this assignment: ${String(customerPhone).trim()}.`);
+  if (broker) parts.push(` Broker: ${brokerLabel}${broker !== brokerLabel ? ` (${broker})` : ""}.`);
+  if (String(sellerContactPhone || "").trim()) parts.push(` Listing / broker phone: ${String(sellerContactPhone).trim()}.`);
+  if (String(notes || "").trim()) parts.push(` Note: ${String(notes).trim()}.`);
+  const body = parts.join("");
   syncBookingApplicationStatus(cust, listingId, "assigned", interestStatusToCustomerLabel("assigned"));
 
   try {
@@ -104,7 +121,12 @@ export async function notifyCustomerListingAssigned({ customerEmail, listingId, 
         title,
         body,
         type: "assignment",
-        meta: { listingId: String(listingId), sellerEmail: broker },
+        meta: {
+          listingId: String(listingId),
+          sellerEmail: broker,
+          customerPhone: String(customerPhone || "").trim(),
+          listingTitle: String(listingTitle || ""),
+        },
       });
     } else {
       pushNotificationLocal({
@@ -113,7 +135,12 @@ export async function notifyCustomerListingAssigned({ customerEmail, listingId, 
         title,
         body,
         type: "assignment",
-        meta: { listingId: String(listingId) },
+        meta: {
+          listingId: String(listingId),
+          sellerEmail: broker,
+          customerPhone: String(customerPhone || "").trim(),
+          listingTitle: String(listingTitle || ""),
+        },
       });
     }
   } catch (e) {
@@ -123,7 +150,7 @@ export async function notifyCustomerListingAssigned({ customerEmail, listingId, 
   try {
     await triggerCustomerApplicationStatusEmail({
       to_email: cust,
-      customer_name: "there",
+      customer_name: String(customerName || "").trim() || "there",
       listing_title: String(listingTitle || ""),
       listing_id: listingId,
       status: "assigned",

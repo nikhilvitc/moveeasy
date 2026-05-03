@@ -191,6 +191,8 @@ export default function AdminDashboard() {
   const [historyUser, setHistoryUser] = useState(null);
   const [historyBundle, setHistoryBundle] = useState(null);
   const [assignCustomerEmail, setAssignCustomerEmail] = useState("");
+  const [assignCustomerName, setAssignCustomerName] = useState("");
+  const [assignCustomerPhone, setAssignCustomerPhone] = useState("");
   const [assignListingId, setAssignListingId] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
@@ -419,6 +421,23 @@ export default function AdminDashboard() {
     return users;
   }, [users, userListTab, customersList, sellersList, adminsList]);
 
+  const assignSelectedListing = useMemo(
+    () => listings.find((l) => String(l.id) === String(assignListingId)),
+    [listings, assignListingId]
+  );
+
+  const fillAssignCustomerFromDirectory = () => {
+    const em = assignCustomerEmail.trim().toLowerCase();
+    if (!em) return;
+    const row = users.find((u) => String(u.email || "").toLowerCase().trim() === em);
+    if (!row) {
+      alert("No user in the directory with that exact email.");
+      return;
+    }
+    if (String(row.name || "").trim()) setAssignCustomerName(String(row.name).trim());
+    if (String(row.phone || "").trim()) setAssignCustomerPhone(String(row.phone).trim());
+  };
+
   const handleInterestStatus = async (row, status) => {
     if (isFirebaseConfigured) await updateInterestStatusData(row.id, status);
     else updateInterestGlobal(row.id, { status });
@@ -440,11 +459,21 @@ export default function AdminDashboard() {
       return;
     }
     const sellerEmail = (listing.sellerEmail || "").trim().toLowerCase();
+    const customerName = assignCustomerName.trim();
+    const customerPhone = assignCustomerPhone.trim();
+    const sellerName = String(listing.seller || "").trim();
+    const sellerContactPhone = String(listing.contact || "").trim();
+    const listingTitle = String(listing.title || "").trim();
     if (isFirebaseConfigured) {
       await addAssignmentData({
         listingId: assignListingId,
         customerEmail: assignCustomerEmail.trim().toLowerCase(),
+        customerName,
+        customerPhone,
         sellerEmail,
+        sellerName,
+        sellerContactPhone,
+        listingTitle,
         notes: assignNotes,
         createdBy: user?.email,
       });
@@ -452,13 +481,19 @@ export default function AdminDashboard() {
       addAssignment({
         listingId: assignListingId,
         customerEmail: assignCustomerEmail.trim().toLowerCase(),
+        customerName,
+        customerPhone,
         sellerEmail,
+        sellerName,
+        sellerContactPhone,
+        listingTitle,
         notes: assignNotes,
         createdBy: user?.email,
       });
     }
     if (sellerEmail) {
-      const body = `Admin assigned listing #${assignListingId} to ${assignCustomerEmail.trim().toLowerCase()}.`;
+      const custLine = [assignCustomerEmail.trim().toLowerCase(), customerName || null, customerPhone || null].filter(Boolean).join(" · ");
+      const body = `New lead assignment: ${custLine} for “${listingTitle || `Listing #${assignListingId}`}” (#${assignListingId}).${assignNotes.trim() ? ` Notes: ${assignNotes.trim()}` : ""}`;
       try {
         if (isFirebaseConfigured) {
           await addNotificationData({
@@ -485,14 +520,20 @@ export default function AdminDashboard() {
     }
     await notifyCustomerListingAssigned({
       customerEmail: assignCustomerEmail.trim().toLowerCase(),
+      customerName,
+      customerPhone,
       listingId: assignListingId,
       listingTitle: listing.title,
       notes: assignNotes,
       sellerEmail: listing.sellerEmail,
+      sellerName,
+      sellerContactPhone,
     });
     setAssignNotes("");
     setAssignListingId("");
     setAssignCustomerEmail("");
+    setAssignCustomerName("");
+    setAssignCustomerPhone("");
     alert("Assignment recorded. The seller sees this on their dashboard.");
     setRefreshTick((v) => v + 1);
   };
@@ -923,9 +964,31 @@ export default function AdminDashboard() {
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "8px", color: "#0f172a" }}>Assign apartment to customer</div>
           <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "12px", lineHeight: 1.5 }}>
-            Links a listing to a customer email and notifies the listing&apos;s seller on their dashboard (assignments list).
+            Saves a full lead handoff: customer contact, listing context, and seller/broker details. The seller sees this on their dashboard; the customer gets an in-app message (and email when configured).
           </p>
-          <form onSubmit={handleAssignSubmit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "10px", alignItems: "end" }}>
+          {assignSelectedListing ? (
+            <div
+              style={{
+                fontSize: "13px",
+                color: "#334155",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                marginBottom: "14px",
+                lineHeight: 1.55,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: "6px", color: "#0f172a" }}>Selected listing (read-only)</div>
+              <div><strong>Title:</strong> {assignSelectedListing.title || "—"}</div>
+              <div><strong>Seller / broker:</strong> {assignSelectedListing.seller || "—"}</div>
+              <div><strong>Seller email:</strong> {assignSelectedListing.sellerEmail || "—"}</div>
+              <div><strong>Listing phone on file:</strong> {assignSelectedListing.contact?.trim() ? assignSelectedListing.contact : "—"}</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "12px" }}>Pick a listing below to preview seller details from the listing record.</div>
+          )}
+          <form onSubmit={handleAssignSubmit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: "10px", alignItems: "end" }}>
             <div>
               <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Customer email</label>
               <input
@@ -936,7 +999,26 @@ export default function AdminDashboard() {
                 style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}
               />
             </div>
-            <div style={{ gridColumn: isMobile ? "auto" : "span 2" }}>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Customer name (optional)</label>
+              <input
+                value={assignCustomerName}
+                onChange={(e) => setAssignCustomerName(e.target.value)}
+                placeholder="As you want it shown to seller"
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Customer phone (recommended)</label>
+              <input
+                type="tel"
+                value={assignCustomerPhone}
+                onChange={(e) => setAssignCustomerPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }}
+              />
+            </div>
+            <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
               <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Listing</label>
               <select
                 value={assignListingId}
@@ -952,9 +1034,15 @@ export default function AdminDashboard() {
                 ))}
               </select>
             </div>
+            <div style={{ gridColumn: isMobile ? "auto" : "1 / -1", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+              <button type="button" onClick={fillAssignCustomerFromDirectory} style={{ ...btn, background: "#e2e8f0", color: "#334155", fontSize: "12px" }}>
+                Fill name &amp; phone from Users directory
+              </button>
+              <span style={{ fontSize: "11px", color: "#94a3b8" }}>Uses exact email match in your user list.</span>
+            </div>
             <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
               <label style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "4px" }}>Notes (optional)</label>
-              <input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Internal note" style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+              <input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Visit window, budget, internal handoff…" style={{ width: "100%", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
             </div>
             <button type="submit" style={{ ...btn, background: "#b91c1c", color: "white", gridColumn: isMobile ? "auto" : "1 / -1" }}>
               Save assignment
@@ -966,7 +1054,10 @@ export default function AdminDashboard() {
               <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
                 {assignmentsState.slice(0, 15).map((a) => (
                   <li key={a.id}>
-                    Listing #{a.listingId} → customer {a.customerEmail} (seller {a.sellerEmail || "—"})
+                    {a.listingTitle ? `“${a.listingTitle}”` : `Listing #${a.listingId}`} → {a.customerName ? `${a.customerName} · ` : ""}
+                    {a.customerEmail}
+                    {a.customerPhone ? ` · ${a.customerPhone}` : ""} · seller {a.sellerName || a.sellerEmail || "—"}
+                    {a.sellerContactPhone ? ` (listing phone: ${a.sellerContactPhone})` : ""}
                   </li>
                 ))}
               </ul>
@@ -1280,7 +1371,8 @@ export default function AdminDashboard() {
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#475569", lineHeight: 1.65 }}>
                       {(historyBundle.assigns || []).map((a) => (
                         <li key={a.id}>
-                          Listing #{a.listingId} — seller {a.sellerEmail || "—"} — {a.notes || "no notes"}
+                          {a.listingTitle || `Listing #${a.listingId}`} — {a.sellerName || a.sellerEmail || "—"}
+                          {a.customerPhone ? ` · customer phone ${a.customerPhone}` : ""} — {a.notes || "no notes"}
                         </li>
                       ))}
                       {!(historyBundle.assigns || []).length ? <li>None.</li> : null}

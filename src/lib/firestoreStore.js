@@ -143,10 +143,40 @@ export async function getAssignmentsData() {
   return snap.docs.map((assignmentDoc) => ({ id: assignmentDoc.id, ...assignmentDoc.data() }));
 }
 
-export async function addAssignmentData({ listingId, customerEmail, sellerEmail, notes, createdBy }) {
-  const record = { listingId: String(listingId), customerEmail, sellerEmail, notes: notes || "", status: "assigned", createdBy, createdAt: serverTimestamp() };
+export async function addAssignmentData({
+  listingId,
+  customerEmail,
+  customerName = "",
+  customerPhone = "",
+  sellerEmail,
+  sellerName = "",
+  sellerContactPhone = "",
+  listingTitle = "",
+  notes = "",
+  createdBy,
+}) {
+  const record = {
+    listingId: String(listingId),
+    listingTitle: String(listingTitle || "").slice(0, 200),
+    customerEmail: String(customerEmail || "").trim().toLowerCase(),
+    customerName: String(customerName || "").trim().slice(0, 120),
+    customerPhone: String(customerPhone || "").trim().slice(0, 40),
+    sellerEmail: String(sellerEmail || "").trim().toLowerCase(),
+    sellerName: String(sellerName || "").trim().slice(0, 120),
+    sellerContactPhone: String(sellerContactPhone || "").trim().slice(0, 40),
+    notes: String(notes || "").slice(0, 2000),
+    status: "assigned",
+    createdBy: createdBy || "",
+    createdAt: serverTimestamp(),
+  };
   const refDoc = await addDoc(collection(db, "assignments"), record);
-  await updateDoc(doc(db, "listings", String(listingId)), { assignedCustomerEmail: customerEmail, assignedSellerEmail: sellerEmail, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, "listings", String(listingId)), {
+    assignedCustomerEmail: record.customerEmail,
+    assignedCustomerName: record.customerName || null,
+    assignedCustomerPhone: record.customerPhone || null,
+    assignedSellerEmail: record.sellerEmail,
+    updatedAt: serverTimestamp(),
+  });
   return { id: refDoc.id, ...record, createdAt: new Date().toISOString() };
 }
 
