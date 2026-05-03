@@ -31,6 +31,17 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/bootstrapAdmins/$(authEmail()));
     }
 
+    // First admin on a new project: app code treats this email as admin (see VITE_ADMIN_EMAILS
+    // default in profileService / AuthContext). Firestore must allow the initial userRoles write.
+    // Other admin emails: add bootstrapAdmins/{email} in Console (no client read on that path).
+    function isDefaultSeedAdminEmail() {
+      return authEmail() == "jiyanshudhaka20@gmail.com";
+    }
+
+    function maySelfProvisionInitialAdminRole() {
+      return isSignedIn() && (isBootstrapListedAdmin() || isDefaultSeedAdminEmail());
+    }
+
     // Not readable from clients; exists() for rules does not recurse into this match.
     match /bootstrapAdmins/{email} {
       allow read, write: if false;
@@ -54,13 +65,13 @@ service cloud.firestore {
             && request.resource.data.uid == uid
             && request.resource.data.email == authEmail()
             && request.resource.data.role in ["customer", "seller"])
-        || (isSignedIn() && request.auth.uid == uid && isBootstrapListedAdmin()
+        || (isSignedIn() && request.auth.uid == uid && maySelfProvisionInitialAdminRole()
             && request.resource.data.uid == uid
             && request.resource.data.email == authEmail()
             && request.resource.data.role == "admin");
 
       allow update: if isAdmin()
-        || (isSignedIn() && request.auth.uid == uid && isBootstrapListedAdmin()
+        || (isSignedIn() && request.auth.uid == uid && maySelfProvisionInitialAdminRole()
             && request.resource.data.uid == uid
             && request.resource.data.email == authEmail()
             && request.resource.data.role == "admin")

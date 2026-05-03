@@ -75,6 +75,9 @@ function normalizeFirebaseError(error) {
   if (code === "auth/invalid-email") return "Invalid email address.";
   if (code === "auth/weak-password") return "Password is too weak.";
   if (code === "auth/too-many-requests") return "Too many attempts. Try again later.";
+  if (code === "permission-denied") {
+    return "Database access was blocked while finishing sign-in. Deploy the latest Firestore rules, or ask a project owner to add your email under bootstrapAdmins in Firestore.";
+  }
   return error?.message || "Authentication failed. Please try again.";
 }
 

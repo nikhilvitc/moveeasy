@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "moveasy-30eed"
+    "default": "moveasy-30eed",
+    "moveasy-30eed": "moveasy-30eed",
+    "moveazy-34225": "moveazy-34225"
   }
 }

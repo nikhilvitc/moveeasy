@@ -47,3 +47,11 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}'
           channelId: live
           projectId: moveasy-30eed
+
+      # Hosting action does not deploy Firestore rules; keep DB rules in sync with the repo.
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}
+
+      - name: Deploy Firestore (rules + indexes)
+        run: npx --yes firebase-tools@13 deploy --only firestore --project moveasy-30eed --non-interactive

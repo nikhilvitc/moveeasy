@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy:hosting": "npx --yes firebase-tools@13 deploy --only hosting --project moveasy-30eed",
+    "build:moveazy-34225": "vite build --mode moveazy-34225",
+    "deploy:hosting": "npm run build && npx --yes firebase-tools@13 deploy --only hosting,firestore --project moveasy-30eed",
+    "deploy:hosting:moveazy-34225": "npm run build:moveazy-34225 && npx --yes firebase-tools@13 deploy --only hosting,firestore --project moveazy-34225",
     "deploy:rules": "npx --yes firebase-tools@13 deploy --only firestore:rules,storage --project moveasy-30eed",
     "lint": "eslint .",
     "preview": "vite preview",
