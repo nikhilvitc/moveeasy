@@ -104,10 +104,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Seller follow-up notes on their own listing leads (CRM status still admin-only).
+    function interestSellerNotesOnlyUpdate() {
+      return isSeller()
+        && resource.data.sellerEmail == authEmail()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["sellerNotes", "sellerNotesUpdatedAt"])
+        && request.resource.data.sellerNotes is string
+        && request.resource.data.sellerNotes.size() <= 4000;
+    }
+
     match /interests/{id} {
       allow create: if isSignedIn();
       allow read: if isSignedIn() && (isAdmin() || resource.data.customerEmail == authEmail() || resource.data.sellerEmail == authEmail());
-      allow write: if isAdmin();
+      allow update: if isAdmin() || interestSellerNotesOnlyUpdate();
+      allow delete: if isAdmin();
     }
 
     match /notifications/{id} {

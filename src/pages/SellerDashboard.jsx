@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../components/layout/PageShell";
@@ -15,6 +15,7 @@ import {
   getSellerNotificationsData,
   markNotificationReadData,
   isListingPubliclyVisible,
+  updateInterestSellerNotesData,
 } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 import MediaUploadField from "../components/MediaUploadField";
@@ -73,6 +74,35 @@ export default function SellerDashboard() {
   const [leadInterests, setLeadInterests] = useState([]);
   const [sellerNotifs, setSellerNotifs] = useState([]);
   const [dashTick, setDashTick] = useState(0);
+  const [sellerMainTab, setSellerMainTab] = useState("leads");
+  const [sellerNoteDrafts, setSellerNoteDrafts] = useState({});
+  const [savingInterestId, setSavingInterestId] = useState(null);
+
+  const listingTitleById = useMemo(() => {
+    const m = new Map();
+    listings.forEach((l) => m.set(String(l.id), l.title || `Listing #${l.id}`));
+    return m;
+  }, [listings]);
+
+  const interestsByListingId = useMemo(() => {
+    const map = new Map();
+    leadInterests.forEach((i) => {
+      const k = String(i.listingId || "");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(i);
+    });
+    return map;
+  }, [leadInterests]);
+
+  useEffect(() => {
+    setSellerNoteDrafts((prev) => {
+      const next = { ...prev };
+      leadInterests.forEach((i) => {
+        if (next[i.id] === undefined) next[i.id] = i.sellerNotes || "";
+      });
+      return next;
+    });
+  }, [leadInterests]);
 
   useEffect(() => {
     let alive = true;
@@ -251,6 +281,22 @@ export default function SellerDashboard() {
     setListings(isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === em));
   };
 
+  const handleSaveInterestSellerNote = async (interestId) => {
+    if (!isFirebaseConfigured) {
+      alert("Saving notes to the cloud requires Firebase.");
+      return;
+    }
+    setSavingInterestId(interestId);
+    try {
+      await updateInterestSellerNotesData(interestId, sellerNoteDrafts[interestId] ?? "");
+      setDashTick((t) => t + 1);
+    } catch (err) {
+      alert(err?.message || String(err) || "Could not save note.");
+    } finally {
+      setSavingInterestId(null);
+    }
+  };
+
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
 
   return (
@@ -267,6 +313,33 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
+        <div role="tablist" aria-label="Seller sections" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {[
+            ["leads", "Leads & customers"],
+            ["listings", "My listings"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSellerMainTab(id)}
+              style={{
+                ...btn,
+                fontSize: "13px",
+                background: sellerMainTab === id ? "#1e293b" : "#fff",
+                color: sellerMainTab === id ? "#fff" : "#334155",
+                border: `1px solid ${sellerMainTab === id ? "#1e293b" : "#cbd5e1"}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {sellerMainTab === "leads" && (
+        <>
+        <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "12px", padding: "12px 14px", marginBottom: "16px", fontSize: "12px", color: "#14532d", lineHeight: 1.55 }}>
+          <strong>Your access:</strong> See renter applications, admin-assigned leads, and visit requests tied to your listings. <strong>Pipeline status</strong> (new → contacted → …) is updated by MovEasy admin. You can add <strong>private notes</strong> on each application. Use <em>My listings</em> to add or edit homes, withdraw from search, or relist.
+        </div>
         {sellerNotifs.length > 0 && (
           <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
             <div style={{ fontWeight: 800, fontSize: "15px", color: "#9f1239", marginBottom: "8px" }}>Notifications ({sellerNotifs.filter((n) => !n.read).length} unread)</div>
@@ -285,18 +358,106 @@ export default function SellerDashboard() {
             </div>
           </div>
         )}
-        {leadInterests.length > 0 && (
-          <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
-            <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Renter interest on your listings</div>
-            <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: 1.65 }}>
-              {leadInterests.map((i) => (
-                <li key={i.id}>
-                  <strong>{i.customerName}</strong> ({i.customerEmail}) — {i.listingTitle} — {i.tenancyPreference} · {i.adultsSharing} people — <em>{i.status || "new"}</em>
-                </li>
-              ))}
-            </ul>
+        <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
+          <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Renter applications (by listing)</div>
+          {leadInterests.length === 0 ? (
+            <p style={{ margin: 0, fontSize: "13px", color: "#64748b", lineHeight: 1.55 }}>No applications yet. When someone uses <strong>Submit interest</strong> on the map for one of your properties, their request appears here.</p>
+          ) : (
+            Array.from(interestsByListingId.entries()).map(([listingId, rows]) => (
+              <div key={listingId || "unknown"} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", marginBottom: "12px", background: "#fafafa" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "14px" }}>
+                    {listingTitleById.get(String(listingId)) || rows[0]?.listingTitle || `Listing #${listingId}`}
+                  </div>
+                  {listingId ? (
+                    <button type="button" onClick={() => navigate(`/map?listingId=${encodeURIComponent(String(listingId))}`)} style={{ ...btn, fontSize: "11px", padding: "6px 10px", background: "#1e40af", color: "white" }}>
+                      Open on map
+                    </button>
+                  ) : null}
+                </div>
+                {rows.map((i) => (
+                  <div key={i.id} style={{ borderTop: "1px solid #e2e8f0", paddingTop: "10px", marginTop: "10px", fontSize: "13px", color: "#334155", lineHeight: 1.55 }}>
+                    <div style={{ fontWeight: 700 }}>
+                      {i.customerName || "Applicant"}{" "}
+                      <a href={`mailto:${encodeURIComponent(i.customerEmail || "")}`} style={{ color: "#2563eb", fontWeight: 600 }}>{i.customerEmail}</a>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
+                      {i.tenancyPreference} · {i.adultsSharing} people · status: <em>{i.status || "new"}</em> (admin-managed)
+                    </div>
+                    {i.notes ? <div style={{ fontSize: "12px", marginTop: "6px", fontStyle: "italic", color: "#475569" }}>Renter note: {i.notes}</div> : null}
+                    {i.sellerNotes ? <div style={{ fontSize: "11px", marginTop: "4px", color: "#64748b" }}>Saved {i.sellerNotesUpdatedAt?.toDate ? i.sellerNotesUpdatedAt.toDate().toLocaleString() : ""}</div> : null}
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", marginTop: "10px" }}>Your private notes (only you + admin)</label>
+                    <textarea
+                      value={sellerNoteDrafts[i.id] ?? ""}
+                      onChange={(e) => setSellerNoteDrafts((p) => ({ ...p, [i.id]: e.target.value }))}
+                      rows={2}
+                      placeholder="Call outcome, visit time agreed, follow-up…"
+                      style={{ width: "100%", marginTop: "4px", padding: "8px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "12px", resize: "vertical" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveInterestSellerNote(i.id)}
+                      disabled={savingInterestId === i.id}
+                      style={{ ...btn, marginTop: "6px", fontSize: "11px", padding: "6px 12px", background: savingInterestId === i.id ? "#94a3b8" : "#0f766e", color: "white" }}
+                    >
+                      {savingInterestId === i.id ? "Saving…" : "Save note"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+        {myAssignments.length > 0 && (
+          <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 700, marginBottom: "6px" }}>Assigned Leads ({myAssignments.length})</div>
+            {myAssignments.map((a) => (
+              <div key={a.id} style={{ fontSize: "12px", marginBottom: "10px", padding: "8px 10px", background: "#fff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
+                <div style={{ fontWeight: 700, color: "#0c4a6e" }}>{a.listingTitle || `Listing #${a.listingId}`}</div>
+                <div style={{ marginTop: "4px" }}>
+                  <strong>Customer:</strong> {a.customerName ? `${a.customerName} · ` : ""}{a.customerEmail}
+                  {a.customerPhone ? <span> · <strong>Phone:</strong> {a.customerPhone}</span> : null}
+                </div>
+                {a.notes ? <div style={{ marginTop: "4px", color: "#64748b", fontStyle: "italic" }}>{a.notes}</div> : null}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: "8px", alignItems: "center" }}>
+                  <a href={`mailto:${encodeURIComponent(a.customerEmail || "")}`} style={{ fontSize: "11px", color: "#2563eb", fontWeight: 700 }}>Email customer</a>
+                  {a.customerPhone ? (
+                    <a href={`tel:${String(a.customerPhone).replace(/\s/g, "")}`} style={{ fontSize: "11px", color: "#2563eb", fontWeight: 700 }}>Call customer</a>
+                  ) : null}
+                  <button type="button" onClick={() => navigate(`/map?listingId=${encodeURIComponent(String(a.listingId))}`)} style={{ ...btn, fontSize: "11px", padding: "4px 10px", background: "#eef2ff", color: "#3730a3" }}>Listing on map</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+        {visitRequests.length > 0 && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
+            <div style={{ fontWeight: 700, marginBottom: "6px", color: "#b45309" }}>Plan a Visit Requests ({visitRequests.length})</div>
+            {visitRequests.map((v) => (
+              <div key={v.id} style={{ fontSize: "12px", marginBottom: "8px", color: "#92400e", paddingBottom: 8, borderBottom: "1px solid #fde68a" }}>
+                <strong>Time:</strong> {v.visitTime} | <strong>Phone:</strong> {v.customerPhone}{" "}
+                {v.customerPhone ? (
+                  <a href={`tel:${String(v.customerPhone).replace(/\s/g, "")}`} style={{ color: "#b45309", fontWeight: 700 }}>Call</a>
+                ) : null}
+                <br />
+                Customer: <a href={`mailto:${encodeURIComponent(v.customerEmail || "")}`} style={{ color: "#92400e", fontWeight: 600 }}>{v.customerEmail}</a>
+                <br />
+                <span style={{ fontSize: "11px", color: "#78350f" }}>
+                  {listingTitleById.get(String(v.listingId)) ? `${listingTitleById.get(String(v.listingId))} (#${v.listingId})` : `Listing #${v.listingId}`}
+                </span>
+                {v.listingId ? (
+                  <button type="button" onClick={() => navigate(`/map?listingId=${encodeURIComponent(String(v.listingId))}`)} style={{ ...btn, marginLeft: 8, fontSize: "10px", padding: "4px 8px", background: "#fff", color: "#92400e" }}>
+                    Map
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+        </>
+        )}
+        {sellerMainTab === "listings" && (
+        <>
         <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
           <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "6px" }}>Seller trust badge (optional)</div>
           <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px", lineHeight: 1.45 }}>
@@ -323,32 +484,6 @@ export default function SellerDashboard() {
             <div style={{ marginTop: "8px", fontSize: "12px", color: badgeMsgKind === "err" ? "#b91c1c" : "#0f766e", fontWeight: 600 }}>{badgeMsg}</div>
           )}
         </div>
-        {myAssignments.length > 0 && (
-          <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
-            <div style={{ fontWeight: 700, marginBottom: "6px" }}>Assigned Leads ({myAssignments.length})</div>
-            {myAssignments.map((a) => (
-              <div key={a.id} style={{ fontSize: "12px", marginBottom: "10px", padding: "8px 10px", background: "#fff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
-                <div style={{ fontWeight: 700, color: "#0c4a6e" }}>{a.listingTitle || `Listing #${a.listingId}`}</div>
-                <div style={{ marginTop: "4px" }}>
-                  <strong>Customer:</strong> {a.customerName ? `${a.customerName} · ` : ""}{a.customerEmail}
-                  {a.customerPhone ? <span> · <strong>Phone:</strong> {a.customerPhone}</span> : null}
-                </div>
-                {a.notes ? <div style={{ marginTop: "4px", color: "#64748b", fontStyle: "italic" }}>{a.notes}</div> : null}
-              </div>
-            ))}
-          </div>
-        )}
-        {visitRequests.length > 0 && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
-            <div style={{ fontWeight: 700, marginBottom: "6px", color: "#b45309" }}>Plan a Visit Requests ({visitRequests.length})</div>
-            {visitRequests.map((v) => (
-              <div key={v.id} style={{ fontSize: "12px", marginBottom: "6px", color: "#92400e" }}>
-                <strong>Time:</strong> {v.visitTime} | <strong>Phone:</strong> {v.customerPhone} <br/>
-                Customer: {v.customerEmail} | Listing #{v.listingId}
-              </div>
-            ))}
-          </div>
-        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700 }}>My Listings ({listings.length})</div>
           <button
@@ -466,6 +601,8 @@ export default function SellerDashboard() {
             );
           })}
         </div>
+        </>
+        )}
       </div>
     </PageShell>
   );

@@ -390,6 +390,14 @@ export async function updateInterestStatusData(id, status) {
   await updateDoc(doc(db, "interests", String(id)), { status, updatedAt: serverTimestamp() });
 }
 
+/** Seller-only: private notes on a lead (Firestore rules enforce field allow-list). */
+export async function updateInterestSellerNotesData(interestId, sellerNotes) {
+  await updateDoc(doc(db, "interests", String(interestId)), {
+    sellerNotes: String(sellerNotes || "").slice(0, 4000),
+    sellerNotesUpdatedAt: serverTimestamp(),
+  });
+}
+
 /** --- In-app notifications --- */
 
 export async function addNotificationData({ audience, targetEmail = "", title, body, type = "info", meta = {} }) {
