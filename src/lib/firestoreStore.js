@@ -60,6 +60,23 @@ export async function getListingsData(options = {}) {
   return combined;
 }
 
+/**
+ * Admin dashboard: read all listing documents (any `marketStatus`).
+ * `getListingsData` only returns `marketStatus === "published"`, so legacy rows
+ * without that field never appear for admins and looked like "empty listings".
+ */
+export async function getAdminListingsData(limitCount = 500) {
+  const cap = Math.min(Math.max(Number(limitCount) || 500, 1), 500);
+  const snap = await getDocs(query(collection(db, "listings"), limit(cap)));
+  const rows = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  rows.sort((a, b) => {
+    const ta = a.updatedAt?.toMillis?.() ?? (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+    const tb = b.updatedAt?.toMillis?.() ?? (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+    return tb - ta;
+  });
+  return rows;
+}
+
 function normalizeAuthEmail(email) {
   return String(email || "").toLowerCase().trim();
 }

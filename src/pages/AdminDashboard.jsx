@@ -25,7 +25,7 @@ import { isFirebaseConfigured } from "../lib/firebase";
 import {
   addUserProfileData,
   getAllUsersData,
-  getListingsData,
+  getAdminListingsData,
   getSellerRequestsData,
   removeListingData,
   removeUserProfileData,
@@ -185,6 +185,9 @@ export default function AdminDashboard() {
   const [assignmentsState, setAssignmentsState] = useState([]);
   const [adminNotifs, setAdminNotifs] = useState([]);
   const [userListTab, setUserListTab] = useState("all");
+  /** Primary nav: reduces vertical scroll as data grows */
+  const [adminSection, setAdminSection] = useState("overview");
+  const [loadErrors, setLoadErrors] = useState([]);
   const [historyUser, setHistoryUser] = useState(null);
   const [historyBundle, setHistoryBundle] = useState(null);
   const [assignCustomerEmail, setAssignCustomerEmail] = useState("");
@@ -201,17 +204,10 @@ export default function AdminDashboard() {
     let alive = true;
     async function load() {
       if (isFirebaseConfigured) {
-        const [
-          remoteListings,
-          remoteUsers,
-          remoteSellerReqs,
-          remoteVisits,
-          remoteInterests,
-          remoteAssigns,
-          remoteNotifs,
-          sitePub,
-        ] = await Promise.all([
-          getListingsData(),
+        setLoadErrors([]);
+        const labels = ["listings", "users", "sellerRequests", "visits", "interests", "assignments", "notifications", "siteSettings"];
+        const settled = await Promise.allSettled([
+          getAdminListingsData(),
           getAllUsersData(),
           getSellerRequestsData(),
           getVisitsData(),
@@ -221,18 +217,25 @@ export default function AdminDashboard() {
           fetchSitePublicSettings(),
         ]);
         if (!alive) return;
-        setListingsState(remoteListings);
-        setUsersState(remoteUsers);
-        setSellerReqsState(remoteSellerReqs);
-        setVisitRequests(remoteVisits);
-        setInterestsState(remoteInterests);
-        setAssignmentsState(remoteAssigns);
-        setAdminNotifs(remoteNotifs);
+        const errs = [];
+        settled.forEach((r, i) => {
+          if (r.status === "rejected") errs.push(`${labels[i]}: ${String(r.reason?.message || r.reason)}`);
+        });
+        setLoadErrors(errs);
+        setListingsState(settled[0].status === "fulfilled" ? settled[0].value : []);
+        setUsersState(settled[1].status === "fulfilled" ? settled[1].value : []);
+        setSellerReqsState(settled[2].status === "fulfilled" ? settled[2].value : []);
+        setVisitRequests(settled[3].status === "fulfilled" ? settled[3].value : []);
+        setInterestsState(settled[4].status === "fulfilled" ? settled[4].value : []);
+        setAssignmentsState(settled[5].status === "fulfilled" ? settled[5].value : []);
+        setAdminNotifs(settled[6].status === "fulfilled" ? settled[6].value : []);
+        const sitePub = settled[7].status === "fulfilled" ? settled[7].value : { ...DEFAULT_SITE_PUBLIC, contacts: [...DEFAULT_SITE_PUBLIC.contacts] };
         setSitePublicDraft({
           ...sitePub,
           contacts: (sitePub.contacts || []).map((c) => ({ ...c })),
         });
       } else {
+        setLoadErrors([]);
         setListingsState(getListings());
         setUsersState(getAllUsers());
         setSellerReqsState(getSellerRequests().filter((r) => r.status === "pending"));
@@ -242,7 +245,9 @@ export default function AdminDashboard() {
         setAdminNotifs(getNotificationsLocal().filter((n) => n.audience === "admin"));
       }
     }
-    load().catch(() => undefined);
+    load().catch((e) => {
+      if (alive) setLoadErrors([String(e?.message || e)]);
+    });
     return () => { alive = false; };
   }, [refreshTick]);
 
@@ -406,11 +411,13 @@ export default function AdminDashboard() {
     [users]
   );
   const sellersList = useMemo(() => users.filter((u) => u.role === "seller"), [users]);
+  const adminsList = useMemo(() => users.filter((u) => u.role === "admin"), [users]);
   const displayUsers = useMemo(() => {
     if (userListTab === "customer") return customersList;
     if (userListTab === "seller") return sellersList;
+    if (userListTab === "admin") return adminsList;
     return users;
-  }, [users, userListTab, customersList, sellersList]);
+  }, [users, userListTab, customersList, sellersList, adminsList]);
 
   const handleInterestStatus = async (row, status) => {
     if (isFirebaseConfigured) await updateInterestStatusData(row.id, status);
@@ -579,6 +586,101 @@ export default function AdminDashboard() {
       </div>
 
       <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
+        <div
+          role="tablist"
+          aria-label="Admin sections"
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            marginBottom: 16,
+            paddingBottom: 12,
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          {[
+            ["overview", "Overview"],
+            ["site", "Site & contact"],
+            ["operations", "Leads & queue"],
+            ["users", "Users"],
+            ["listings", "Listings"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={adminSection === id}
+              onClick={() => setAdminSection(id)}
+              style={{
+                ...btn,
+                fontSize: isMobile ? "12px" : "13px",
+                padding: isMobile ? "8px 12px" : "10px 16px",
+                background: adminSection === id ? "#0f172a" : "#fff",
+                color: adminSection === id ? "#fff" : "#334155",
+                border: `1px solid ${adminSection === id ? "#0f172a" : "#cbd5e1"}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {loadErrors.length > 0 ? (
+          <div
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              color: "#991b1b",
+              padding: "12px 14px",
+              borderRadius: 10,
+              marginBottom: 16,
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <strong>Some data failed to load.</strong> Use Refresh on Overview or check Firestore rules and composite indexes.
+            <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+              {loadErrors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {adminSection === "overview" && (
+          <div style={{ ...sectionCard, marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>At a glance</div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(5, minmax(0, 1fr))",
+                gap: 10,
+              }}
+            >
+              {[
+                ["Users", users.length],
+                ["Customers", customersList.length],
+                ["Sellers", sellersList.length],
+                ["Admins", adminsList.length],
+                ["Listings", listings.length],
+              ].map(([k, v]) => (
+                <div key={k} style={{ background: "#f8fafc", borderRadius: 10, padding: 12, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>{k}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 12, lineHeight: 1.6 }}>
+              <strong>Leads &amp; ops:</strong> {interestsState.length} listing interests · {assignmentsState.length} assignments ·{" "}
+              {visitRequests.length} visit requests · {adminNotifs.filter((n) => !n.read).length} unread admin notifications
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, alignItems: "center" }}>
+              <button type="button" onClick={() => setRefreshTick((x) => x + 1)} style={{ ...btn, background: "#2563eb", color: "#fff" }}>
+                Refresh all data
+              </button>
+              <span style={{ fontSize: 12, color: "#64748b" }}>Use the tabs above for forms and directory tables.</span>
+            </div>
+          </div>
+        )}
+        {adminSection === "site" && (
         <div style={{ ...sectionCard, border: "1px solid #bfdbfe", background: "#f0f9ff", marginBottom: "20px" }}>
           <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "6px", color: "#0c4a6e" }}>Website — Contact page & legal lines</div>
           <p style={{ fontSize: "13px", color: "#0369a1", marginBottom: "14px", lineHeight: 1.5 }}>
@@ -672,7 +774,21 @@ export default function AdminDashboard() {
             {sitePublicStatus ? <span style={{ fontSize: 13, color: sitePublicStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{sitePublicStatus}</span> : null}
           </div>
         </div>
+        )}
 
+        {adminSection === "operations" && (
+        <>
+        <div style={{ ...sectionCard, marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Queue summary</div>
+          <div style={{ fontSize: 13, color: "#475569", display: "flex", flexWrap: "wrap", gap: "10px 22px", lineHeight: 1.6 }}>
+            <span><strong>Interests:</strong> {interestsState.length}</span>
+            <span><strong>Assignments:</strong> {assignmentsState.length}</span>
+            <span><strong>Visit requests:</strong> {visitRequests.length}</span>
+            <span><strong>Admin alerts:</strong> {adminNotifs.length}</span>
+            <span><strong>Pending seller requests:</strong> {sellerReqs.length}</span>
+            <span><strong>Pending badge reviews:</strong> {pendingSellerBadgeApps.length}</span>
+          </div>
+        </div>
         {pendingSellerBadgeApps.length > 0 && (
           <div style={{ marginBottom: "20px" }}>
             <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
@@ -857,7 +973,11 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+        </>
+        )}
 
+        {adminSection === "users" && (
+        <>
         {/* User Management Section */}
         <div style={sectionCard}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
@@ -865,6 +985,7 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {[
                 ["all", `All (${users.length})`],
+                ["admin", `Admins (${adminsList.length})`],
                 ["customer", `Customers (${customersList.length})`],
                 ["seller", `Sellers (${sellersList.length})`],
               ].map(([key, label]) => (
@@ -955,7 +1076,11 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
+        </>
+        )}
 
+        {adminSection === "listings" && (
+        <>
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
           <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "10px" }}>
@@ -1041,7 +1166,12 @@ export default function AdminDashboard() {
             <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>{l.title}</div>
-                <div style={{ fontSize: "12px", color: "#64748b" }}>{l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}</div>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>
+                  {l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}
+                  {l.marketStatus && l.marketStatus !== "published" ? (
+                    <span style={{ marginLeft: 8, fontWeight: 700, color: "#b45309" }}>· {l.marketStatus}</span>
+                  ) : null}
+                </div>
               </div>
               <div style={{ fontWeight: 700, color: "#16a34a", marginRight: isMobile ? 0 : "16px" }}>{l.price}</div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -1051,6 +1181,8 @@ export default function AdminDashboard() {
             </div>
           ))}
         </div>
+        </>
+        )}
 
         {historyUser ? (
           <div
