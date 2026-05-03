@@ -10,7 +10,7 @@ test.describe("Admin write safety cycle", () => {
     const stamp = Date.now();
     const title = `E2E TEMP LISTING ${stamp}`;
 
-    await page.goto("./#/login");
+    await page.goto("./login");
     await page.getByRole("button", { name: /Admin.*Manage all listings and assignments/i }).click();
     await page.getByPlaceholder("you@gmail.com").fill(ADMIN_EMAIL);
     await page.getByPlaceholder("Enter password").fill(ADMIN_PASSWORD);

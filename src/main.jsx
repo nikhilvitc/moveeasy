@@ -5,6 +5,18 @@ import "./index.css";
 import "leaflet/dist/leaflet.css";
 import App from "./App.jsx";
 
+/** Old links used HashRouter (#/checkout). Convert once so BrowserRouter sees the path. */
+(function migrateLegacyHashRoutes() {
+  try {
+    const { hash } = window.location;
+    if (hash.startsWith("#/")) {
+      window.history.replaceState(null, "", hash.slice(1));
+    }
+  } catch {
+    /* ignore */
+  }
+})();
+
 class RootErrorBoundary extends Component {
   constructor(props) {
     super(props);

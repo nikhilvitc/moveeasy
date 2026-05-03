@@ -7,7 +7,7 @@ const EASE = [0.22, 1, 0.36, 1];
 function GlossOrb({ className, delay = 0, duration = 14, label }) {
   return (
     <motion.div
-      className={`absolute pointer-events-none select-none ${className}`}
+      className={`absolute pointer-events-none select-none will-change-transform ${className}`}
       aria-hidden="true"
       initial={{ opacity: 0.85 }}
       animate={{
@@ -72,7 +72,7 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 min-h-full overflow-hidden"
       aria-hidden="true"
       style={{ perspective: 1200 }}
     >
@@ -90,24 +90,24 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
 
       {/* Soft animated blobs */}
       <motion.div
-        className="absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-200/70 via-orange-200/50 to-amber-100/40 blur-3xl"
-        animate={{ x: [0, 24, -12, 0], y: [0, -20, 10, 0], scale: [1, 1.08, 0.96, 1] }}
-        transition={{ duration: rich ? 18 : 22, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-300/95 via-orange-200/80 to-amber-100/70 blur-3xl will-change-transform"
+        animate={{ x: [0, 32, -18, 0], y: [0, -28, 14, 0], scale: [1, 1.12, 0.94, 1] }}
+        transition={{ duration: rich ? 14 : 22, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-200/60 via-violet-200/40 to-fuchsia-100/35 blur-3xl"
-        animate={{ x: [0, -30, 16, 0], y: [0, 24, -8, 0], scale: [1, 0.94, 1.05, 1] }}
-        transition={{ duration: rich ? 20 : 24, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-300/90 via-violet-200/75 to-fuchsia-200/60 blur-3xl will-change-transform"
+        animate={{ x: [0, -36, 20, 0], y: [0, 28, -12, 0], scale: [1, 0.92, 1.08, 1] }}
+        transition={{ duration: rich ? 16 : 24, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
       <motion.div
-        className="absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-300/45 to-orange-200/30 blur-3xl"
-        animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0.75, 0.5] }}
-        transition={{ duration: rich ? 14 : 18, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        className="absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-400/70 to-orange-200/55 blur-3xl will-change-transform"
+        animate={{ scale: [1, 1.15, 1], opacity: rich ? [0.55, 0.9, 0.55] : [0.45, 0.7, 0.45] }}
+        transition={{ duration: rich ? 11 : 18, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       />
 
       {/* Mesh grid — tech / “studio” feel */}
       <div
-        className="absolute inset-0 opacity-[0.045]"
+        className={`absolute inset-0 ${rich ? "opacity-[0.07]" : "opacity-[0.05]"}`}
         style={{
           backgroundImage: `
             linear-gradient(rgba(15,23,42,0.9) 1px, transparent 1px),
@@ -154,10 +154,10 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
             duration={16}
             label="💳"
           />
-          <FrostChip className="left-[18%] top-[48%] hidden md:block" delay={0.3}>
+          <FrostChip className="left-[8%] top-[42%] md:left-[18%] md:top-[48%]" delay={0.3}>
             Secure UPI
           </FrostChip>
-          <FrostChip className="right-[20%] top-[56%] hidden lg:block" delay={1.1}>
+          <FrostChip className="right-[6%] top-[52%] md:right-[20%] md:top-[56%]" delay={1.1}>
             ₹1,999 plan
           </FrostChip>
         </>

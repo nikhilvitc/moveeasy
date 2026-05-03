@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import HomeV2 from "./pages/HomeV2";
@@ -52,15 +52,18 @@ function AppRoutes() {
   );
 }
 
+const strip = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+const routerBasename = strip || "/";
+
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter basename={routerBasename === "/" ? undefined : routerBasename}>
       <ErrorBoundary>
         <AuthProvider>
           <AppRoutes />
           <OnboardingEmailWarning />
         </AuthProvider>
       </ErrorBoundary>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

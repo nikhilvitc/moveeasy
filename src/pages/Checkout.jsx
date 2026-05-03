@@ -18,8 +18,11 @@ export default function Checkout() {
   const [confirmed, setConfirmed] = useState(false);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden antialiased">
-      <PremiumPageBackdrop variant="checkout" />
+    <div className="relative min-h-[100dvh] overflow-x-hidden antialiased">
+      {/* Full-viewport layer so animated background is obvious (not clipped to content height) */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <PremiumPageBackdrop variant="checkout" />
+      </div>
 
       <Navbar />
 

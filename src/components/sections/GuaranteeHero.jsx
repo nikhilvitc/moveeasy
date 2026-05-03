@@ -111,7 +111,7 @@ export default function GuaranteeHero() {
                 {FEATURE_LINKS.map((link) => (
                   <a
                     key={link}
-                    href="/#/contact"
+                    href="/contact"
                     className="
                       inline-flex items-center gap-2
                       text-[14px] font-medium text-[#1E2A3A]
