@@ -88,23 +88,30 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
   const isMarketing = variant === "marketing";
   const isDark = variant === "dark";
 
+  /* Marketing = soft blobs only (no grid / orbs) so listing cards stay readable */
   const blobA = isDark
     ? "absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-600/25 via-orange-500/15 to-transparent blur-3xl will-change-transform"
-    : "absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-300/95 via-orange-200/80 to-amber-100/70 blur-3xl will-change-transform";
+    : isMarketing
+      ? "absolute -left-[22%] top-[10%] h-[min(420px,48vw)] w-[min(420px,48vw)] rounded-full bg-gradient-to-br from-rose-200/45 via-orange-100/35 to-amber-50/25 blur-3xl will-change-transform"
+      : "absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-300/95 via-orange-200/80 to-amber-100/70 blur-3xl will-change-transform";
 
   const blobB = isDark
     ? "absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-violet-600/20 via-indigo-500/12 to-transparent blur-3xl will-change-transform"
-    : "absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-300/90 via-violet-200/75 to-fuchsia-200/60 blur-3xl will-change-transform";
+    : isMarketing
+      ? "absolute -right-[18%] top-[24%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-bl from-sky-200/40 via-violet-100/30 to-fuchsia-50/20 blur-3xl will-change-transform"
+      : "absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-300/90 via-violet-200/75 to-fuchsia-200/60 blur-3xl will-change-transform";
 
   const blobC = isDark
     ? "absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-cyan-500/15 to-sky-600/10 blur-3xl will-change-transform"
-    : "absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-400/70 to-orange-200/55 blur-3xl will-change-transform";
+    : isMarketing
+      ? "absolute bottom-[-12%] left-[18%] h-[min(340px,40vw)] w-[min(340px,40vw)] rounded-full bg-gradient-to-tr from-rose-200/35 to-orange-100/25 blur-3xl will-change-transform"
+      : "absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-400/70 to-orange-200/55 blur-3xl will-change-transform";
 
   const t1 = isCheckout ? 14 : isMarketing ? 17 : isDark ? 20 : 22;
   const t2 = isCheckout ? 16 : isMarketing ? 19 : isDark ? 22 : 24;
   const t3 = isCheckout ? 11 : isMarketing ? 14 : isDark ? 16 : 18;
 
-  const meshOpacity = isCheckout ? "opacity-[0.07]" : isMarketing ? "opacity-[0.065]" : isDark ? "opacity-[0.04]" : "opacity-[0.05]";
+  const meshOpacity = isCheckout ? "opacity-[0.07]" : isDark ? "opacity-[0.04]" : "opacity-[0.05]";
 
   const meshLine = isDark ? "rgba(255,255,255,0.35)" : "rgba(15,23,42,0.9)";
 
@@ -118,12 +125,12 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
           "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.9), transparent 55%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(251,113,133,0.15), transparent 50%)",
       };
 
-  const driftOpacity = isCheckout ? [0.22, 0.38, 0.24] : isMarketing ? [0.18, 0.32, 0.2] : isDark ? [0.35, 0.55, 0.38] : [0.12, 0.2, 0.14];
+  const driftOpacity = isCheckout ? [0.22, 0.38, 0.24] : isMarketing ? [0.08, 0.14, 0.1] : isDark ? [0.35, 0.55, 0.38] : [0.12, 0.2, 0.14];
 
   const bottomBlobOpacity = isCheckout
     ? [0.55, 0.9, 0.55]
     : isMarketing
-      ? [0.5, 0.82, 0.52]
+      ? [0.28, 0.42, 0.3]
       : isDark
         ? [0.35, 0.55, 0.38]
         : [0.45, 0.7, 0.45];
@@ -165,16 +172,18 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         transition={{ duration: t3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       />
 
-      <div
-        className={`absolute inset-0 ${meshOpacity}`}
-        style={{
-          backgroundImage: `
+      {!isMarketing && (
+        <div
+          className={`absolute inset-0 ${meshOpacity}`}
+          style={{
+            backgroundImage: `
             linear-gradient(${meshLine} 1px, transparent 1px),
             linear-gradient(90deg, ${meshLine} 1px, transparent 1px)
           `,
-          backgroundSize: "48px 48px",
-        }}
-      />
+            backgroundSize: "48px 48px",
+          }}
+        />
+      )}
 
       <motion.div
         className="absolute inset-0"
@@ -218,19 +227,6 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         </>
       )}
 
-      {isMarketing && (
-        <>
-          <GlossOrb className="left-[5%] top-[20%] h-16 w-16 md:h-20 md:w-20" delay={0} duration={14} label="🏠" />
-          <GlossOrb className="right-[7%] bottom-[22%] h-14 w-14 md:h-[4.5rem] md:w-[4.5rem]" delay={1} duration={16} label="⚡" />
-          <FrostChip className="left-[10%] bottom-[18%] hidden sm:block" delay={0.2}>
-            Verified areas
-          </FrostChip>
-          <FrostChip className="right-[12%] top-[38%] hidden md:block" delay={0.8}>
-            Smart match
-          </FrostChip>
-        </>
-      )}
-
       {variant === "subtle" && !isDark && (
         <GlossOrb
           className="right-[5%] top-[15%] h-14 w-14 opacity-70 md:right-[8%] md:h-16 md:w-16"
@@ -251,12 +247,14 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         </>
       )}
 
-      <div
-        className={`absolute -right-24 -top-24 h-64 w-64 rotate-12 rounded-full blur-2xl ${
-          isDark ? "bg-gradient-to-br from-rose-500/20 to-transparent" : "bg-gradient-to-br from-white/50 to-transparent"
-        }`}
-        aria-hidden="true"
-      />
+      {!isMarketing && (
+        <div
+          className={`absolute -right-24 -top-24 h-64 w-64 rotate-12 rounded-full blur-2xl ${
+            isDark ? "bg-gradient-to-br from-rose-500/20 to-transparent" : "bg-gradient-to-br from-white/50 to-transparent"
+          }`}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
