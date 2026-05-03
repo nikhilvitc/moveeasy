@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import PageShell from "../components/layout/PageShell";
 import { getListings } from "../lib/store";
 import PropertyModal from "../components/PropertyModal";
 import { isFirebaseConfigured } from "../lib/firebase";
@@ -42,7 +43,11 @@ export default function HomeV2() {
   const goMap = () => navigate("/map?openFilters=1");
 
   return (
-    <div style={{ minHeight: "100vh", background: palette.canvas, color: palette.ink }}>
+    <PageShell
+      variant="marketing"
+      overlayOnly
+      style={{ background: palette.canvas, color: palette.ink }}
+    >
       <Navbar />
 
       <main style={{ maxWidth: "1240px", margin: "0 auto", padding: "32px 20px 64px" }}>
@@ -201,6 +206,6 @@ export default function HomeV2() {
       {viewingProperty ? (
         <PropertyModal property={viewingProperty} listings={listings} onSelectListing={(l) => setViewingProperty(l)} onClose={() => setViewingProperty(null)} />
       ) : null}
-    </div>
+    </PageShell>
   );
 }

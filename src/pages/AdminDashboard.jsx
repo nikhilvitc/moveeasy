@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import PageShell from "../components/layout/PageShell";
 import {
   getAllUsers,
   getListings,
@@ -564,7 +565,7 @@ export default function AdminDashboard() {
   const sectionCard = { background: "white", padding: isMobile ? "12px" : "16px", borderRadius: "12px", marginBottom: "16px" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+    <PageShell variant="marketing" overlayOnly className="bg-slate-100">
       <div style={{ background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", padding: isMobile ? "14px 12px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
         <div>
           <div style={{ fontSize: "20px", fontWeight: 800 }}>Admin Dashboard</div>
@@ -1159,6 +1160,6 @@ export default function AdminDashboard() {
           </div>
         ) : null}
       </div>
-    </div>
+    </PageShell>
   );
 }

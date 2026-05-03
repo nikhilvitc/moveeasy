@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import PageShell from "../components/layout/PageShell";
 import { getListings } from "../lib/store";
 import { getSavedMap, getFilterHistory, getBookings, setMapRestorePayload } from "../lib/userActivity";
 
@@ -51,7 +52,11 @@ export default function MyActivity() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #fff8f5 0%, #f8fafc 100%)" }}>
+    <PageShell
+      variant="marketing"
+      overlayOnly
+      style={{ background: "linear-gradient(180deg, #fff8f5 0%, #f8fafc 100%)" }}
+    >
       <header
         style={{
           padding: isMobile ? "14px 16px" : "18px 28px",
@@ -223,6 +228,6 @@ export default function MyActivity() {
           </p>
         </section>
       </main>
-    </div>
+    </PageShell>
   );
 }

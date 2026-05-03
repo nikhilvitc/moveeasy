@@ -1,4 +1,5 @@
 import Navbar from "../components/layout/Navbar";
+import PageShell from "../components/layout/PageShell";
 import Hero from "../components/sections/Hero";
 import Stats from "../components/sections/Stats";
 import Features from "../components/sections/Features";
@@ -12,7 +13,7 @@ import Footer from "../components/layout/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen antialiased text-ink bg-transparent">
+    <PageShell fixedBackdrop variant="marketing" overlayOnly className="antialiased text-ink">
       <Navbar />
 
       <main className="relative">
@@ -35,6 +36,6 @@ export default function Home() {
       </main>
 
       <Footer />
-    </div>
+    </PageShell>
   );
 }

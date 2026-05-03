@@ -6,8 +6,8 @@ import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 export default function Privacy() {
   const { sitePublic } = useSitePublicSettings();
   return (
-    <div className="relative min-h-screen overflow-x-hidden antialiased">
-      <PremiumPageBackdrop variant="subtle" />
+    <div className="relative min-h-screen overflow-x-hidden antialiased bg-gradient-to-b from-stone-50 via-white to-rose-50/30">
+      <PremiumPageBackdrop variant="marketing" overlayOnly />
       <Navbar />
       <main className="relative z-10 max-w-3xl mx-auto px-6 py-16">
         <div className="rounded-2xl border border-stone-200/70 bg-white/92 p-8 shadow-xl backdrop-blur-md ring-1 ring-stone-900/[0.04] md:p-10">

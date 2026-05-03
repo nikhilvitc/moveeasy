@@ -1,4 +1,4 @@
-// Animated mesh + faux-3D orbs for checkout and legal pages
+// Animated mesh + faux-3D orbs — variants: checkout, marketing, subtle, dark
 import { motion } from "framer-motion";
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -63,12 +63,70 @@ function FrostChip({ className, delay, children }) {
   );
 }
 
+/** Frost chip tuned for dark pages */
+function FrostChipDark({ className, delay, children }) {
+  return (
+    <motion.div
+      className={`absolute pointer-events-none ${className}`}
+      aria-hidden="true"
+      animate={{ y: [0, -10, 4, 0], opacity: [0.5, 0.85, 0.5] }}
+      transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay }}
+    >
+      <div className="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-200/90 shadow-lg backdrop-blur-md">
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
 /**
- * @param {"checkout" | "subtle"} variant — checkout = richer motion; subtle = legal/docs pages
- * @param {boolean} overlayOnly — skip opaque base wash (use on pages that already define their own background)
+ * @param {"checkout" | "marketing" | "subtle" | "dark"} variant
+ * @param {boolean} overlayOnly — skip opaque base wash when the page defines its own background
  */
 export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = false }) {
-  const rich = variant === "checkout";
+  const isCheckout = variant === "checkout";
+  const isMarketing = variant === "marketing";
+  const isDark = variant === "dark";
+
+  const blobA = isDark
+    ? "absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-600/25 via-orange-500/15 to-transparent blur-3xl will-change-transform"
+    : "absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-300/95 via-orange-200/80 to-amber-100/70 blur-3xl will-change-transform";
+
+  const blobB = isDark
+    ? "absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-violet-600/20 via-indigo-500/12 to-transparent blur-3xl will-change-transform"
+    : "absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-300/90 via-violet-200/75 to-fuchsia-200/60 blur-3xl will-change-transform";
+
+  const blobC = isDark
+    ? "absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-cyan-500/15 to-sky-600/10 blur-3xl will-change-transform"
+    : "absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-400/70 to-orange-200/55 blur-3xl will-change-transform";
+
+  const t1 = isCheckout ? 14 : isMarketing ? 17 : isDark ? 20 : 22;
+  const t2 = isCheckout ? 16 : isMarketing ? 19 : isDark ? 22 : 24;
+  const t3 = isCheckout ? 11 : isMarketing ? 14 : isDark ? 16 : 18;
+
+  const meshOpacity = isCheckout ? "opacity-[0.07]" : isMarketing ? "opacity-[0.065]" : isDark ? "opacity-[0.04]" : "opacity-[0.05]";
+
+  const meshLine = isDark ? "rgba(255,255,255,0.35)" : "rgba(15,23,42,0.9)";
+
+  const driftStyle = isDark
+    ? {
+        background:
+          "radial-gradient(ellipse 70% 50% at 30% 0%, rgba(232,90,79,0.12), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 100%, rgba(99,102,241,0.12), transparent 50%)",
+      }
+    : {
+        background:
+          "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.9), transparent 55%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(251,113,133,0.15), transparent 50%)",
+      };
+
+  const driftOpacity = isCheckout ? [0.22, 0.38, 0.24] : isMarketing ? [0.18, 0.32, 0.2] : isDark ? [0.35, 0.55, 0.38] : [0.12, 0.2, 0.14];
+
+  const bottomBlobOpacity = isCheckout
+    ? [0.55, 0.9, 0.55]
+    : isMarketing
+      ? [0.5, 0.82, 0.52]
+      : isDark
+        ? [0.35, 0.55, 0.38]
+        : [0.45, 0.7, 0.45];
 
   return (
     <div
@@ -76,59 +134,56 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
       aria-hidden="true"
       style={{ perspective: 1200 }}
     >
-      {/* Base wash */}
       {!overlayOnly && (
         <div
           className="absolute inset-0"
           style={{
-            background: rich
+            background: isCheckout
               ? "linear-gradient(165deg, #faf5ff 0%, #fff7ed 28%, #f0f9ff 55%, #fef2f2 100%)"
-              : "linear-gradient(160deg, #fafafa 0%, #fff7f5 40%, #f8fafc 100%)",
+              : isMarketing
+                ? "linear-gradient(155deg, #fffbeb 0%, #fff7f5 30%, #ecfeff 58%, #f5f3ff 100%)"
+                : isDark
+                  ? "linear-gradient(180deg, #050508 0%, #0c0a14 45%, #08080f 100%)"
+                  : "linear-gradient(160deg, #fafafa 0%, #fff7f5 40%, #f8fafc 100%)",
           }}
         />
       )}
 
-      {/* Soft animated blobs */}
       <motion.div
-        className="absolute -left-[18%] top-[8%] h-[min(520px,55vw)] w-[min(520px,55vw)] rounded-full bg-gradient-to-br from-rose-300/95 via-orange-200/80 to-amber-100/70 blur-3xl will-change-transform"
+        className={blobA}
         animate={{ x: [0, 32, -18, 0], y: [0, -28, 14, 0], scale: [1, 1.12, 0.94, 1] }}
-        transition={{ duration: rich ? 14 : 22, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: t1, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute -right-[12%] top-[22%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-gradient-to-bl from-sky-300/90 via-violet-200/75 to-fuchsia-200/60 blur-3xl will-change-transform"
+        className={blobB}
         animate={{ x: [0, -36, 20, 0], y: [0, 28, -12, 0], scale: [1, 0.92, 1.08, 1] }}
-        transition={{ duration: rich ? 16 : 24, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        transition={{ duration: t2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
       <motion.div
-        className="absolute bottom-[-8%] left-[20%] h-[min(400px,45vw)] w-[min(400px,45vw)] rounded-full bg-gradient-to-tr from-rose-400/70 to-orange-200/55 blur-3xl will-change-transform"
-        animate={{ scale: [1, 1.15, 1], opacity: rich ? [0.55, 0.9, 0.55] : [0.45, 0.7, 0.45] }}
-        transition={{ duration: rich ? 11 : 18, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        className={blobC}
+        animate={{ scale: [1, 1.15, 1], opacity: bottomBlobOpacity }}
+        transition={{ duration: t3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       />
 
-      {/* Mesh grid — tech / “studio” feel */}
       <div
-        className={`absolute inset-0 ${rich ? "opacity-[0.07]" : "opacity-[0.05]"}`}
+        className={`absolute inset-0 ${meshOpacity}`}
         style={{
           backgroundImage: `
-            linear-gradient(rgba(15,23,42,0.9) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(15,23,42,0.9) 1px, transparent 1px)
+            linear-gradient(${meshLine} 1px, transparent 1px),
+            linear-gradient(90deg, ${meshLine} 1px, transparent 1px)
           `,
           backgroundSize: "48px 48px",
         }}
       />
 
-      {/* Slow drifting highlight */}
       <motion.div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,0.9), transparent 55%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(251,113,133,0.15), transparent 50%)",
-        }}
-        animate={{ opacity: rich ? [0.22, 0.38, 0.24] : [0.12, 0.2, 0.14] }}
+        className="absolute inset-0"
+        style={driftStyle}
+        animate={{ opacity: driftOpacity }}
         transition={{ duration: 8, repeat: Infinity, ease: EASE }}
       />
 
-      {rich && (
+      {isCheckout && (
         <>
           <GlossOrb
             className="left-[4%] top-[18%] h-20 w-20 md:left-[6%] md:top-[22%] md:h-28 md:w-28"
@@ -163,7 +218,20 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         </>
       )}
 
-      {!rich && (
+      {isMarketing && (
+        <>
+          <GlossOrb className="left-[5%] top-[20%] h-16 w-16 md:h-20 md:w-20" delay={0} duration={14} label="🏠" />
+          <GlossOrb className="right-[7%] bottom-[22%] h-14 w-14 md:h-[4.5rem] md:w-[4.5rem]" delay={1} duration={16} label="⚡" />
+          <FrostChip className="left-[10%] bottom-[18%] hidden sm:block" delay={0.2}>
+            Verified areas
+          </FrostChip>
+          <FrostChip className="right-[12%] top-[38%] hidden md:block" delay={0.8}>
+            Smart match
+          </FrostChip>
+        </>
+      )}
+
+      {variant === "subtle" && !isDark && (
         <GlossOrb
           className="right-[5%] top-[15%] h-14 w-14 opacity-70 md:right-[8%] md:h-16 md:w-16"
           delay={0}
@@ -172,9 +240,21 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         />
       )}
 
-      {/* Corner sheen */}
+      {isDark && (
+        <>
+          <FrostChipDark className="left-[6%] top-[24%] opacity-90" delay={0}>
+            24/7 support
+          </FrostChipDark>
+          <FrostChipDark className="right-[8%] bottom-[30%] opacity-90" delay={0.6}>
+            Bengaluru
+          </FrostChipDark>
+        </>
+      )}
+
       <div
-        className="absolute -right-24 -top-24 h-64 w-64 rotate-12 rounded-full bg-gradient-to-br from-white/50 to-transparent blur-2xl"
+        className={`absolute -right-24 -top-24 h-64 w-64 rotate-12 rounded-full blur-2xl ${
+          isDark ? "bg-gradient-to-br from-rose-500/20 to-transparent" : "bg-gradient-to-br from-white/50 to-transparent"
+        }`}
         aria-hidden="true"
       />
     </div>

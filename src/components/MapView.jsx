@@ -19,6 +19,7 @@ import {
   toggleSavedListing,
 } from "../lib/userActivity";
 import { logSavedListingChange } from "../lib/crmSync";
+import PageShell from "./layout/PageShell";
 
 const MAP_NEARBY_KM = 12;
 /** Listings within this radius (km) of geocoded office / company */
@@ -526,7 +527,13 @@ export default function MapView() {
   const showMapSearchCard = showMapSearchOverlay && (isMobile || !showDesktopFilters);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}>
+    <PageShell
+      variant="marketing"
+      overlayOnly
+      minHeight={false}
+      className="flex h-screen flex-col overflow-hidden"
+      style={{ background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}
+    >
       <style>{`
         .desktop-sidebar {
           width: clamp(300px, 24vw, 440px);
@@ -1622,6 +1629,6 @@ export default function MapView() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

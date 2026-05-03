@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import PageShell from "../components/layout/PageShell";
 import { isFirebaseConfigured } from "../lib/firebase";
 import {
   getAssignmentsForSellerEmail,
@@ -192,7 +193,7 @@ export default function SellerDashboard() {
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
+    <PageShell variant="marketing" overlayOnly className="bg-slate-100">
       <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "white", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: "20px", fontWeight: 800 }}>Seller Dashboard</div>
@@ -344,6 +345,6 @@ export default function SellerDashboard() {
           })}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import PageShell from "../components/layout/PageShell";
 import {
   getAssignments,
   getListings,
@@ -225,7 +226,11 @@ export default function CustomerDashboard() {
   })();
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #eef4ff 0%, #f7f9ff 42%, #f8fafc 100%)" }}>
+    <PageShell
+      variant="marketing"
+      overlayOnly
+      style={{ background: "linear-gradient(180deg, #eef4ff 0%, #f7f9ff 42%, #f8fafc 100%)" }}
+    >
       <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "white", padding: isMobile ? "12px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
         <div>
           <div style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: 800 }}>Welcome, {user?.name}</div>
@@ -390,6 +395,6 @@ export default function CustomerDashboard() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

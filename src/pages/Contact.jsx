@@ -1,5 +1,6 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import PageShell from "../components/layout/PageShell";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
@@ -26,7 +27,7 @@ export default function Contact() {
       : "md:grid-cols-2";
 
   return (
-    <div className="min-h-screen antialiased" style={{ background: "#0d0d14" }}>
+    <PageShell fixedBackdrop variant="dark" overlayOnly className="antialiased bg-[#0d0d14]">
       <Navbar />
 
       <main className="relative">
@@ -287,6 +288,6 @@ export default function Contact() {
       </main>
 
       <Footer />
-    </div>
+    </PageShell>
   );
 }

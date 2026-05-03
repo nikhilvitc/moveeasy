@@ -12,7 +12,7 @@ import ServicesCTA from "../components/sections/ServicesCTA";
 export default function Services() {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased">
-      <PremiumPageBackdrop variant="subtle" overlayOnly />
+      <PremiumPageBackdrop variant="marketing" overlayOnly />
 
       <Navbar />
 
