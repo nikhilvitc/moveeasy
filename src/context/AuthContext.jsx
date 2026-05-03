@@ -7,7 +7,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import { triggerVerifiedOnboardingEmails } from "../lib/emailService";
 import { createProfileAfterSignup, ensureUserProfileDocuments, getProfileByEmail, getProfileForUser } from "../lib/profileService";
@@ -276,16 +276,21 @@ export function AuthProvider({ children }) {
   const submitSellerBadgeApplication = async ({ phone, businessName, gst }) => {
     if (!user?.email) return { success: false, error: "Not signed in." };
     if (isFirebaseConfigured) {
-      const profile = await getProfileByEmail(user.email);
-      if (!profile || profile.role !== "seller") return { success: false, error: "Only seller accounts can request a verified badge." };
-      if (normalizeSellerBadgeStatus(profile.sellerBadgeStatus) === "verified") return { success: false, error: "You are already verified." };
+      if (user.role !== "seller") return { success: false, error: "Only seller accounts can request a verified badge." };
       if (!String(phone || "").trim() || !String(businessName || "").trim()) return { success: false, error: "Business name and phone are required." };
-      await updateDoc(doc(db, "userProfiles", profile.uid), {
-        sellerBadgeStatus: "pending",
-        sellerBadgeApplication: { phone: String(phone).trim(), businessName: String(businessName).trim(), gst: String(gst || "").trim(), submittedAt: new Date().toISOString() },
-        updatedAt: serverTimestamp(),
-      });
-      return { success: true };
+      try {
+        const profileSnap = await getDoc(doc(db, "userProfiles", user.uid));
+        const row = profileSnap.exists() ? profileSnap.data() : {};
+        if (normalizeSellerBadgeStatus(row.sellerBadgeStatus) === "verified") return { success: false, error: "You are already verified." };
+        await updateDoc(doc(db, "userProfiles", user.uid), {
+          sellerBadgeStatus: "pending",
+          sellerBadgeApplication: { phone: String(phone).trim(), businessName: String(businessName).trim(), gst: String(gst || "").trim(), submittedAt: new Date().toISOString() },
+          updatedAt: serverTimestamp(),
+        });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: normalizeFirebaseError(error) };
+      }
     }
     const users = getUsers();
     const row = users[user.email];

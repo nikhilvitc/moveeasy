@@ -11,7 +11,7 @@ import { geocodePlace } from "../lib/geocode";
 import { haversineKm } from "../lib/geo";
 import PropertyModal from "./PropertyModal";
 import { AREA_NAMES_SORTED } from "../data/listingsData";
-import { BANGALORE_WORKPLACES } from "../data/bangaloreWorkplaces";
+import { BANGALORE_WORKPLACES, matchWorkplacePreset } from "../data/bangaloreWorkplaces";
 import {
   appendFilterHistory,
   consumeMapRestorePayload,
@@ -185,16 +185,13 @@ export default function MapView() {
   const [showMapSearchOverlay, setShowMapSearchOverlay] = useState(true);
   /** 'local' = filter listings by area name; 'place' = geocode landmark / metro and radius filter */
   const [searchMode, setSearchMode] = useState("local");
-  const [showOverlayQuickFilters, setShowOverlayQuickFilters] = useState(false);
   const [helpWidgetOpen, setHelpWidgetOpen] = useState(false);
   const [workplaceAnchor, setWorkplaceAnchor] = useState(null);
-  const [workplaceInput, setWorkplaceInput] = useState("");
-  const [workplaceLoading, setWorkplaceLoading] = useState(false);
   const [workplaceError, setWorkplaceError] = useState("");
   const [savedRevision, setSavedRevision] = useState(0);
+  const mapSearchOverlayBodyRef = useRef(null);
 
   const openFullFilterPanel = useCallback(() => {
-    setShowOverlayQuickFilters(false);
     if (isMobile) {
       setShowMobileFilters(true);
       setShowMobileListings(true);
@@ -303,7 +300,6 @@ export default function MapView() {
         label: String(payload.workplaceAnchor.label || "Office"),
       });
     } else if (payload.workplaceAnchor === null) setWorkplaceAnchor(null);
-    if (payload.workplaceInput !== undefined) setWorkplaceInput(String(payload.workplaceInput || ""));
   }, []);
 
   useEffect(() => {
@@ -320,7 +316,9 @@ export default function MapView() {
     if (!selectedLocality.trim()) return base;
     const q = selectedLocality.toLowerCase().trim();
     return base.filter((l) =>
-      [l.title, l.address, l.location].filter(Boolean).some((text) => String(text).toLowerCase().includes(q))
+      [l.title, l.address, l.location, l.seller, l.company, l.sellerEmail]
+        .filter(Boolean)
+        .some((text) => String(text).toLowerCase().includes(q))
     );
   }, [listings, filters, selectedLocality]);
 
@@ -348,7 +346,9 @@ export default function MapView() {
     const loc = selectedLocality.trim().toLowerCase();
     if (loc) {
       rows = rows.filter((l) =>
-        [l.title, l.address, l.location].filter(Boolean).some((text) => String(text).toLowerCase().includes(loc))
+        [l.title, l.address, l.location, l.seller, l.company, l.sellerEmail]
+          .filter(Boolean)
+          .some((text) => String(text).toLowerCase().includes(loc))
       );
     }
     if (placeAnchor) {
@@ -424,9 +424,24 @@ export default function MapView() {
     setSelectedLocality(q);
   };
 
-  const submitMapSearch = () => {
+  const submitMapSearch = async () => {
+    const q = mapSearchInput.trim();
+    setMapSearchError("");
+    setWorkplaceError("");
+    if (!q) {
+      setPlaceAnchor(null);
+      setSelectedLocality("");
+      setWorkplaceAnchor(null);
+      return;
+    }
+    const preset = matchWorkplacePreset(q);
+    if (preset) {
+      applyWorkplaceFromList(preset);
+      setMapSearchInput("");
+      return;
+    }
     if (searchMode === "place") {
-      runMapPlaceSearch();
+      await runMapPlaceSearch();
     } else {
       runMapLocalSearch();
     }
@@ -483,43 +498,12 @@ export default function MapView() {
 
   const applyWorkplaceFromList = useCallback((wp) => {
     setWorkplaceError("");
-    setWorkplaceInput(wp.name);
     setWorkplaceAnchor({ lat: wp.lat, lng: wp.lng, label: wp.name });
     setMapState({ center: [wp.lat, wp.lng], zoom: 16 });
+    requestAnimationFrame(() => {
+      mapSearchOverlayBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }, []);
-
-  const runWorkplaceSearch = async () => {
-    const q = workplaceInput.trim();
-    setWorkplaceError("");
-    if (!q) {
-      setWorkplaceAnchor(null);
-      return;
-    }
-    const qLower = q.toLowerCase();
-    const preset = BANGALORE_WORKPLACES.find(
-      (w) => w.name.toLowerCase() === qLower || w.id === qLower.replace(/\s+/g, "-")
-    );
-    if (preset) {
-      applyWorkplaceFromList(preset);
-      return;
-    }
-    setWorkplaceLoading(true);
-    try {
-      const r = await geocodePlace(q);
-      if (r.ok) {
-        setWorkplaceAnchor({ lat: r.lat, lng: r.lng, label: r.displayName });
-        setMapState({ center: [r.lat, r.lng], zoom: 16 });
-        setWorkplaceError("");
-      } else {
-        setWorkplaceAnchor(null);
-        setWorkplaceError(r.error || "Could not find that workplace. Pick a campus below or add “Bengaluru”.");
-      }
-    } catch {
-      setWorkplaceError("Workplace search failed. Check your connection.");
-    } finally {
-      setWorkplaceLoading(false);
-    }
-  };
 
   const mapLayoutKey = `${desktopMode}|${showDesktopFilters}|${showDesktopListings}|${showMapSearchOverlay}|${isMobile}`;
   /** Map search card and desktop sidebar filters are mutually exclusive; overlay can also be dismissed for a clear map. */
@@ -856,8 +840,10 @@ export default function MapView() {
                 />
                 <Marker position={[placeAnchor.lat, placeAnchor.lng]}>
                   <Popup>
-                    <div style={{ fontSize: "13px", fontWeight: 600 }}>Searched place</div>
-                    <div style={{ fontSize: "12px", color: "#64748b", maxWidth: "220px" }}>{placeAnchor.label}</div>
+                    <div style={{ backgroundColor: "#ffffff", color: "#0f172a", maxWidth: "240px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600 }}>Searched place</div>
+                      <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>{placeAnchor.label}</div>
+                    </div>
                   </Popup>
                 </Marker>
               </>
@@ -871,8 +857,10 @@ export default function MapView() {
                 />
                 <Marker position={[workplaceAnchor.lat, workplaceAnchor.lng]}>
                   <Popup>
-                    <div style={{ fontSize: "13px", fontWeight: 600 }}>Workplace</div>
-                    <div style={{ fontSize: "12px", color: "#64748b", maxWidth: "220px" }}>{workplaceAnchor.label}</div>
+                    <div style={{ backgroundColor: "#ffffff", color: "#0f172a", maxWidth: "240px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600 }}>Workplace</div>
+                      <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>{workplaceAnchor.label}</div>
+                    </div>
                   </Popup>
                 </Marker>
               </>
@@ -888,12 +876,21 @@ export default function MapView() {
                 }}
               >
                 <Popup>
-                  <div style={{ minWidth: "220px" }}>
+                  <div
+                    style={{
+                      minWidth: "220px",
+                      maxWidth: "280px",
+                      backgroundColor: "#ffffff",
+                      color: "#0f172a",
+                      borderRadius: "8px",
+                      isolation: "isolate",
+                    }}
+                  >
                     {l.image && <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "108px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }} />}
-                    <div style={{ fontWeight: 700, fontSize: "15px" }}>{l.title}</div>
-                    <div style={{ fontSize: "13px", color: "#64748b" }}>{l.address}</div>
-                    <div style={{ fontWeight: 800, color: "#16a34a", fontSize: "17px", margin: "6px 0" }}>{l.price}</div>
-                    <div style={{ fontSize: "13px" }}>{l.seller} | {l.contact}</div>
+                    <div style={{ fontWeight: 700, fontSize: "15px", lineHeight: 1.35 }}>{l.title}</div>
+                    <div style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>{l.address}</div>
+                    <div style={{ fontWeight: 800, color: "#15803d", fontSize: "17px", margin: "6px 0" }}>{l.price}</div>
+                    <div style={{ fontSize: "13px", color: "#334155", lineHeight: 1.4 }}>{l.seller} | {l.contact}</div>
                     <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
                       <a href={"tel:" + l.contact} style={{ flex: 1, padding: "8px 10px", background: "#1e3a8a", color: "white", borderRadius: "8px", textAlign: "center", textDecoration: "none", fontSize: "13px", fontWeight: 600 }}>Call</a>
                       <button type="button" onClick={() => setViewingProperty(l)} style={{ flex: 1, padding: "8px 10px", background: "#b91c1c", color: "white", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>Details</button>
@@ -956,6 +953,14 @@ export default function MapView() {
                   Hide
                 </button>
               </div>
+              <div
+                ref={mapSearchOverlayBodyRef}
+                style={{
+                  maxHeight: isMobile ? "min(56vh, 500px)" : 440,
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
               <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
                 {(placeAnchor || selectedLocality || workplaceAnchor) && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", width: "100%" }}>
@@ -1087,7 +1092,11 @@ export default function MapView() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") submitMapSearch();
                   }}
-                  placeholder={searchMode === "place" ? "Metro, office, landmark…" : "Add area, street, society…"}
+                  placeholder={
+                    searchMode === "place"
+                      ? "Metro, landmark, company (e.g. Google)…"
+                      : "Area, society, broker / company name…"
+                  }
                   style={{
                     flex: "1 1 160px",
                     minWidth: 0,
@@ -1154,114 +1163,22 @@ export default function MapView() {
                   {mapSearchLoading ? "…" : "⌕"}
                 </button>
               </div>
+              <p style={{ width: "100%", margin: "4px 0 0", padding: "0 2px", fontSize: 11, color: "#64748b", lineHeight: 1.45 }}>
+                Same search box: <strong>company</strong> (e.g. Google, Amazon), <strong>campus</strong> name, or switch{" "}
+                <strong>Location</strong> / <strong>Metro</strong> for area vs map pin.
+              </p>
               <div
                 style={{
-                  width: "100%",
                   borderTop: "1px solid #f1f5f9",
-                  padding: "10px 14px",
+                  padding: "10px 14px 12px",
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 8,
+                  gap: 10,
                   alignItems: "center",
-                  background: "#fffbeb",
+                  background: "#fafafa",
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.04em" }}>Workplace</span>
-                <input
-                  value={workplaceInput}
-                  onChange={(e) => setWorkplaceInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") runWorkplaceSearch();
-                  }}
-                  placeholder="Company or campus (e.g. Manyata Tech Park)"
-                  style={{
-                    flex: "1 1 180px",
-                    minWidth: 0,
-                    border: "1px solid #fcd34d",
-                    borderRadius: 10,
-                    padding: "9px 11px",
-                    fontSize: 14,
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={workplaceLoading}
-                  onClick={runWorkplaceSearch}
-                  style={{
-                    border: "none",
-                    borderRadius: 10,
-                    padding: "9px 14px",
-                    fontWeight: 800,
-                    fontSize: 13,
-                    background: "#b45309",
-                    color: "#fff",
-                    cursor: workplaceLoading ? "wait" : "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {workplaceLoading ? "…" : "Near office"}
-                </button>
-              </div>
-              {workplaceError ? (
-                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#b91c1c", fontWeight: 600, background: "#fffbeb" }}>{workplaceError}</div>
-              ) : null}
-              {workplaceAnchor && !workplaceError ? (
-                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#78350f", background: "#fffbeb", lineHeight: 1.45 }}>
-                  Showing homes within ~{COMMUTE_NEARBY_KM} km commute of <strong>{workplaceAnchor.label}</strong>
-                </div>
-              ) : null}
-              <div
-                style={{
-                  width: "100%",
-                  borderTop: "1px solid #fde68a",
-                  padding: "10px 14px 12px",
-                  background: "#fffbeb",
-                  maxHeight: 160,
-                  overflowY: "auto",
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#92400e", marginBottom: 8, letterSpacing: "0.03em" }}>
-                  POPULAR BENGALURU CAMPUSES (TAP)
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {BANGALORE_WORKPLACES.map((wp) => (
-                    <button
-                      key={wp.id}
-                      type="button"
-                      onClick={() => applyWorkplaceFromList(wp)}
-                      style={{
-                        border: workplaceAnchor?.label === wp.name ? "2px solid #b45309" : "1px solid #fcd34d",
-                        background: workplaceAnchor?.label === wp.name ? "#fef3c7" : "#fff",
-                        borderRadius: 999,
-                        padding: "5px 10px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#78350f",
-                        cursor: "pointer",
-                        maxWidth: "100%",
-                        textAlign: "left",
-                      }}
-                    >
-                      {wp.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {showOverlayQuickFilters && (
-                <div
-                  style={{
-                    borderTop: "1px solid #f1f5f9",
-                    padding: "12px 14px",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 10,
-                    alignItems: "center",
-                    background: "#fafafa",
-                  }}
-                >
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 800, color: "#64748b", flex: "1 1 140px", minWidth: 120 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, fontWeight: 800, color: "#64748b", flex: "1 1 140px", minWidth: 120 }}>
                     BHK type
                     <select
                       value={filters.bhkTypes.length === 1 ? filters.bhkTypes[0] : ""}
@@ -1312,27 +1229,52 @@ export default function MapView() {
                     </select>
                   </label>
                 </div>
-              )}
-              <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "space-between", background: "#fff" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowOverlayQuickFilters((v) => !v)}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "#475569",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 4px",
-                  }}
-                >
-                  {showOverlayQuickFilters ? "Hide quick filters" : "See all filters"}
-                  <span style={{ fontSize: 11 }}>{showOverlayQuickFilters ? "▲" : "▼"}</span>
-                </button>
+              {workplaceError ? (
+                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#b91c1c", fontWeight: 600, background: "#fffbeb" }}>{workplaceError}</div>
+              ) : null}
+              {workplaceAnchor && !workplaceError ? (
+                <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#78350f", background: "#fffbeb", lineHeight: 1.45 }}>
+                  Showing homes within ~{COMMUTE_NEARBY_KM} km commute of <strong>{workplaceAnchor.label}</strong>
+                </div>
+              ) : null}
+              <div
+                style={{
+                  width: "100%",
+                  borderTop: "1px solid #fde68a",
+                  padding: "10px 14px 12px",
+                  background: "#fffbeb",
+                  maxHeight: 130,
+                  overflowY: "auto",
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#92400e", marginBottom: 8, letterSpacing: "0.03em" }}>
+                  POPULAR BENGALURU CAMPUSES (TAP)
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {BANGALORE_WORKPLACES.map((wp) => (
+                    <button
+                      key={wp.id}
+                      type="button"
+                      onClick={() => applyWorkplaceFromList(wp)}
+                      style={{
+                        border: workplaceAnchor?.label === wp.name ? "2px solid #b45309" : "1px solid #fcd34d",
+                        background: workplaceAnchor?.label === wp.name ? "#fef3c7" : "#fff",
+                        borderRadius: 999,
+                        padding: "5px 10px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#78350f",
+                        cursor: "pointer",
+                        maxWidth: "100%",
+                        textAlign: "left",
+                      }}
+                    >
+                      {wp.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 12px", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", justifyContent: "flex-end", background: "#fff" }}>
                 <button
                   type="button"
                   onClick={openFullFilterPanel}
@@ -1360,6 +1302,7 @@ export default function MapView() {
                   ) : null}
                 </div>
               )}
+              </div>
             </div>
           </div>
           ) : null}

@@ -246,3 +246,20 @@
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Leaflet map popups — fully opaque so map labels/tiles do not show through listing text */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+}
+.leaflet-popup-content-wrapper {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.2) !important;
+}
+.leaflet-popup-content {
+  margin: 10px 12px !important;
+  min-width: 0;
+}

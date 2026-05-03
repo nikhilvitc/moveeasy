@@ -5,7 +5,7 @@ import PageShell from "../components/layout/PageShell";
 import { isFirebaseConfigured } from "../lib/firebase";
 import {
   getAssignmentsForSellerEmail,
-  getListingsData,
+  getListingsForSellerEmail,
   withdrawListingBySeller,
   republishListingBySeller,
   uploadListingFiles,
@@ -45,17 +45,29 @@ export default function SellerDashboard() {
   const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
+  const emptyForm = () => ({
     title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
     securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
     floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
     gatedCommunity: "", furnishingsText: "", amenitiesText: "",
+    description: "",
+    propertyType: "Apartment",
+    furnishing: "Semi",
+    availability: "Immediate",
+    preferredTenantsText: "Family",
+    parkingText: "2 Wheeler",
+    sourceUrl: "",
+    areaUnit: "sq ft",
   });
+  const [form, setForm] = useState(emptyForm);
   const [pinPosition, setPinPosition] = useState(null);
   const [myAssignments, setMyAssignments] = useState([]);
   const [sellerRow, setSellerRow] = useState(null);
   const [badgeForm, setBadgeForm] = useState({ businessName: "", phone: "", gst: "" });
   const [badgeMsg, setBadgeMsg] = useState("");
+  const [badgeMsgKind, setBadgeMsgKind] = useState("ok");
+  const [listingSaveMsg, setListingSaveMsg] = useState("");
+  const [listingSaveKind, setListingSaveKind] = useState("ok");
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
   const [leadInterests, setLeadInterests] = useState([]);
@@ -68,7 +80,7 @@ export default function SellerDashboard() {
       const em = String(user?.email || "").toLowerCase().trim();
       const [allListings, allAssignments, row, allVisits, interestsAll, notifs] = isFirebaseConfigured
         ? await Promise.all([
-            getListingsData(),
+            getListingsForSellerEmail(em),
             getAssignmentsForSellerEmail(em),
             readUserRow(user?.email),
             getVisitsForSellerEmail(em),
@@ -77,7 +89,11 @@ export default function SellerDashboard() {
           ])
         : [getListings(), getAssignments(), await readUserRow(user?.email), [], getInterestsGlobal(), getNotificationsLocal().filter((n) => n.audience === "seller" && String(n.targetEmail || "").toLowerCase() === em)];
       if (!alive) return;
-      setListings(allListings.filter((l) => l.sellerEmail === user?.email));
+      setListings(
+        isFirebaseConfigured
+          ? allListings
+          : allListings.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === em)
+      );
       setMyAssignments(Array.isArray(allAssignments) ? allAssignments : []);
       setSellerRow(row);
       setVisitRequests(Array.isArray(allVisits) ? allVisits : []);
@@ -97,69 +113,112 @@ export default function SellerDashboard() {
   const handleBadgeSubmit = async (e) => {
     e.preventDefault();
     setBadgeMsg("");
-    const res = await submitSellerBadgeApplication(badgeForm);
-    if (!res.success) {
-      setBadgeMsg(res.error || "Could not submit");
-      return;
+    setBadgeMsgKind("ok");
+    try {
+      const res = await submitSellerBadgeApplication(badgeForm);
+      if (!res.success) {
+        setBadgeMsgKind("err");
+        setBadgeMsg(res.error || "Could not submit");
+        return;
+      }
+      setBadgeForm({ businessName: "", phone: "", gst: "" });
+      setSellerRow(await readUserRow(user?.email));
+      setBadgeMsgKind("ok");
+      setBadgeMsg("Application submitted. Admin will review for a verified badge.");
+    } catch (err) {
+      setBadgeMsgKind("err");
+      setBadgeMsg(err?.message || String(err) || "Could not submit");
     }
-    setBadgeForm({ businessName: "", phone: "", gst: "" });
-    setSellerRow(await readUserRow(user?.email));
-    setBadgeMsg("Application submitted. Admin will review for a verified badge.");
   };
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    setListingSaveMsg("");
     if (!pinPosition) { alert("Please click on the map to set property location"); return; }
+    const authEmail = String(user?.email || "").toLowerCase().trim();
     const id = form.id || String(Date.now());
-    const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, id) : [];
-    const manualImages = String(form.imagesText || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
-    const mergedImages = [...uploadedImages, ...manualImages];
-    const finalImages = mergedImages.length ? mergedImages : (form.images || []);
-    const newItem = {
-      ...form,
-      id,
-      seller: user?.name || "Seller",
-      sellerEmail: user?.email,
-      ownerEmail: user?.email,
-      lat: pinPosition[0],
-      lng: pinPosition[1],
-      experience: "N/A",
-      totalListings: 0,
-      areas: form.address,
-      company: user?.name,
-      contact: form.contact || "N/A",
-      monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0,
-      availability: form.availability || "Immediate",
-      propertyType: form.propertyType || "Apartment",
-      furnishing: form.furnishing || "Semi",
-      preferredTenants: form.preferredTenants || ["Family"],
-      parking: form.parking || ["2 Wheeler"],
-      amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
-      furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
-      images: finalImages,
-      image: finalImages[0] || "",
-    };
-    if (isFirebaseConfigured) await upsertListingData(newItem, user);
-    else upsertListing(newItem);
-    const all = isFirebaseConfigured ? await getListingsData() : getListings();
-    setListings(all.filter((l) => l.sellerEmail === user?.email));
-    setForm({
-      title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
-      securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
-      floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
-      gatedCommunity: "", furnishingsText: "", amenitiesText: "",
-    });
-    setPinPosition(null);
-    setPhotoFiles([]);
-    setShowAdd(false);
+    try {
+      const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, id) : [];
+      const manualImages = String(form.imagesText || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      const mergedImages = [...uploadedImages, ...manualImages];
+      const finalImages = mergedImages.length ? mergedImages : (form.images || []);
+      const preferredTenants = String(form.preferredTenantsText || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const parking = String(form.parkingText || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const newItem = {
+        ...form,
+        id,
+        seller: user?.name || "Seller",
+        sellerEmail: authEmail,
+        ownerEmail: authEmail,
+        lat: pinPosition[0],
+        lng: pinPosition[1],
+        experience: "N/A",
+        totalListings: 0,
+        areas: form.address,
+        company: user?.name,
+        contact: form.contact || "N/A",
+        monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0,
+        availability: form.availability || "Immediate",
+        propertyType: form.propertyType || "Apartment",
+        furnishing: form.furnishing || "Semi",
+        preferredTenants: preferredTenants.length ? preferredTenants : ["Family"],
+        parking: parking.length ? parking : ["2 Wheeler"],
+        leaseType: String(form.leaseType || "").trim(),
+        balcony: String(form.balcony || "").trim(),
+        floorNumber: String(form.floorNumber || "").trim(),
+        totalFloors: String(form.totalFloors || "").trim(),
+        ageOfProperty: String(form.ageOfProperty || "").trim(),
+        gasPipeline: String(form.gasPipeline || "").trim(),
+        gatedCommunity: String(form.gatedCommunity || "").trim(),
+        parkingInfo: String(form.parkingInfo || "").trim(),
+        sourceUrl: String(form.sourceUrl || "").trim(),
+        areaUnit: String(form.areaUnit || "sq ft").trim() || "sq ft",
+        description: String(form.description || "").trim(),
+        amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
+        furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
+        images: finalImages,
+        image: finalImages[0] || "",
+      };
+      if (isFirebaseConfigured) await upsertListingData(newItem, user);
+      else upsertListing(newItem);
+      const all = isFirebaseConfigured ? await getListingsForSellerEmail(authEmail) : getListings();
+      setListings(
+        isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === authEmail)
+      );
+      setForm(emptyForm());
+      setPinPosition(null);
+      setPhotoFiles([]);
+      setShowAdd(false);
+      setListingSaveKind("ok");
+      setListingSaveMsg("Listing saved successfully.");
+    } catch (err) {
+      console.error(err);
+      setListingSaveKind("err");
+      setListingSaveMsg(err?.message || String(err) || "Save failed. If this persists, check that your account is a seller in Firestore (userRoles) and try again.");
+    }
   };
 
   const handleEdit = (listing) => {
     setForm({
+      ...emptyForm(),
       ...listing,
       imagesText: Array.isArray(listing.images) ? listing.images.join("\n") : (listing.imagesText || ""),
       amenitiesText: Array.isArray(listing.amenities) ? listing.amenities.join(", ") : (listing.amenitiesText || ""),
       furnishingsText: Array.isArray(listing.furnishings) ? listing.furnishings.join(", ") : (listing.furnishingsText || ""),
+      preferredTenantsText: Array.isArray(listing.preferredTenants) ? listing.preferredTenants.join(", ") : (listing.preferredTenantsText || "Family"),
+      parkingText: Array.isArray(listing.parking) ? listing.parking.join(", ") : (listing.parkingText || listing.parkingInfo || "2 Wheeler"),
+      description: listing.description || "",
+      propertyType: listing.propertyType || listing.type || "Apartment",
+      furnishing: listing.furnishing || "Semi",
+      availability: listing.availability || "Immediate",
+      sourceUrl: listing.sourceUrl || "",
+      areaUnit: listing.areaUnit || "sq ft",
     });
     setPinPosition([listing.lat, listing.lng]);
     setShowAdd(true);
@@ -174,8 +233,9 @@ export default function SellerDashboard() {
       alert("Could not withdraw listing. Try again or contact support.");
       return;
     }
-    const all = isFirebaseConfigured ? await getListingsData() : getListings();
-    setListings(all.filter((l) => l.sellerEmail === user?.email));
+    const em = String(user?.email || "").toLowerCase().trim();
+    const all = isFirebaseConfigured ? await getListingsForSellerEmail(em) : getListings();
+    setListings(isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === em));
   };
 
   const handleRelist = async (id) => {
@@ -186,8 +246,9 @@ export default function SellerDashboard() {
       alert("Could not relist. Try again or contact support.");
       return;
     }
-    const all = isFirebaseConfigured ? await getListingsData() : getListings();
-    setListings(all.filter((l) => l.sellerEmail === user?.email));
+    const em = String(user?.email || "").toLowerCase().trim();
+    const all = isFirebaseConfigured ? await getListingsForSellerEmail(em) : getListings();
+    setListings(isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === em));
   };
 
   const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
@@ -258,7 +319,9 @@ export default function SellerDashboard() {
               <button type="submit" style={{ ...btn, background: "#0f766e", color: "white", gridColumn: "span 2" }}>Submit for verified badge</button>
             </form>
           )}
-          {badgeMsg && <div style={{ marginTop: "8px", fontSize: "12px", color: "#0f766e", fontWeight: 600 }}>{badgeMsg}</div>}
+          {badgeMsg && (
+            <div style={{ marginTop: "8px", fontSize: "12px", color: badgeMsgKind === "err" ? "#b91c1c" : "#0f766e", fontWeight: 600 }}>{badgeMsg}</div>
+          )}
         </div>
         {myAssignments.length > 0 && (
           <div style={{ background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px", marginBottom: "16px" }}>
@@ -283,8 +346,33 @@ export default function SellerDashboard() {
         )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700 }}>My Listings ({listings.length})</div>
-          <button onClick={() => setShowAdd(!showAdd)} style={{ ...btn, background: "#1e3a8a", color: "white" }}>{showAdd ? "Cancel" : "+ Add Listing"}</button>
+          <button
+            type="button"
+            onClick={() => {
+              setListingSaveMsg("");
+              setShowAdd(!showAdd);
+            }}
+            style={{ ...btn, background: "#1e3a8a", color: "white" }}
+          >
+            {showAdd ? "Cancel" : "+ Add Listing"}
+          </button>
         </div>
+        {listingSaveMsg ? (
+          <div
+            style={{
+              marginBottom: "14px",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              fontSize: "13px",
+              fontWeight: 600,
+              border: `1px solid ${listingSaveKind === "err" ? "#fecaca" : "#bbf7d0"}`,
+              background: listingSaveKind === "err" ? "#fef2f2" : "#f0fdf4",
+              color: listingSaveKind === "err" ? "#b91c1c" : "#15803d",
+            }}
+          >
+            {listingSaveMsg}
+          </div>
+        ) : null}
         {showAdd && (
           <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
             <form onSubmit={handleAdd} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
@@ -292,16 +380,45 @@ export default function SellerDashboard() {
               <input placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <select value={form.bhk} onChange={(e) => setForm({ ...form, bhk: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}><option>1RK</option><option>1BHK</option><option>2BHK</option><option>3BHK</option><option>4BHK</option></select>
               <input placeholder="Address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <select value={form.propertyType || "Apartment"} onChange={(e) => setForm({ ...form, propertyType: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                <option>Apartment</option><option>Independent House</option><option>Villa</option><option>Studio</option><option>PG</option>
+              </select>
+              <select value={form.furnishing || "Semi"} onChange={(e) => setForm({ ...form, furnishing: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                <option>Unfurnished</option><option>Semi</option><option>Fully</option>
+              </select>
+              <input placeholder="Available from (e.g. Immediate, After 30 days)" value={form.availability || ""} onChange={(e) => setForm({ ...form, availability: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Preferred tenants (comma: Family, Bachelors...)" value={form.preferredTenantsText || ""} onChange={(e) => setForm({ ...form, preferredTenantsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Parking (comma: 2 Wheeler, 4 Wheeler)" value={form.parkingText || ""} onChange={(e) => setForm({ ...form, parkingText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
               <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Brokerage (optional)" value={form.brokerage || ""} onChange={(e) => setForm({ ...form, brokerage: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Security deposit (optional)" value={form.securityDeposit || ""} onChange={(e) => setForm({ ...form, securityDeposit: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Maintenance (optional)" value={form.maintenanceCost || ""} onChange={(e) => setForm({ ...form, maintenanceCost: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Built up area (optional)" value={form.builtUpArea || ""} onChange={(e) => setForm({ ...form, builtUpArea: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <select value={form.areaUnit || "sq ft"} onChange={(e) => setForm({ ...form, areaUnit: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                <option>sq ft</option><option>sq m</option>
+              </select>
               <input placeholder="Bathrooms (optional)" value={form.bathrooms || ""} onChange={(e) => setForm({ ...form, bathrooms: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Balcony (optional)" value={form.balcony || ""} onChange={(e) => setForm({ ...form, balcony: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Lease type (optional)" value={form.leaseType || ""} onChange={(e) => setForm({ ...form, leaseType: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Floor number (optional)" value={form.floorNumber || ""} onChange={(e) => setForm({ ...form, floorNumber: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Total floors (optional)" value={form.totalFloors || ""} onChange={(e) => setForm({ ...form, totalFloors: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Age of property (optional)" value={form.ageOfProperty || ""} onChange={(e) => setForm({ ...form, ageOfProperty: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <select value={form.gasPipeline || ""} onChange={(e) => setForm({ ...form, gasPipeline: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                <option value="">Gas pipeline —</option><option>Yes</option><option>No</option>
+              </select>
+              <select value={form.gatedCommunity || ""} onChange={(e) => setForm({ ...form, gatedCommunity: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
+                <option value="">Gated community —</option><option>Yes</option><option>No</option>
+              </select>
+              <input placeholder="Parking note (optional, shown if set)" value={form.parkingInfo || ""} onChange={(e) => setForm({ ...form, parkingInfo: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
+              <input placeholder="Source URL (optional)" value={form.sourceUrl || ""} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
+              <textarea placeholder="Description" value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "72px" }} />
               <textarea placeholder="Furnishings (comma separated)" value={form.furnishingsText || ""} onChange={(e) => setForm({ ...form, furnishingsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
               <textarea placeholder="Amenities (comma separated: lift, power backup, geyser...)" value={form.amenitiesText || ""} onChange={(e) => setForm({ ...form, amenitiesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
               <textarea placeholder="Extra media URLs (one per line)" value={form.imagesText || ""} onChange={(e) => setForm({ ...form, imagesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "68px" }} />
-              <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
-              <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center" }}>{pinPosition ? "Pin set" : "Click map below"}</div>
+              <div style={{ gridColumn: "span 2" }}>
+                <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
+              </div>
+              <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center", gridColumn: "span 2" }}>{pinPosition ? "Pin set" : "Click map below to set location"}</div>
               <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2" }}>Save</button>
             </form>
             <div style={{ height: "250px", borderRadius: "8px", overflow: "hidden", border: "2px solid #e2e8f0" }}>

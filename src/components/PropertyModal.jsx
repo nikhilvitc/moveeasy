@@ -54,7 +54,9 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   const scrollRef = useRef(null);
 
   useEffect(() => {
+    if (!property?.id) return;
     setActiveMediaIndex(0);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [property?.id]);
 
   useEffect(() => {
@@ -75,8 +77,13 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
 
   const offMarket = !isListingPubliclyVisible(property);
 
-  const images = property.images && property.images.length > 0 ? property.images : [property.image].filter(Boolean);
-  if (images.length === 0) images.push("https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000");
+  const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000";
+  const rawMedia = Array.isArray(property.images) && property.images.length > 0 ? property.images : [property.image];
+  const cleaned = rawMedia
+    .map((u) => String(u ?? "").trim())
+    .filter((u) => u.length > 0 && u !== "undefined" && u !== "null");
+  const uniqueMedia = [...new Set(cleaned)];
+  const images = uniqueMedia.length > 0 ? uniqueMedia : [PLACEHOLDER_IMAGE];
   const numericRent = Number(String(property.monthlyRent || property.rent || "0").replace(/[^0-9.]/g, "")) || 0;
   const parseMoney = (raw) => {
     const n = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
@@ -433,9 +440,26 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                         aria-label={`Select media ${idx + 1}`}
                       >
                         {isVideoThumb ? (
-                          <video src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted />
+                          <video
+                            src={src}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            muted
+                            onError={(e) => {
+                              const btn = e.currentTarget.closest("button");
+                              if (btn) btn.style.display = "none";
+                            }}
+                          />
                         ) : (
-                          <img src={src} alt={`Media thumbnail ${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img
+                            src={src}
+                            alt=""
+                            loading="lazy"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={(e) => {
+                              const btn = e.currentTarget.closest("button");
+                              if (btn) btn.style.display = "none";
+                            }}
+                          />
                         )}
                         {isVideoThumb && (
                           <span style={{ position: "absolute", right: "4px", bottom: "4px", fontSize: "9px", color: "white", background: "rgba(0,0,0,0.7)", borderRadius: "999px", padding: "2px 5px", fontWeight: 700 }}>

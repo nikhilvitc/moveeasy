@@ -449,7 +449,7 @@ export default function Login() {
               color: "rgba(255,255,255,0.50)",
             }}
           >
-            <strong style={{ color: "rgba(255,255,255,0.70)" }}>Note:</strong> Only authorized staff emails can sign in as Admin.
+            <strong style={{ color: "rgba(255,255,255,0.70)" }}>Note:</strong> &quot;Admin&quot; here only changes the button text. MovEasy still checks the Gmail you sign in with. Use the admin Gmail your owner configured (and the correct password). A seller Gmail stays a seller even if Admin is selected.
           </div>
         ) : (
           <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>

@@ -26,19 +26,27 @@ export async function uploadListingFiles(files = [], listingId = crypto.randomUU
 }
 
 export async function getListingsData(options = {}) {
-  const { limitCount = 100, bhk, maxRent, locality } = options;
-  
-  let q = query(collection(db, "listings"), orderBy("updatedAt", "desc"));
-  
-  // Filter out withdrawn/archived listings by default unless specified
-  q = query(q, where("marketStatus", "==", "published"));
-  
-  if (bhk) q = query(q, where("bhk", "==", bhk));
-  if (maxRent) q = query(q, where("monthlyRent", "<=", maxRent));
-  // Note: locality prefix search requires specific indexing; for now we limit the read size
-  
-  q = query(q, limit(limitCount));
+  const { limitCount = 100, bhk, maxRent } = options;
 
+  const col = collection(db, "listings");
+  const published = where("marketStatus", "==", "published");
+  /** Default UI max is 100k = "no cap"; only apply server rent cap when user tightens the slider. */
+  const hasRentCap =
+    maxRent != null && Number.isFinite(Number(maxRent)) && Number(maxRent) > 0 && Number(maxRent) < 100000;
+
+  const constraints = [published];
+  if (bhk) constraints.push(where("bhk", "==", bhk));
+  if (hasRentCap) constraints.push(where("monthlyRent", "<=", Number(maxRent)));
+
+  // Firestore: if a query uses range/inequality on a field, the first orderBy must be that field.
+  if (hasRentCap) {
+    constraints.push(orderBy("monthlyRent", "desc"));
+  } else {
+    constraints.push(orderBy("updatedAt", "desc"));
+  }
+  constraints.push(limit(limitCount));
+
+  const q = query(col, ...constraints);
   const snap = await getDocs(q);
   const firestoreListings = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
   
@@ -52,15 +60,34 @@ export async function getListingsData(options = {}) {
   return combined;
 }
 
+function normalizeAuthEmail(email) {
+  return String(email || "").toLowerCase().trim();
+}
+
+/** All of a seller's listings (any marketStatus). Email must match Firestore `sellerEmail` (lowercase). */
+export async function getListingsForSellerEmail(sellerEmail) {
+  const em = normalizeAuthEmail(sellerEmail);
+  if (!em) return [];
+  const snap = await getDocs(query(collection(db, "listings"), where("sellerEmail", "==", em), limit(100)));
+  const rows = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  rows.sort((a, b) => {
+    const ta = a.updatedAt?.toMillis?.() ?? (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+    const tb = b.updatedAt?.toMillis?.() ?? (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+    return tb - ta;
+  });
+  return rows;
+}
+
 export async function upsertListingData(listing, actor) {
   const id = String(listing.id || crypto.randomUUID());
   const rawStatus = String(listing.marketStatus || "published").toLowerCase();
   const marketStatus = rawStatus === "withdrawn" || rawStatus === "archived" ? rawStatus : "published";
+  const actorEmail = normalizeAuthEmail(listing.sellerEmail || listing.ownerEmail || actor?.email || "");
   const payload = {
     ...listing,
     id,
-    ownerEmail: listing.ownerEmail || listing.sellerEmail || actor?.email || "",
-    sellerEmail: listing.sellerEmail || actor?.email || "",
+    ownerEmail: actorEmail,
+    sellerEmail: actorEmail,
     lat: Number(listing.lat || 12.9716),
     lng: Number(listing.lng || 77.5946),
     monthlyRent: Number(listing.monthlyRent || 0),

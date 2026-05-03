@@ -201,7 +201,7 @@ export default function MyActivity() {
                       setMapRestorePayload({
                         filters: h.filters,
                         selectedLocality: h.selectedLocality || "",
-                        mapSearchInput: h.selectedLocality || "",
+                        mapSearchInput: h.selectedLocality || h.workplaceLabel || "",
                         searchMode: h.searchMode || "local",
                         placeAnchor:
                           h.placeLat != null && h.placeLng != null
@@ -211,7 +211,6 @@ export default function MyActivity() {
                           h.workLat != null && h.workLng != null
                             ? { lat: h.workLat, lng: h.workLng, label: h.workplaceLabel || "Office" }
                             : null,
-                        workplaceInput: h.workplaceLabel || "",
                       });
                       navigate("/map");
                     }}
