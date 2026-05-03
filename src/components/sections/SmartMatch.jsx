@@ -185,30 +185,7 @@ export default function SmartMatch() {
   }, []);
 
   return (
-    <section className="relative overflow-hidden py-20 sm:py-24 lg:py-28">
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-rose-100/95 via-orange-50/50 to-sky-100/80"
-        aria-hidden
-      />
-      <motion.div
-        className="pointer-events-none absolute -top-24 right-0 h-80 w-80 rounded-full bg-gradient-to-br from-rose-300/70 to-amber-200/30 blur-3xl will-change-transform"
-        aria-hidden
-        animate={{ x: [0, -20, 12, 0], y: [0, 16, -8, 0], scale: [1, 1.08, 0.97, 1] }}
-        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute bottom-0 left-0 h-72 w-72 rounded-full bg-gradient-to-tr from-sky-300/65 to-violet-200/35 blur-3xl will-change-transform"
-        aria-hidden
-        animate={{ x: [0, 24, -10, 0], y: [0, -18, 10, 0], scale: [1, 1.06, 1, 1] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-      />
-      <motion.div
-        className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-rose-200/25 via-transparent to-sky-200/25 blur-3xl will-change-transform"
-        aria-hidden
-        animate={{ opacity: [0.35, 0.65, 0.35], scale: [0.9, 1.05, 0.9] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-      />
-
+    <section className="relative overflow-hidden py-20 sm:py-24 lg:py-28 bg-gradient-to-b from-rose-50/90 via-white to-slate-50">
       <div className="relative z-[1] max-w-7xl mx-auto px-6 lg:px-10">
         <motion.div
           ref={titleRef}

@@ -135,6 +135,13 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         ? [0.35, 0.55, 0.38]
         : [0.45, 0.7, 0.45];
 
+  /* Pages use their own surface; skip all animated layers for readability (map-style UIs, legal, dashboards). */
+  if (isMarketing && overlayOnly) {
+    return (
+      <div className="pointer-events-none absolute inset-0 min-h-full overflow-hidden" aria-hidden="true" />
+    );
+  }
+
   return (
     <div
       className="pointer-events-none absolute inset-0 min-h-full overflow-hidden"
@@ -185,12 +192,14 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
         />
       )}
 
-      <motion.div
-        className="absolute inset-0"
-        style={driftStyle}
-        animate={{ opacity: driftOpacity }}
-        transition={{ duration: 8, repeat: Infinity, ease: EASE }}
-      />
+      {!isMarketing && (
+        <motion.div
+          className="absolute inset-0"
+          style={driftStyle}
+          animate={{ opacity: driftOpacity }}
+          transition={{ duration: 8, repeat: Infinity, ease: EASE }}
+        />
+      )}
 
       {isCheckout && (
         <>

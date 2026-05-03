@@ -19,7 +19,6 @@ import {
   toggleSavedListing,
 } from "../lib/userActivity";
 import { logSavedListingChange } from "../lib/crmSync";
-import PageShell from "./layout/PageShell";
 
 const MAP_NEARBY_KM = 12;
 /** Listings within this radius (km) of geocoded office / company */
@@ -146,7 +145,7 @@ function ToggleOption({ label, active, onClick, activeColor = "#dc2626" }) {
       style={{
         border: active ? `1px solid ${activeColor}` : "1px solid #e2e8f0",
         background: active ? getLightBg(activeColor) : "white",
-        color: active ? activeColor : "#334155",
+        color: active ? activeColor : "#0f172a",
         borderRadius: "10px",
         padding: "8px 14px",
         fontSize: "14px",
@@ -527,23 +526,24 @@ export default function MapView() {
   const showMapSearchCard = showMapSearchOverlay && (isMobile || !showDesktopFilters);
 
   return (
-    <PageShell
-      variant="marketing"
-      overlayOnly
-      minHeight={false}
+    <div
       className="flex h-screen flex-col overflow-hidden"
-      style={{ background: "linear-gradient(180deg, #fff4f2 0%, #f8fbff 100%)" }}
+      style={{ background: "#f1f5f9" }}
     >
       <style>{`
         .desktop-sidebar {
           width: clamp(300px, 24vw, 440px);
           overflow-y: auto;
           border-right: 1px solid #e2e8f0;
-          background: #f8fafc;
+          background: #ffffff;
           padding: 18px 20px;
           flex-shrink: 0;
           font-size: 15px;
           transition: transform 0.3s ease-in-out;
+          position: relative;
+          z-index: 10;
+          isolation: isolate;
+          box-shadow: 1px 0 0 rgba(15, 23, 42, 0.06);
         }
         .desktop-sidebar input[type="number"] {
           width: 100%;
@@ -565,7 +565,7 @@ export default function MapView() {
             top: 0;
             left: 0;
             bottom: 0;
-            z-index: 9999;
+            z-index: 10000;
             width: 85vw;
             max-width: 320px;
             box-shadow: 4px 0 15px rgba(0,0,0,0.1);
@@ -698,7 +698,7 @@ export default function MapView() {
         {(isMobile ||
           (showDesktopFilters && (desktopMode === "split" || desktopMode === "map"))) && (
         <aside className={`desktop-sidebar ${showMobileFilters ? "open" : ""}`}>
-          <h3 style={{ margin: "0 0 12px", color: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: 800, gap: 10 }}>
+          <h3 style={{ margin: "0 0 12px", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "18px", fontWeight: 800, gap: 10 }}>
             Filters
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {!isMobile ? (
@@ -724,19 +724,19 @@ export default function MapView() {
               </button>
             </span>
           </h3>
-          <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0", fontSize: "13px", color: "#64748b", lineHeight: 1.45 }}>
+          <div style={{ marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #e2e8f0", fontSize: "14px", color: "#334155", lineHeight: 1.55, fontWeight: 500 }}>
             {isMobile ? (
               <>
-                Use the <strong style={{ color: "#334155" }}>search card on the map</strong> for area, landmark, or workplace. Fine-tune rent and more here.
+                Use the <strong style={{ color: "#0f172a" }}>search card on the map</strong> for area, landmark, or workplace. Fine-tune rent and more here.
               </>
             ) : (
               <>
-                Rent range, BHK, building type, and area chips. <strong style={{ color: "#334155" }}>Hide filters</strong> when you want the map search card back (metro, workplace, free-text).
+                Rent range, BHK, building type, and area chips. <strong style={{ color: "#0f172a" }}>Hide filters</strong> when you want the map search card back (metro, workplace, free-text).
               </>
             )}
           </div>
           <div style={{ marginBottom: "18px" }}>
-            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "8px" }}>Areas (tap — no typing)</div>
+            <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Areas (tap — no typing)</div>
             <div
               style={{
                 display: "flex",
@@ -758,12 +758,12 @@ export default function MapView() {
                     type="button"
                     onClick={() => toggleNeighborhood(name)}
                     style={{
-                      border: on ? "1px solid #b91c1c" : "1px solid #e2e8f0",
-                      background: on ? "#fff1f2" : "#f8fafc",
-                      color: on ? "#9f1239" : "#475569",
+                      border: on ? "1px solid #b91c1c" : "1px solid #cbd5e1",
+                      background: on ? "#fff1f2" : "#ffffff",
+                      color: on ? "#9f1239" : "#0f172a",
                       borderRadius: "999px",
                       padding: "6px 11px",
-                      fontSize: "12px",
+                      fontSize: "13px",
                       fontWeight: 700,
                       cursor: "pointer",
                     }}
@@ -784,7 +784,7 @@ export default function MapView() {
             )}
           </div>
           <div style={{ marginBottom: "18px" }}>
-            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "10px" }}>BHK Type</div>
+            <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "10px", color: "#0f172a" }}>BHK Type</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
               {FILTER_OPTIONS.bhkTypes.map((item) => (
                 <ToggleOption 
@@ -799,7 +799,7 @@ export default function MapView() {
           </div>
 
           <div style={{ marginBottom: "18px" }}>
-            <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "8px" }}>Rent range: ₹ 10k to ₹ 1 Lakh</div>
+            <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Rent range: ₹ 10k to ₹ 1 Lakh</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <input type="number" value={filters.minRent} onChange={(e) => setFilters((p) => ({ ...p, minRent: Number(e.target.value || 0) }))} placeholder="Min" />
               <input type="number" value={filters.maxRent} onChange={(e) => setFilters((p) => ({ ...p, maxRent: Number(e.target.value || 0) }))} placeholder="Max" />
@@ -814,7 +814,7 @@ export default function MapView() {
             ["parking", "Parking"],
           ].map(([key, label]) => (
             <div key={key} style={{ marginBottom: "18px" }}>
-              <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "10px" }}>{label}</div>
+              <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "10px", color: "#0f172a" }}>{label}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                 {FILTER_OPTIONS[key].map((item) => (
                   <ToggleOption key={item} label={item} active={filters[key].includes(item)} onClick={() => toggleFilter(key, item)} />
@@ -1523,7 +1523,7 @@ export default function MapView() {
           style={{
             width: isMobile ? "100%" : "clamp(320px, 28vw, 480px)",
             overflowY: "auto",
-            background: "#f8fafc",
+            background: "#ffffff",
             borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
             padding: isMobile ? `12px 12px ${helpWidgetOpen ? 120 : 72}px` : "16px 18px",
             fontSize: "15px",
@@ -1533,13 +1533,14 @@ export default function MapView() {
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: isMobile ? 1002 : "auto",
-            boxShadow: isMobile ? "0 -8px 24px rgba(15, 23, 42, 0.18)" : "none",
+            zIndex: isMobile ? 1002 : 4,
+            isolation: "isolate",
+            boxShadow: isMobile ? "0 -8px 24px rgba(15, 23, 42, 0.18)" : "inset 1px 0 0 rgba(15, 23, 42, 0.04)",
             transform: isMobile ? (showMobileListings ? "translateY(0)" : "translateY(102%)") : "none",
             transition: "transform 0.25s ease",
           }}
         >
-          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "8px", color: "#1e293b" }}>
+          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "8px", color: "#0f172a" }}>
             Properties ({displayPins.length})
             {usingRelaxedPins ? (
               <div style={{ fontSize: "12px", fontWeight: 600, color: "#b45309", marginTop: "4px" }}>
@@ -1629,6 +1630,6 @@ export default function MapView() {
           }}
         />
       )}
-    </PageShell>
+    </div>
   );
 }
