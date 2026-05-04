@@ -61,6 +61,20 @@ export async function getListingsData(options = {}) {
 }
 
 /**
+ * Map/discovery merges published Firestore rows with bundled `listingsData` seeds.
+ * Admin must see the same demos to edit or "promote" into real Firestore docs.
+ * Rows already in Firestore (same `id`) win; others get `_seedFromStatic: true`.
+ */
+export function mergeAdminListingsWithSeedData(firestoreRows) {
+  const fs = Array.isArray(firestoreRows) ? [...firestoreRows] : [];
+  const fsIds = new Set(fs.map((r) => String(r?.id ?? "")));
+  const seeds = listingsData
+    .filter((r) => r != null && !fsIds.has(String(r.id)))
+    .map((r) => ({ ...r, _seedFromStatic: true }));
+  return [...fs, ...seeds];
+}
+
+/**
  * Admin dashboard: read all listing documents (any `marketStatus`).
  * `getListingsData` only returns `marketStatus === "published"`, so legacy rows
  * without that field never appear for admins and looked like "empty listings".
@@ -74,7 +88,7 @@ export async function getAdminListingsData(limitCount = 500) {
     const tb = b.updatedAt?.toMillis?.() ?? (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
     return tb - ta;
   });
-  return rows;
+  return mergeAdminListingsWithSeedData(rows);
 }
 
 function normalizeAuthEmail(email) {

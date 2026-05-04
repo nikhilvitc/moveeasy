@@ -373,7 +373,7 @@ export default function AdminDashboard() {
   };
 
   const handleEdit = (listing) => {
-    setEditingId(listing.id);
+    setEditingId(listing._seedFromStatic ? null : listing.id);
     const nextForm = listingToForm(listing);
     setForm(nextForm);
     setPinPosition([nextForm.lat, nextForm.lng]);
@@ -381,6 +381,13 @@ export default function AdminDashboard() {
   };
 
   const handleDelete = async (id) => {
+    const row = listings.find((l) => String(l.id) === String(id));
+    if (row?._seedFromStatic) {
+      alert(
+        "This row is bundled demo data (not stored in Firestore). Use Edit → Save listing to create a real cloud listing, or change samples in src/data/listingsData.js."
+      );
+      return;
+    }
     if (isFirebaseConfigured) await removeListingData(id);
     else removeListing(id);
     setRefreshTick((v) => v + 1);
@@ -1310,12 +1317,20 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "16px" }}>All Listings ({listings.length})</div>
+        <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px" }}>All Listings ({listings.length})</div>
+        <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "14px", lineHeight: 1.45 }}>
+          Firestore listings appear first; bundled map demos (same as on /map) follow with a <strong>Demo</strong> tag — Edit + Save creates a new cloud listing.
+        </div>
         <div style={{ background: "white", borderRadius: "12px", overflow: "hidden" }}>
           {listings.map((l) => (
-            <div key={l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
+            <div key={l._seedFromStatic ? `seed-${l.id}` : l.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "8px" : 0 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{l.title}</div>
+                <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  {l.title}
+                  {l._seedFromStatic ? (
+                    <span style={{ fontSize: "10px", fontWeight: 800, padding: "2px 8px", borderRadius: "999px", background: "#e0e7ff", color: "#3730a3" }}>Demo</span>
+                  ) : null}
+                </div>
                 <div style={{ fontSize: "12px", color: "#64748b" }}>
                   {l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}
                   {l.marketStatus && l.marketStatus !== "published" ? (
