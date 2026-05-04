@@ -39,15 +39,21 @@ export default function Navbar() {
           : "border-red-900/25 bg-zinc-950/95 backdrop-blur-lg shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
       }`}
     >
-      <div className="flex items-center justify-between px-4 md:px-8 py-2.5 gap-3">
+      <div className="flex items-center justify-between px-4 md:px-8 py-3 gap-3 min-h-[56px] md:min-h-[64px]">
         <motion.div
           onClick={() => closeAndGo("/")}
-          className="cursor-pointer flex items-center select-none shrink-0"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
+          className="cursor-pointer flex items-center select-none shrink-0 py-0.5"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           transition={{ duration: 0.2 }}
         >
-          <img src="/logo-moveazy.png" alt="MovEAZY" className="h-9 md:h-10 w-auto max-h-[40px]" />
+          <img
+            src="/logo-moveazy.png"
+            alt="MovEAZY"
+            className="h-12 w-auto sm:h-14 md:h-16 lg:h-[4.5rem] max-h-[72px] object-contain object-left"
+            decoding="async"
+            fetchPriority="high"
+          />
         </motion.div>
 
         <div className="hidden lg:flex items-center gap-2 xl:gap-3 text-[13px] font-semibold text-zinc-300 flex-wrap justify-end">
