@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navBtn =
-  "rounded-lg px-3.5 py-2 text-[13px] font-bold border border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-500 transition-colors";
+  "rounded-md px-2.5 py-1.5 text-[12px] font-bold leading-tight border border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-500 transition-colors";
 const navBtnAdmin =
-  "rounded-lg px-3.5 py-2 text-[13px] font-bold border border-red-800/80 bg-red-950/60 text-red-100 hover:bg-red-950 transition-colors";
+  "rounded-md px-2.5 py-1.5 text-[12px] font-bold leading-tight border border-red-800/80 bg-red-950/60 text-red-100 hover:bg-red-950 transition-colors";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -35,31 +35,29 @@ export default function Navbar() {
     <nav
       className={`sticky top-0 z-50 border-b transition-all duration-300 ${
         scrolled
-          ? "border-red-900/35 bg-zinc-950/98 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-          : "border-red-900/25 bg-zinc-950/95 backdrop-blur-lg shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+          ? "border-red-900/30 bg-zinc-950/98 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
+          : "border-red-900/20 bg-zinc-950/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.28)]"
       }`}
     >
-      <div className="flex items-center justify-between px-3 sm:px-5 md:px-6 py-2 gap-2 md:gap-3">
+      <div className="flex items-center justify-between px-2 sm:px-4 md:px-5 py-1 gap-2">
         <motion.div
           onClick={() => closeAndGo("/")}
-          className="cursor-pointer flex items-center select-none shrink-0"
+          className="cursor-pointer flex items-center select-none shrink-0 leading-none"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           transition={{ duration: 0.2 }}
         >
-          {/* Fixed viewport trims excess transparent padding in the PNG; bar stays low without tiny text */}
-          <div className="h-8 w-[7.5rem] sm:h-9 sm:w-[8.5rem] md:h-9 md:w-[9.25rem] overflow-hidden flex items-center justify-start">
-            <img
-              src="/logo-moveazy.png"
-              alt="MovEAZY"
-              className="h-full w-auto max-w-[min(100%,10.5rem)] object-contain object-left"
-              decoding="async"
-              fetchPriority="high"
-            />
-          </div>
+          {/* Wide bar asset (~5:1): height caps bar thickness; width follows aspect ratio */}
+          <img
+            src="/logo-moveazy-bar.png"
+            alt="MovEAZY"
+            className="h-[24px] w-auto sm:h-[26px] md:h-[28px] max-h-[28px] block"
+            decoding="async"
+            fetchPriority="high"
+          />
         </motion.div>
 
-        <div className="hidden lg:flex items-center gap-2 xl:gap-3 text-[13px] font-semibold text-zinc-300 flex-wrap justify-end">
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 text-[12px] font-semibold text-zinc-300 flex-wrap justify-end">
           {[
             { label: "Services", path: "/services" },
             { label: "Guarantee", path: "/guarantee" },
@@ -72,7 +70,7 @@ export default function Navbar() {
           <motion.button
             type="button"
             onClick={() => closeAndGo("/map")}
-            className="rounded-lg px-4 py-2 text-[13px] font-bold bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_4px_16px_rgba(220,38,38,0.35)]"
+            className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_2px_10px_rgba(220,38,38,0.28)]"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
@@ -83,7 +81,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2 shrink-0">
           {user ? (
-            <div className="hidden lg:flex items-center gap-2 text-[13px] font-semibold">
+            <div className="hidden lg:flex items-center gap-1.5 text-[12px] font-semibold">
               {user.role === "customer" && (
                 <motion.button type="button" onClick={() => closeAndGo("/customer")} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   Customer
@@ -110,7 +108,7 @@ export default function Navbar() {
             <motion.button
               type="button"
               onClick={() => closeAndGo("/login")}
-              className="hidden sm:block rounded-lg px-5 py-2 text-[13px] font-bold text-white bg-red-600 border border-red-700 hover:bg-red-500 shadow-[0_4px_16px_rgba(220,38,38,0.35)]"
+              className="hidden sm:block rounded-md px-3.5 py-1.5 text-[12px] font-bold leading-tight text-white bg-red-600 border border-red-700 hover:bg-red-500 shadow-[0_2px_10px_rgba(220,38,38,0.28)]"
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18 }}
@@ -122,7 +120,7 @@ export default function Navbar() {
           <motion.button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="lg:hidden rounded-lg px-3 py-2 border border-zinc-600 bg-zinc-900 text-zinc-200 text-sm font-bold"
+            className="lg:hidden rounded-md px-2 py-1.5 border border-zinc-600 bg-zinc-900 text-zinc-200 text-xs font-bold leading-none"
             whileHover={{ backgroundColor: "rgb(39 39 42)" }}
             whileTap={{ scale: 0.95 }}
             aria-label="Toggle menu"
@@ -202,7 +200,7 @@ function NavLink({ label, onClick }) {
   return (
     <motion.span
       onClick={onClick}
-      className="cursor-pointer relative py-1.5 px-1 group text-zinc-300"
+      className="cursor-pointer relative py-0.5 px-0.5 group text-zinc-300"
       whileHover={{ color: "#f87171" }}
       transition={{ duration: 0.15 }}
     >
