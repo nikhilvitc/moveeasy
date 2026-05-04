@@ -9,9 +9,14 @@ import Tilt3D from "../components/ui/Tilt3D";
 const EASE = [0.22, 1, 0.36, 1];
 
 const WHY_ITEMS = [
-  { icon: "🏠", title: "Verified Listings Only",    desc: "Every property is personally inspected by our team." },
-  { icon: "🛡️", title: "Zero Broker Fee",            desc: "We eliminate middlemen. Pay only for the Guarantee Plan." },
-  { icon: "⚡", title: "48-Hour Move-In",            desc: "From first call to keys-in-hand in under 2 days." },
+  { icon: "🏠", title: "Verified Listings Only", desc: "Every property is personally inspected by our team." },
+  {
+    icon: "🛡️",
+    title: "Brokerage & connections",
+    desc: "We charge one month's rent as brokerage.",
+    bullets: ["Provide brokers connections"],
+  },
+  { icon: "⚡", title: "48-Hour Move-In", desc: "From first call to keys-in-hand in under 2 days." },
 ];
 
 export default function Contact() {
@@ -116,7 +121,7 @@ export default function Contact() {
               style={{ color: "rgba(255,255,255,0.60)" }}
             >
               Get expert advice on your Bangalore move. Our IITK-trained consultants
-              will help you find the perfect home — no broker fees, no scams.
+              will help you find the perfect home — transparent brokerage (one month&apos;s rent) and broker connections, with a sharp eye on scams.
             </motion.p>
           </div>
         </section>
@@ -259,6 +264,13 @@ export default function Contact() {
                   <div className="font-bold mb-1 text-white">{item.title}</div>
                   <div className="text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                     {item.desc}
+                    {item.bullets?.length ? (
+                      <ul className="mt-2 pl-4 list-disc space-y-1 text-left">
+                        {item.bullets.map((b) => (
+                          <li key={b}>{b}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 </motion.div>
               ))}
