@@ -5,15 +5,15 @@
  * `companies` — common employer / brand names users type (matched case-insensitive) to jump to this campus.
  */
 export const BANGALORE_WORKPLACES = [
-  { id: "manyata", name: "Manyata Embassy Tech Park", lat: 13.0444, lng: 77.6247, companies: ["ibm", "philips", "nokia", "conduent", "cerner", "rolls royce"] },
-  { id: "embassy-tech", name: "Embassy Tech Village (Bellandur)", lat: 12.9347, lng: 77.6972, companies: ["cisco", "vmware", "juniper", "yahoo", "samsung r&d"] },
-  { id: "rmz-eco", name: "RMZ Ecoworld", lat: 12.9299, lng: 77.6844, companies: ["jp morgan", "visa", "wells fargo", "mu sigma"] },
-  { id: "prestige-tech", name: "Prestige Tech Park (Marathahalli)", lat: 12.9592, lng: 77.7013, companies: ["ericsson", "qualcomm", "sasken"] },
+  { id: "manyata", name: "Manyata Embassy Tech Park", lat: 13.0444, lng: 77.6247, companies: ["ibm", "philips", "nokia", "conduent", "cerner", "rolls royce", "target india", "lowes"] },
+  { id: "embassy-tech", name: "Embassy Tech Village (Bellandur)", lat: 12.9347, lng: 77.6972, companies: ["cisco", "vmware", "juniper", "yahoo", "samsung", "samsung r&d", "samsung research", "samsung india", "broadcom", "intuit"] },
+  { id: "rmz-eco", name: "RMZ Ecoworld", lat: 12.9299, lng: 77.6844, companies: ["jp morgan", "visa", "wells fargo", "mu sigma", "goldman sachs", "deutsche bank"] },
+  { id: "prestige-tech", name: "Prestige Tech Park (Marathahalli)", lat: 12.9592, lng: 77.7013, companies: ["ericsson", "qualcomm", "sasken", "intel", "intel india", "amd", "arm"] },
   { id: "bagmane", name: "Bagmane Tech Park (CV Raman Nagar)", lat: 12.9797, lng: 77.6658, companies: ["oracle", "verizon", "pwc"] },
-  { id: "itpb", name: "ITPB Whitefield", lat: 12.9879, lng: 77.7372, companies: ["sap", "capgemini", "tcs", "infosys", "wipro whitefield"] },
-  { id: "egl", name: "EGL (Domlur)", lat: 12.9668, lng: 77.641, companies: ["google", "google india", "alphabet", "youtube"] },
-  { id: "wtc", name: "WTC / Kadubeesanahalli", lat: 12.9256, lng: 77.6855, companies: ["microsoft", "accenture kadubeesanahalli"] },
-  { id: "cessna", name: "Cessna Business Park", lat: 12.9513, lng: 77.699, companies: ["amazon", "aws"] },
+  { id: "itpb", name: "ITPB Whitefield", lat: 12.9879, lng: 77.7372, companies: ["sap", "capgemini", "tcs", "infosys", "wipro whitefield", "general motors", "ge"] },
+  { id: "egl", name: "EGL (Domlur)", lat: 12.9668, lng: 77.641, companies: ["google", "google india", "alphabet", "youtube", "nvidia", "nvidia india", "meta", "facebook", "linkedin"] },
+  { id: "wtc", name: "WTC / Kadubeesanahalli", lat: 12.9256, lng: 77.6855, companies: ["microsoft", "accenture kadubeesanahalli", "accenture"] },
+  { id: "cessna", name: "Cessna Business Park", lat: 12.9513, lng: 77.699, companies: ["amazon", "aws", "amazon india"] },
   { id: "global-village", name: "Global Village (Mysore Rd)", lat: 12.902, lng: 77.4837, companies: ["morgan stanley", "netapp"] },
   { id: "brigade-orion", name: "Brigade Gateway / Orion Mall", lat: 13.0112, lng: 77.55, companies: ["amdocs", "huawei"] },
   { id: "kalyani-tech", name: "Kalyani Tech Park", lat: 13.0226, lng: 77.596, companies: ["mercedes", "daimler"] },
@@ -34,6 +34,43 @@ export const BANGALORE_WORKPLACES = [
 function norm(s) {
   return String(s || "").toLowerCase().trim();
 }
+
+/** Title-case for chip labels (short acronyms stay readable). */
+function formatEmployerLabel(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  return s
+    .split(/\s+/g)
+    .map((w) => {
+      const low = w.toLowerCase();
+      if (low === "r&d") return "R&D";
+      if (low === "aws") return "AWS";
+      if (low === "jp") return "JP";
+      if (low === "ge") return "GE";
+      if (low === "ec") return "EC";
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+/**
+ * Unique employer / brand chips for the map search card (first campus wins if the same alias appears twice).
+ * @returns {{ key: string, label: string, wp: typeof BANGALORE_WORKPLACES[number] }[]}
+ */
+export function listEmployerSearchChips() {
+  const byKey = new Map();
+  for (const wp of BANGALORE_WORKPLACES) {
+    for (const raw of wp.companies || []) {
+      const k = norm(raw);
+      if (!k || byKey.has(k)) continue;
+      byKey.set(k, { key: k, label: formatEmployerLabel(raw), wp });
+    }
+  }
+  return Array.from(byKey.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Precomputed tap chips for the map search card (module load). */
+export const EMPLOYER_SEARCH_CHIPS = listEmployerSearchChips();
 
 /**
  * Resolve typed company or campus name to a preset workplace (before geocode / text filters).

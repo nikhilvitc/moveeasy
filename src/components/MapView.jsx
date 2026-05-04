@@ -11,7 +11,7 @@ import { geocodePlace } from "../lib/geocode";
 import { haversineKm } from "../lib/geo";
 import PropertyModal from "./PropertyModal";
 import { AREA_NAMES_SORTED } from "../data/listingsData";
-import { BANGALORE_WORKPLACES, matchWorkplacePreset } from "../data/bangaloreWorkplaces";
+import { BANGALORE_WORKPLACES, EMPLOYER_SEARCH_CHIPS, matchWorkplacePreset } from "../data/bangaloreWorkplaces";
 import {
   appendFilterHistory,
   consumeMapRestorePayload,
@@ -1472,7 +1472,7 @@ export default function MapView() {
                   borderTop: "1px solid #fde68a",
                   padding: "10px 14px 12px",
                   background: "#fffbeb",
-                  maxHeight: 130,
+                  maxHeight: 320,
                   overflowY: "auto",
                 }}
               >
@@ -1499,6 +1499,49 @@ export default function MapView() {
                       }}
                     >
                       {wp.name}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#92400e", margin: "10px 0 6px", letterSpacing: "0.03em" }}>
+                  EMPLOYERS — TAP OR TYPE IN SEARCH (BENGALURU PRESETS)
+                </div>
+                <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#a16207", lineHeight: 1.4 }}>
+                  Pins are approximate campus centers for commute search — not official HQ locations. Missing a company? Use{" "}
+                  <strong>Metro</strong> mode + Search for any address worldwide via OpenStreetMap.
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 5,
+                    maxHeight: 112,
+                    overflowY: "auto",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {EMPLOYER_SEARCH_CHIPS.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      title={`Set workplace to ${chip.wp.name}`}
+                      onClick={() => {
+                        applyWorkplaceFromList(chip.wp);
+                        setMapSearchInput("");
+                      }}
+                      style={{
+                        border:
+                          workplaceAnchor?.label === chip.wp.name ? "2px solid #b45309" : "1px solid #e2e8f0",
+                        background: workplaceAnchor?.label === chip.wp.name ? "#fef3c7" : "#fff",
+                        borderRadius: 999,
+                        padding: "4px 9px",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#334155",
+                        cursor: "pointer",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {chip.label}
                     </button>
                   ))}
                 </div>
