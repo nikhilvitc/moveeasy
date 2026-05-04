@@ -31,16 +31,11 @@ async function readUserRow(email) {
     return null;
   }
 }
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import { getAssignments, getListings, upsertListing, withdrawListingLocal, republishListingLocal, getInterestsGlobal, getNotificationsLocal, markNotificationLocalRead } from "../lib/store";
+import ListingMapPicker from "../components/ListingMapPicker";
 
-function LocationPicker({ position, setPosition }) {
-  useMapEvents({
-    click(e) { setPosition([e.latlng.lat, e.latlng.lng]); },
-  });
-  return position ? <Marker position={position} /> : null;
-}
+/** Fallback coordinates when seller saves without clicking the map (optional pin). */
+const DEFAULT_LISTING_PIN = [12.9716, 77.5946];
 
 export default function SellerDashboard() {
   const { user, logout, submitSellerBadgeApplication } = useAuth();
@@ -171,22 +166,9 @@ export default function SellerDashboard() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    const formEl = e.currentTarget;
-    if (!formEl.reportValidity()) {
-      const firstBad = formEl.querySelector(":invalid");
-      firstBad?.scrollIntoView({ behavior: "smooth", block: "center" });
-      try {
-        firstBad?.focus({ preventScroll: true });
-      } catch {
-        firstBad?.focus();
-      }
-      return;
-    }
     setListingSaveMsg("");
-    if (!pinPosition) {
-      alert("Please click on the map to set property location");
-      return;
-    }
+    const usedDefaultPin = !pinPosition;
+    const pin = pinPosition || DEFAULT_LISTING_PIN;
     const authEmail = String(user?.email || "").toLowerCase().trim();
     const id = form.id || String(Date.now());
     try {
@@ -205,11 +187,14 @@ export default function SellerDashboard() {
       const newItem = {
         ...form,
         id,
+        title: String(form.title || "").trim() || "Untitled listing",
+        price: String(form.price || "").trim() || "Rent on request",
+        address: String(form.address || "").trim(),
         seller: user?.name || "Seller",
         sellerEmail: authEmail,
         ownerEmail: authEmail,
-        lat: pinPosition[0],
-        lng: pinPosition[1],
+        lat: pin[0],
+        lng: pin[1],
         experience: "N/A",
         totalListings: 0,
         areas: form.address,
@@ -248,7 +233,11 @@ export default function SellerDashboard() {
       setPhotoFiles([]);
       setShowAdd(false);
       setListingSaveKind("ok");
-      setListingSaveMsg("Listing saved successfully.");
+      setListingSaveMsg(
+        usedDefaultPin
+          ? "Listing saved. Tip: edit the listing and click the map to set an exact pin (city default was used)."
+          : "Listing saved successfully."
+      );
       scrollListingBannerIntoView();
     } catch (err) {
       reportClientError("seller_listing_save", err);
@@ -517,6 +506,9 @@ export default function SellerDashboard() {
             <div style={{ marginTop: "8px", fontSize: "12px", color: badgeMsgKind === "err" ? "#b91c1c" : "#0f766e", fontWeight: 600 }}>{badgeMsg}</div>
           )}
         </div>
+        <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "10px", lineHeight: 1.45 }}>
+          No required fields for now — leave anything blank; defaults and a city-centre map fallback apply where needed.
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700 }}>My Listings ({listings.length})</div>
           <button
@@ -550,10 +542,10 @@ export default function SellerDashboard() {
         {showAdd && (
           <div style={{ background: "white", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
             <form onSubmit={handleAdd} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-              <input placeholder="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
-              <input placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Price (optional)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <select value={form.bhk} onChange={(e) => setForm({ ...form, bhk: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}><option>1RK</option><option>1BHK</option><option>2BHK</option><option>3BHK</option><option>4BHK</option></select>
-              <input placeholder="Address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Address (optional)" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <select value={form.propertyType || "Apartment"} onChange={(e) => setForm({ ...form, propertyType: e.target.value })} style={{ padding: "8px", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
                 <option>Apartment</option><option>Independent House</option><option>Villa</option><option>Studio</option><option>PG</option>
               </select>
@@ -592,15 +584,24 @@ export default function SellerDashboard() {
               <div style={{ gridColumn: "span 2" }}>
                 <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
               </div>
-              <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#dc2626", fontWeight: 600, display: "flex", alignItems: "center", gridColumn: "span 2" }}>{pinPosition ? "Pin set" : "Click map below to set location"}</div>
-              <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2" }}>Save</button>
+              <div style={{ fontSize: "12px", color: pinPosition ? "#16a34a" : "#64748b", fontWeight: 600, display: "flex", alignItems: "center", gridColumn: "span 2", flexWrap: "wrap", gap: "6px" }}>
+                {pinPosition
+                  ? "Pin set — adjust with search + map click"
+                  : "Optional: search area and click the map for an exact pin (otherwise city default is used on save)."}
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <ListingMapPicker
+                  key={String(form.id || "new")}
+                  markerPosition={pinPosition}
+                  onMarkerChange={setPinPosition}
+                  height={250}
+                  initialZoom={12}
+                />
+              </div>
+              <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: "span 2", padding: "12px 18px", fontSize: "15px" }}>
+                Save listing
+              </button>
             </form>
-            <div style={{ height: "250px", borderRadius: "8px", overflow: "hidden", border: "2px solid #e2e8f0" }}>
-              <MapContainer center={[12.9716, 77.5946]} zoom={12} style={{ height: "100%", width: "100%" }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <LocationPicker position={pinPosition} setPosition={setPinPosition} />
-              </MapContainer>
-            </div>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>

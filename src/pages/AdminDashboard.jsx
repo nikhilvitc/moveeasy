@@ -43,9 +43,9 @@ import {
   addNotificationData,
 } from "../lib/firestoreStore";
 import { notifyCustomerInterestStatusChanged, notifyCustomerListingAssigned } from "../lib/crmSync";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { reportClientError } from "../lib/clientLog";
 import MediaUploadField from "../components/MediaUploadField";
+import ListingMapPicker from "../components/ListingMapPicker";
 import { getBookings } from "../lib/userActivity";
 import {
   CONTACT_GRADIENTS,
@@ -92,15 +92,6 @@ const DEFAULT_FORM = {
   lat: 12.9716,
   lng: 77.5946,
 };
-
-function LocationPicker({ position, onPick }) {
-  useMapEvents({
-    click(e) {
-      onPick([e.latlng.lat, e.latlng.lng]);
-    },
-  });
-  return position ? <Marker position={position} /> : null;
-}
 
 function toList(value, fallback) {
   if (Array.isArray(value) && value.length) return value;
@@ -201,6 +192,8 @@ export default function AdminDashboard() {
     contacts: DEFAULT_SITE_PUBLIC.contacts.map((c) => ({ ...c })),
   }));
   const [sitePublicStatus, setSitePublicStatus] = useState("");
+  const [adminListingMsg, setAdminListingMsg] = useState("");
+  const [adminListingMsgKind, setAdminListingMsgKind] = useState("ok");
 
   useEffect(() => {
     let alive = true;
@@ -319,29 +312,64 @@ export default function AdminDashboard() {
 
   const handleSubmitListing = async (e) => {
     e.preventDefault();
-    const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, editingId || crypto.randomUUID()) : [];
-    const manualImages = String(form.imagesText || form.image || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
-    const allImages = [...uploadedImages, ...manualImages];
-    const payload = {
-      ...form,
-      id: editingId || String(Date.now()),
-      lat: Number(pinPosition?.[0] ?? form.lat),
-      lng: Number(pinPosition?.[1] ?? form.lng),
-      preferredTenants: toList(form.preferredTenants, ["Family"]),
-      parking: toList(form.parking, ["2 Wheeler"]),
-      images: allImages,
-      image: form.image || allImages[0] || "",
-      amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
-      furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
-      updatedAt: new Date().toISOString(),
-    };
-    if (isFirebaseConfigured) await upsertListingData(payload, user);
-    else upsertListing(payload);
-    setEditingId(null);
-    setForm(DEFAULT_FORM);
-    setPhotoFiles([]);
-    setPinPosition([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
-    setRefreshTick((v) => v + 1);
+    setAdminListingMsg("");
+    const rawSeller = String(form.sellerEmail || "").trim().toLowerCase();
+    const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawSeller);
+    const fallbackAdmin = String(user?.email || "").trim().toLowerCase();
+    const email = looksLikeEmail ? rawSeller : fallbackAdmin;
+    let monthlyRent = Number(form.monthlyRent);
+    if (!Number.isFinite(monthlyRent) || monthlyRent < 0) monthlyRent = 0;
+    const digitsFromPrice = parseInt(String(form.price || "").replace(/\D/g, ""), 10) || 0;
+    if (monthlyRent <= 0 && digitsFromPrice > 0) monthlyRent = digitsFromPrice;
+
+    const listingId = editingId || String(Date.now());
+    try {
+      const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, listingId) : [];
+      const manualImages = String(form.imagesText || form.image || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      const allImages = [...uploadedImages, ...manualImages];
+      const payload = {
+        ...form,
+        id: listingId,
+        title: String(form.title || "").trim() || "Untitled listing",
+        price: String(form.price || "").trim() || "Rent on request",
+        address: String(form.address || "").trim(),
+        seller: String(form.seller || "").trim() || "Seller",
+        sellerEmail: email,
+        monthlyRent,
+        lat: Number(pinPosition?.[0] ?? form.lat),
+        lng: Number(pinPosition?.[1] ?? form.lng),
+        preferredTenants: toList(form.preferredTenants, ["Family"]),
+        parking: toList(form.parking, ["2 Wheeler"]),
+        images: allImages,
+        image: form.image || allImages[0] || "",
+        amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
+        furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
+        updatedAt: new Date().toISOString(),
+      };
+      if (isFirebaseConfigured) await upsertListingData(payload, user);
+      else upsertListing(payload);
+      setEditingId(null);
+      setForm(DEFAULT_FORM);
+      setPhotoFiles([]);
+      setPinPosition([DEFAULT_FORM.lat, DEFAULT_FORM.lng]);
+      setRefreshTick((v) => v + 1);
+      setAdminListingMsgKind("ok");
+      setAdminListingMsg("Listing saved successfully.");
+      setTimeout(() => setAdminListingMsg(""), 6000);
+    } catch (err) {
+      reportClientError("admin_listing_save", err);
+      setAdminListingMsgKind("err");
+      const code = err?.code;
+      let msg = err?.message || String(err) || "Save failed.";
+      if (code === "permission-denied") {
+        msg =
+          "Permission denied: your account needs role \"admin\" in Firestore userRoles, or Storage rules blocked uploads. Check Firebase Console.";
+      } else if (code === "storage/unauthorized" || code === "storage/canceled") {
+        msg = `Media upload failed (${code}). Check Storage rules and sign-in.`;
+      }
+      if (code) msg = `${msg} [${code}]`;
+      setAdminListingMsg(msg);
+    }
   };
 
   const handleEdit = (listing) => {
@@ -1174,14 +1202,40 @@ export default function AdminDashboard() {
         <>
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>{editingId ? "Edit listing" : "Create listing"}</div>
+          <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "10px", lineHeight: 1.45 }}>
+            For now, every field is optional. If seller email is empty or invalid, the listing is stored under your signed-in admin email. If monthly rent is 0, a number from the price label is used when possible.
+          </div>
+          {adminListingMsg ? (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "10px 12px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 600,
+                border: `1px solid ${adminListingMsgKind === "err" ? "#fecaca" : "#bbf7d0"}`,
+                background: adminListingMsgKind === "err" ? "#fef2f2" : "#f0fdf4",
+                color: adminListingMsgKind === "err" ? "#b91c1c" : "#15803d",
+              }}
+            >
+              {adminListingMsg}
+            </div>
+          ) : null}
           <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "10px" }}>
-            <input placeholder="Title" required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-            <input placeholder="Price label" required value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
-            <input type="number" placeholder="Monthly rent" required value={form.monthlyRent} onChange={(e) => setForm((p) => ({ ...p, monthlyRent: Number(e.target.value) }))} />
+            <input placeholder="Title (optional)" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+            <input placeholder="Price label (optional, e.g. ₹40,000 / month)" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+            <input
+              type="number"
+              min={0}
+              step="any"
+              placeholder="Monthly rent (optional)"
+              value={Number.isFinite(Number(form.monthlyRent)) ? form.monthlyRent : 0}
+              onChange={(e) => setForm((p) => ({ ...p, monthlyRent: e.target.value === "" ? 0 : Number(e.target.value) }))}
+            />
             <select value={form.bhk} onChange={(e) => setForm((p) => ({ ...p, bhk: e.target.value }))}><option>1 BHK</option><option>2 BHK</option><option>3 BHK</option></select>
-            <input placeholder="Address" required value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
-            <input placeholder="Seller name" required value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
-            <input placeholder="Seller email" required value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
+            <input placeholder="Address (optional)" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
+            <input placeholder="Seller name (optional)" value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
+            <input type="text" placeholder="Seller email (optional)" value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
             <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
             <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
@@ -1204,17 +1258,22 @@ export default function AdminDashboard() {
             <textarea placeholder="Furnishings (comma separated, optional) — Sofa, Fridge, Washing machine" value={form.furnishingsText} onChange={(e) => setForm((p) => ({ ...p, furnishingsText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
             <textarea placeholder="Amenities (comma separated, optional) — Gym, Pool, Power backup" value={form.amenitiesText} onChange={(e) => setForm((p) => ({ ...p, amenitiesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
             <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
-            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>{editingId ? "Update listing" : "Create listing"}</button>
+            <div style={{ gridColumn: isMobile ? "auto" : "span 4", marginTop: "4px", fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+              Map pin: {pinPosition?.[0]?.toFixed(4)}, {pinPosition?.[1]?.toFixed(4)} — search to move map, then click to place the pin.
+            </div>
+            <div style={{ gridColumn: isMobile ? "auto" : "span 4" }}>
+              <ListingMapPicker
+                key={String(editingId || "new")}
+                markerPosition={pinPosition}
+                onMarkerChange={setPinPosition}
+                height={260}
+                initialZoom={13}
+              />
+            </div>
+            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", gridColumn: isMobile ? "auto" : "span 4", marginTop: "8px", padding: "12px 18px", fontSize: "15px" }}>
+              {editingId ? "Update listing" : "Create listing"}
+            </button>
           </form>
-          <div style={{ marginTop: "12px", fontSize: "12px" }}>
-            Location: {pinPosition?.[0]?.toFixed(4)}, {pinPosition?.[1]?.toFixed(4)}
-          </div>
-          <div style={{ marginTop: "10px", height: "260px" }}>
-            <MapContainer center={pinPosition} zoom={13} style={{ height: "100%" }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <LocationPicker position={pinPosition} onPick={setPinPosition} />
-            </MapContainer>
-          </div>
         </div>
 
         <div style={sectionCard}>
