@@ -18,6 +18,7 @@ export default function Login() {
   const { login, signup, resendVerificationEmail } = useAuth();
   const [resendBusy, setResendBusy] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
   const navigate = useNavigate();
 
   const roleCards = [
@@ -37,13 +38,29 @@ export default function Login() {
       return;
     }
 
-    let result;
     if (isSignup) {
-      if (!name.trim())  { setError("Please enter your name");         return; }
-      if (!phone.trim()) { setError("Please enter your phone number"); return; }
-      result = await signup(email, password, name, signupRole, phone);
-    } else {
-      result = await login(email, password);
+      if (!name.trim()) {
+        setError("Please enter your name");
+        return;
+      }
+      if (!phone.trim()) {
+        setError("Please enter your phone number");
+        return;
+      }
+    }
+
+    setAuthBusy(true);
+    let result = { success: false, error: "Something went wrong" };
+    try {
+      if (isSignup) {
+        result = await signup(email, password, name, signupRole, phone);
+      } else {
+        result = await login(email, password);
+      }
+    } catch (err) {
+      result = { success: false, error: err?.message || "Something went wrong" };
+    } finally {
+      setAuthBusy(false);
     }
 
     if (result.success) {
@@ -93,6 +110,7 @@ export default function Login() {
           "linear-gradient(135deg, #1a0508 0%, #2d0a14 30%, #0f0c29 65%, #0a1628 100%)",
       }}
     >
+      <style>{`@keyframes moveasyLoginSpin { to { transform: rotate(360deg); } }`}</style>
       {/* Animated background blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div
@@ -147,7 +165,7 @@ export default function Login() {
         initial={{ opacity: 0, y: 32, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.65, ease: EASE }}
-        className="relative w-full max-w-[440px] mx-4"
+        className="relative w-full max-w-[440px] mx-4 overflow-hidden"
         style={{
           background: "rgba(255,255,255,0.07)",
           backdropFilter: "blur(28px)",
@@ -159,6 +177,29 @@ export default function Login() {
           padding: "36px 32px",
         }}
       >
+        {authBusy ? (
+          <div
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center px-6 text-center"
+            style={{
+              background: "rgba(15, 23, 42, 0.62)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <div
+              className="mb-4 h-11 w-11 rounded-full border-2 border-white/25 border-t-white"
+              style={{ animation: "moveasyLoginSpin 0.85s linear infinite" }}
+              aria-hidden
+            />
+            <p className="text-[15px] font-semibold text-white/95 leading-snug">
+              {isSignup ? "Please wait — we are creating your account…" : "Please wait — we are signing you in…"}
+            </p>
+            <p className="mt-2 text-[12px] text-white/55">This can take a few seconds on first load.</p>
+          </div>
+        ) : null}
+
         {/* Inner gradient glow top */}
         <div
           className="absolute inset-x-0 top-0 h-[2px] rounded-t-[24px] pointer-events-none"
@@ -187,6 +228,7 @@ export default function Login() {
               <motion.button
                 key={card.id}
                 type="button"
+                disabled={authBusy}
                 onClick={() => {
                   setSelectedAccountType(card.id);
                   setError("");
@@ -198,7 +240,7 @@ export default function Login() {
                   setIsSignup(true);
                   setSignupRole(card.id === "seller" ? "seller" : "customer");
                 }}
-                className="text-left rounded-xl px-3 py-2.5 border transition-all duration-200 cursor-pointer"
+                className="text-left rounded-xl px-3 py-2.5 border transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background: active
                     ? "linear-gradient(135deg, rgba(232,90,79,0.25), rgba(249,115,22,0.18))"
@@ -291,7 +333,7 @@ export default function Login() {
         </AnimatePresence>
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} aria-busy={authBusy}>
           <AnimatePresence>
             {isSignup && (
               <motion.div
@@ -308,8 +350,9 @@ export default function Login() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    disabled={authBusy}
                     placeholder="Your name"
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow"
+                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
                     style={{
                       background: "rgba(255,255,255,0.09)",
                       border: "1px solid rgba(255,255,255,0.14)",
@@ -328,8 +371,9 @@ export default function Login() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    disabled={authBusy}
                     placeholder="Your phone number"
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow"
+                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
                     style={{
                       background: "rgba(255,255,255,0.09)",
                       border: "1px solid rgba(255,255,255,0.14)",
@@ -350,7 +394,8 @@ export default function Login() {
                       setSignupRole(e.target.value);
                       setSelectedAccountType(e.target.value);
                     }}
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none"
+                    disabled={authBusy}
+                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none disabled:opacity-55"
                     style={{
                       background: "rgba(255,255,255,0.09)",
                       border: "1px solid rgba(255,255,255,0.14)",
@@ -375,8 +420,9 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={authBusy}
               placeholder="you@gmail.com"
-              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow"
+              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
               style={{
                 background: "rgba(255,255,255,0.09)",
                 border: "1px solid rgba(255,255,255,0.14)",
@@ -398,9 +444,10 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={authBusy}
               placeholder="Enter password"
               minLength="6"
-              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow"
+              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
               style={{
                 background: "rgba(255,255,255,0.09)",
                 border: "1px solid rgba(255,255,255,0.14)",
@@ -415,12 +462,13 @@ export default function Login() {
           {/* Submit button */}
           <motion.button
             type="submit"
-            className="w-full py-3 rounded-xl text-[15px] font-bold text-white relative overflow-hidden btn-glow-pulse"
+            disabled={authBusy}
+            className="w-full py-3 rounded-xl text-[15px] font-bold text-white relative overflow-hidden btn-glow-pulse disabled:opacity-60 disabled:cursor-wait"
             style={{
               background: "linear-gradient(135deg, #e85a4f 0%, #f97316 100%)",
             }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={authBusy ? {} : { scale: 1.02 }}
+            whileTap={authBusy ? {} : { scale: 0.98 }}
           >
             {/* Shimmer */}
             <span
@@ -434,7 +482,7 @@ export default function Login() {
               aria-hidden="true"
             />
             <span className="relative z-10">
-              {isSignup ? `Create ${selectedTitle} Account` : `Sign In as ${selectedTitle}`}
+              {authBusy ? (isSignup ? "Creating account…" : "Signing in…") : isSignup ? `Create ${selectedTitle} Account` : `Sign In as ${selectedTitle}`}
             </span>
           </motion.button>
         </form>
@@ -455,15 +503,17 @@ export default function Login() {
           <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
             {isSignup ? "Already have an account? " : "No account? "}
             <motion.button
+              type="button"
+              disabled={authBusy}
               onClick={() => {
                 setError("");
                 setInfo("");
                 setIsSignup(!isSignup);
                 if (!isSignup) setSelectedAccountType("customer");
               }}
-              className="font-bold bg-none border-none cursor-pointer text-[13px] gradient-text"
+              className="font-bold bg-none border-none cursor-pointer text-[13px] gradient-text disabled:opacity-45 disabled:cursor-not-allowed"
               style={{ background: "none", padding: 0 }}
-              whileHover={{ scale: 1.04 }}
+              whileHover={authBusy ? {} : { scale: 1.04 }}
             >
               {isSignup ? "Sign In" : "Sign Up"}
             </motion.button>

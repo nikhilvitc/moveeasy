@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -67,10 +67,13 @@ function makeBhkIcon(bhk) {
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
+  const lat = center?.[0];
+  const lng = center?.[1];
   useEffect(() => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     map.invalidateSize();
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
+    map.setView([lat, lng], zoom, { animate: false });
+  }, [map, lat, lng, zoom]);
   return null;
 }
 
@@ -80,8 +83,13 @@ function ChangeView({ center, zoom }) {
 function FitListingsBounds({ listings, enabled, fallbackCenter, fallbackZoom = 14 }) {
   const map = useMap();
   const signature = listings.map((l) => l.id).join(",");
-  const fallbackRef = useRef(fallbackCenter);
-  fallbackRef.current = fallbackCenter;
+  const fallbackRef = useRef(null);
+  const fb0 = fallbackCenter?.[0];
+  const fb1 = fallbackCenter?.[1];
+  useEffect(() => {
+    fallbackRef.current =
+      Number.isFinite(fb0) && Number.isFinite(fb1) ? [fb0, fb1] : null;
+  }, [fb0, fb1]);
   useEffect(() => {
     if (!enabled) return;
     const pts = listings
@@ -191,8 +199,10 @@ export default function MapView() {
   const [workplaceError, setWorkplaceError] = useState("");
   /** Max distance from workplace (or geocoded “Metro” pin) for filtering + map circle. */
   const [commuteRadiusKm, setCommuteRadiusKm] = useState(DEFAULT_COMMUTE_RADIUS_KM);
-  const [savedRevision, setSavedRevision] = useState(0);
+  const [, setSavedRevision] = useState(0);
   const mapSearchOverlayBodyRef = useRef(null);
+  /** [lat, lng][] from workplace → selected listing (OSRM driving line, or straight fallback). */
+  const [commuteRoutePositions, setCommuteRoutePositions] = useState(null);
 
   const openFullFilterPanel = useCallback(() => {
     if (isMobile) {
@@ -302,7 +312,7 @@ export default function MapView() {
         lng: payload.workplaceAnchor.lng,
         label: String(payload.workplaceAnchor.label || "Office"),
       });
-    } else     if (payload.workplaceAnchor === null) setWorkplaceAnchor(null);
+    } else if (payload.workplaceAnchor === null) setWorkplaceAnchor(null);
     if (payload.commuteRadiusKm != null) {
       const r = Number(payload.commuteRadiusKm);
       if (Number.isFinite(r) && r >= 1 && r <= 50) setCommuteRadiusKm(r);
@@ -317,6 +327,38 @@ export default function MapView() {
     setSelected(found);
     setMapState({ center: [found.lat, found.lng], zoom: 17 });
   }, [listingIdFromUrl, listings]);
+
+  useEffect(() => {
+    if (!workplaceAnchor || !selected || !Number.isFinite(Number(selected.lat)) || !Number.isFinite(Number(selected.lng))) {
+      setCommuteRoutePositions(null);
+      return;
+    }
+    const lat0 = workplaceAnchor.lat;
+    const lng0 = workplaceAnchor.lng;
+    const lat1 = Number(selected.lat);
+    const lng1 = Number(selected.lng);
+    let cancelled = false;
+    setCommuteRoutePositions([
+      [lat0, lng0],
+      [lat1, lng1],
+    ]);
+    const url = `https://router.project-osrm.org/route/v1/driving/${lng0},${lat0};${lng1},${lat1}?overview=full&geometries=geojson`;
+    fetch(url, { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("route http"))))
+      .then((data) => {
+        if (cancelled) return;
+        const coords = data?.routes?.[0]?.geometry?.coordinates;
+        if (Array.isArray(coords) && coords.length >= 2) {
+          setCommuteRoutePositions(coords.map((pt) => [pt[1], pt[0]]));
+        }
+      })
+      .catch(() => {
+        reportClientWarn("map_osrm_route", "OSRM route failed; straight line kept");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workplaceAnchor?.lat, workplaceAnchor?.lng, selected?.id, selected?.lat, selected?.lng]);
 
   const filteredListings = useMemo(() => {
     const base = applyListingFilters(listings, filters);
@@ -544,44 +586,44 @@ export default function MapView() {
       border: "1px solid #404040",
       background: "#171717",
       color: "#fafafa",
-      borderRadius: "10px",
-      padding: "9px 14px",
-      fontSize: "13px",
+      borderRadius: "8px",
+      padding: "6px 11px",
+      fontSize: "12px",
       fontWeight: 700,
       cursor: "pointer",
-      minHeight: "40px",
+      minHeight: "30px",
     },
     btnMuted: {
       border: "1px solid #52525b",
       background: "#262626",
       color: "#e5e5e5",
-      borderRadius: "10px",
-      padding: "9px 14px",
-      fontSize: "13px",
+      borderRadius: "8px",
+      padding: "6px 11px",
+      fontSize: "12px",
       fontWeight: 700,
       cursor: "pointer",
-      minHeight: "40px",
+      minHeight: "30px",
     },
     btnAdmin: {
       border: "1px solid #991b1b",
       background: "#450a0a",
       color: "#fecaca",
-      borderRadius: "10px",
-      padding: "9px 14px",
-      fontSize: "13px",
+      borderRadius: "8px",
+      padding: "6px 11px",
+      fontSize: "12px",
       fontWeight: 700,
       cursor: "pointer",
-      minHeight: "40px",
+      minHeight: "30px",
     },
     select: {
       border: "1px solid #404040",
       background: "#171717",
       color: "#fafafa",
-      borderRadius: "10px",
-      padding: "9px 12px",
-      fontSize: "13px",
+      borderRadius: "8px",
+      padding: "6px 10px",
+      fontSize: "12px",
       fontWeight: 700,
-      minHeight: "40px",
+      minHeight: "30px",
       cursor: "pointer",
     },
   };
@@ -663,12 +705,12 @@ export default function MapView() {
       <div
         style={{
           background: "linear-gradient(180deg, #0a0a0a 0%, #171717 100%)",
-          padding: isMobile ? "10px 12px" : "12px 20px",
+          padding: isMobile ? "4px 8px" : "5px 12px",
           borderBottom: "1px solid #27272a",
           position: "relative",
           zIndex: 1001,
           isolation: "isolate",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
         }}
         title="Toolbar: navigation, view layout, search card, filters, and property list. All actions use the same pill shape."
       >
@@ -677,13 +719,13 @@ export default function MapView() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: isMobile ? "flex-start" : "center",
-            marginBottom: isMobile ? "10px" : "8px",
+            marginBottom: isMobile ? "4px" : "2px",
             flexDirection: isMobile ? "column" : "row",
-            gap: isMobile ? "10px" : 12,
+            gap: isMobile ? "6px" : 8,
             flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
             <button type="button" onClick={() => navigate("/")} style={mtToolbar.btn}>
               Home
             </button>
@@ -695,11 +737,11 @@ export default function MapView() {
                 Admin
               </button>
             ) : null}
-            <div style={{ fontSize: isMobile ? "17px" : "20px", fontWeight: 800, color: "#fafafa", letterSpacing: "-0.03em", paddingLeft: 4 }}>
+            <div style={{ fontSize: isMobile ? "14px" : "15px", fontWeight: 800, color: "#fafafa", letterSpacing: "-0.03em", paddingLeft: 2 }}>
               Map <span style={{ color: "#f87171" }}>Listings</span>
             </div>
           </div>
-          <div style={{ fontSize: "13px", color: "#a3a3a3", fontWeight: 600, lineHeight: 1.45, maxWidth: 520, textAlign: isMobile ? "left" : "right" }}>
+          <div style={{ fontSize: "11px", color: "#a3a3a3", fontWeight: 600, lineHeight: 1.4, maxWidth: 520, textAlign: isMobile ? "left" : "right" }}>
             {usingRelaxedPins ? (
               <span>
                 <span style={{ color: "#fca5a5" }}>No exact matches</span> · showing {displayPins.length} nearby — relax filters
@@ -719,7 +761,7 @@ export default function MapView() {
           </div>
         </div>
         {!isMobile && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", borderTop: "1px solid #27272a", marginTop: 2, paddingTop: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", borderTop: "1px solid #27272a", marginTop: 0, paddingTop: 4 }}>
             <select
               value={desktopMode}
               onChange={(e) => {
@@ -928,7 +970,7 @@ export default function MapView() {
                   pathOptions={{ color: "#2563eb", fillColor: "#93c5fd", fillOpacity: 0.15, weight: 2 }}
                 />
                 <Marker position={[placeAnchor.lat, placeAnchor.lng]}>
-                  <Popup>
+                  <Popup autoPan={false} keepInView={false}>
                     <div style={{ backgroundColor: "#ffffff", color: "#0f172a", maxWidth: "240px" }}>
                       <div style={{ fontSize: "13px", fontWeight: 600 }}>Searched place</div>
                       <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>{placeAnchor.label}</div>
@@ -945,7 +987,7 @@ export default function MapView() {
                   pathOptions={{ color: "#b91c1c", fillColor: "#fecaca", fillOpacity: 0.14, weight: 2, dashArray: "6 6" }}
                 />
                 <Marker position={[workplaceAnchor.lat, workplaceAnchor.lng]}>
-                  <Popup>
+                  <Popup autoPan={false} keepInView={false}>
                     <div style={{ backgroundColor: "#ffffff", color: "#0f172a", maxWidth: "240px" }}>
                       <div style={{ fontSize: "13px", fontWeight: 600 }}>Workplace</div>
                       <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>{workplaceAnchor.label}</div>
@@ -954,17 +996,28 @@ export default function MapView() {
                 </Marker>
               </>
             )}
+            {commuteRoutePositions && commuteRoutePositions.length >= 2 ? (
+              <Polyline
+                positions={commuteRoutePositions}
+                pathOptions={{
+                  color: "#2563eb",
+                  weight: 4,
+                  opacity: 0.82,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+            ) : null}
             {displayPins.map((l) => (
               <Marker 
                 key={l.id} 
                 position={[l.lat, l.lng]} 
                 icon={makeBhkIcon(l.bhk)} 
-                eventHandlers={{ 
+                eventHandlers={{
                   click: () => setSelected(l),
-                  mouseover: (e) => e.target.openPopup()
                 }}
               >
-                <Popup>
+                <Popup autoPan={false} keepInView={false} maxWidth={360}>
                   <div
                     style={{
                       minWidth: "280px",
@@ -1041,7 +1094,7 @@ export default function MapView() {
           <div
             style={{
               position: "absolute",
-              top: isMobile ? 56 : 14,
+              top: isMobile ? 48 : 14,
               left: 12,
               right: isMobile ? 12 : "auto",
               zIndex: 1005,
@@ -1660,7 +1713,7 @@ export default function MapView() {
             transition: "transform 0.25s ease",
           }}
         >
-          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "8px", color: "#0f172a" }}>
+          <div style={{ fontSize: "17px", fontWeight: 800, marginBottom: "6px", color: "#0f172a" }}>
             Properties ({displayPins.length})
             {usingRelaxedPins ? (
               <div style={{ fontSize: "12px", fontWeight: 600, color: "#b45309", marginTop: "4px" }}>
@@ -1668,11 +1721,24 @@ export default function MapView() {
               </div>
             ) : null}
           </div>
+          <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", lineHeight: 1.45 }}>
+            Tap a card to move the map to that home. Open <strong>Details</strong> for photos and full info. With a workplace set, a blue route line shows the driving path (when routing is available).
+          </div>
           {displayPins.map((l) => (
             <div
               key={l.id}
-              onClick={() => setViewingProperty(l)}
-              onMouseEnter={() => setMapState({ center: [l.lat, l.lng], zoom: 18 })}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setSelected(l);
+                setMapState({ center: [Number(l.lat), Number(l.lng)], zoom: 17 });
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                setSelected(l);
+                setMapState({ center: [Number(l.lat), Number(l.lng)], zoom: 17 });
+              }}
               style={{
                 background: "white",
                 borderRadius: "12px",
@@ -1733,6 +1799,28 @@ export default function MapView() {
                 </div>
               ) : null}
               <div style={{ fontSize: "13px", color: "#94a3b8", marginTop: "6px" }}>{l.seller} | {l.contact}</div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewingProperty(l);
+                }}
+                style={{
+                  marginTop: "12px",
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid #991b1b",
+                  background: "#b91c1c",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(185,28,28,0.25)",
+                }}
+              >
+                Details
+              </button>
             </div>
           ))}
         </div>
