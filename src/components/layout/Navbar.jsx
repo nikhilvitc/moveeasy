@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+const navBtn =
+  "rounded-lg px-3.5 py-2 text-[13px] font-bold border border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-500 transition-colors";
+const navBtnAdmin =
+  "rounded-lg px-3.5 py-2 text-[13px] font-bold border border-red-800/80 bg-red-950/60 text-red-100 hover:bg-red-950 transition-colors";
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -30,124 +35,86 @@ export default function Navbar() {
     <nav
       className={`sticky top-0 z-50 border-b transition-all duration-300 ${
         scrolled
-          ? "border-primary-light/50 bg-white/95 backdrop-blur-xl shadow-navbar-glow"
-          : "border-primary-light/30 bg-white/90 backdrop-blur-lg shadow-navbar"
+          ? "border-red-900/35 bg-zinc-950/98 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
+          : "border-red-900/25 bg-zinc-950/95 backdrop-blur-lg shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
       }`}
     >
-      <div className="flex items-center justify-between px-4 md:px-8 py-3">
-
-        {/* LOGO */}
+      <div className="flex items-center justify-between px-4 md:px-8 py-2.5 gap-3">
         <motion.div
           onClick={() => closeAndGo("/")}
-          className="cursor-pointer text-2xl font-black tracking-tight flex items-center select-none"
-          whileHover={{ scale: 1.04 }}
+          className="cursor-pointer flex items-center select-none shrink-0"
+          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={{ duration: 0.2 }}
         >
-          <span className="text-ink">Mov</span>
-          <span className="gradient-text-shimmer">EAZY</span>
+          <img src="/logo-moveazy.png" alt="MovEAZY" className="h-9 md:h-10 w-auto max-h-[40px]" />
         </motion.div>
 
-        {/* CENTER LINKS */}
-        <div className="hidden lg:flex items-center gap-7 text-[14px] font-semibold text-ink-muted">
+        <div className="hidden lg:flex items-center gap-2 xl:gap-3 text-[13px] font-semibold text-zinc-300 flex-wrap justify-end">
           {[
-            { label: "Services",  path: "/services" },
+            { label: "Services", path: "/services" },
             { label: "Guarantee", path: "/guarantee" },
-            { label: "Listings",  path: "/map" },
-            { label: "Saved",     path: "/activity" },
-            { label: "Contact",   path: "/contact" },
+            { label: "Listings", path: "/map" },
+            { label: "Saved", path: "/activity" },
           ].map(({ label, path }) => (
             <NavLink key={label} label={label} onClick={() => closeAndGo(path)} />
           ))}
 
-          {/* EXPLORE MAP BUTTON */}
           <motion.button
+            type="button"
             onClick={() => closeAndGo("/map")}
-            className="font-bold text-sky-800 bg-sky-50 px-4 py-1.5 rounded-full border border-sky-200/80 shadow-sm flex items-center gap-2"
-            whileHover={{ scale: 1.05, backgroundColor: "rgb(224,242,254)" }}
+            className="rounded-lg px-4 py-2 text-[13px] font-bold bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_4px_16px_rgba(220,38,38,0.35)]"
+            whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
           >
-            🗺️ Explore Map
+            Explore map
           </motion.button>
         </div>
 
-        {/* RIGHT SIDE */}
-        <div className="flex items-center gap-4">
-          <motion.button
-            onClick={() => closeAndGo("/contact")}
-            className="hidden xl:block px-5 py-2 text-sm font-bold border-2 border-ink/15 text-ink rounded-full"
-            whileHover={{
-              borderColor: "rgba(232,90,79,0.5)",
-              backgroundColor: "rgba(255,244,242,0.6)",
-              scale: 1.03,
-            }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.18 }}
-          >
-            Book A Consultation
-          </motion.button>
-
+        <div className="flex items-center gap-2 shrink-0">
           {user ? (
-            <div className="hidden lg:flex items-center gap-3 text-sm font-semibold text-ink-muted">
+            <div className="hidden lg:flex items-center gap-2 text-[13px] font-semibold">
               {user.role === "customer" && (
-                <motion.button
-                  onClick={() => closeAndGo("/customer")}
-                  className="px-4 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-full"
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Customer Dashboard
+                <motion.button type="button" onClick={() => closeAndGo("/customer")} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  Customer
                 </motion.button>
               )}
               {user.role === "seller" && (
-                <motion.button
-                  onClick={() => closeAndGo("/seller")}
-                  className="px-4 py-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-full"
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Seller Dashboard
+                <motion.button type="button" onClick={() => closeAndGo("/seller")} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  Seller
                 </motion.button>
               )}
               {user.role === "admin" && (
-                <motion.button
-                  onClick={() => closeAndGo("/admin")}
-                  className="px-4 py-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full"
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Admin Dashboard
+                <motion.button type="button" onClick={() => closeAndGo("/admin")} className={navBtnAdmin} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  Admin
                 </motion.button>
               )}
-              <span className="hidden sm:inline-flex items-center gap-1 opacity-70 text-xs">
-                👤 {user.email}
+              <span className="hidden xl:inline-flex max-w-[200px] truncate text-zinc-500 text-xs font-medium" title={user.email}>
+                {user.email}
               </span>
-              <motion.button
-                onClick={handleLogout}
-                className="px-4 py-1.5 border border-gray-300 rounded-full text-ink-muted"
-                whileHover={{ scale: 1.04, borderColor: "rgba(232,90,79,0.4)" }}
-                whileTap={{ scale: 0.97 }}
-              >
-                ↪ Logout
+              <motion.button type="button" onClick={handleLogout} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                Logout
               </motion.button>
             </div>
           ) : (
             <motion.button
+              type="button"
               onClick={() => closeAndGo("/login")}
-              className="hidden sm:block px-6 py-2 text-sm font-bold text-white bg-primary rounded-full shadow-red"
-              whileHover={{ scale: 1.05, boxShadow: "0 8px 28px rgba(232,90,79,0.45)" }}
+              className="hidden sm:block rounded-lg px-5 py-2 text-[13px] font-bold text-white bg-red-600 border border-red-700 hover:bg-red-500 shadow-[0_4px_16px_rgba(220,38,38,0.35)]"
+              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.18 }}
             >
-              Sign In / Register
+              Sign in / Register
             </motion.button>
           )}
 
           <motion.button
+            type="button"
             onClick={() => setOpen((v) => !v)}
-            className="lg:hidden px-3 py-2 rounded-lg border border-gray-200 text-gray-700"
-            whileHover={{ backgroundColor: "rgba(255,244,242,0.8)" }}
+            className="lg:hidden rounded-lg px-3 py-2 border border-zinc-600 bg-zinc-900 text-zinc-200 text-sm font-bold"
+            whileHover={{ backgroundColor: "rgb(39 39 42)" }}
             whileTap={{ scale: 0.95 }}
             aria-label="Toggle menu"
           >
@@ -156,7 +123,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -165,50 +131,53 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.22 }}
-            className="lg:hidden border-t border-primary-light/30 px-4 py-5 glass-light"
+            className="lg:hidden border-t border-zinc-800 px-4 py-4 bg-zinc-950"
           >
-            <div className="grid gap-3 text-sm font-semibold text-ink">
+            <div className="grid gap-2 text-sm font-semibold text-zinc-200">
               {[
-                { label: "Services",          path: "/services" },
-                { label: "Guarantee",         path: "/guarantee" },
-                { label: "Listings / Map",    path: "/map" },
-                { label: "Saved and activity",path: "/activity" },
-                { label: "Contact",           path: "/contact" },
+                { label: "Services", path: "/services" },
+                { label: "Guarantee", path: "/guarantee" },
+                { label: "Listings / Map", path: "/map" },
+                { label: "Saved & activity", path: "/activity" },
               ].map(({ label, path }) => (
-                <button key={label} onClick={() => closeAndGo(path)} className="text-left hover:text-primary transition-colors">
+                <button key={label} type="button" onClick={() => closeAndGo(path)} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900 hover:text-red-400 transition-colors">
                   {label}
                 </button>
               ))}
+              <button type="button" onClick={() => closeAndGo("/contact")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900 text-red-400 font-bold">
+                Contact / consultation
+              </button>
               {user?.role === "customer" && (
-                <button onClick={() => closeAndGo("/customer")} className="text-left">
-                  Customer Dashboard
+                <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
+                  Customer dashboard
                 </button>
               )}
               {user?.role === "seller" && (
-                <button onClick={() => closeAndGo("/seller")} className="text-left">
-                  Seller Dashboard
+                <button type="button" onClick={() => closeAndGo("/seller")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
+                  Seller dashboard
                 </button>
               )}
               {user?.role === "admin" && (
-                <button onClick={() => closeAndGo("/admin")} className="text-left">
-                  Admin Dashboard
+                <button type="button" onClick={() => closeAndGo("/admin")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
+                  Admin dashboard
                 </button>
               )}
               {!user && (
                 <motion.button
+                  type="button"
                   onClick={() => closeAndGo("/login")}
-                  className="mt-1 px-4 py-2.5 rounded-full bg-primary text-white text-center font-bold shadow-red"
+                  className="mt-1 rounded-lg px-4 py-2.5 bg-red-600 text-white text-center font-bold border border-red-700"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                 >
-                  Sign In / Register
+                  Sign in / Register
                 </motion.button>
               )}
               {user && (
                 <>
-                  <div className="text-xs text-gray-500 break-all">👤 {user.email}</div>
-                  <button onClick={handleLogout} className="text-left text-red-600 font-semibold">
-                    ↪ Logout
+                  <div className="text-xs text-zinc-500 break-all pt-1">{user.email}</div>
+                  <button type="button" onClick={handleLogout} className="text-left text-red-400 font-semibold rounded-lg py-2">
+                    Logout
                   </button>
                 </>
               )}
@@ -220,20 +189,16 @@ export default function Navbar() {
   );
 }
 
-/* Animated nav link with sliding underline */
 function NavLink({ label, onClick }) {
   return (
     <motion.span
       onClick={onClick}
-      className="cursor-pointer relative py-1 group"
-      whileHover={{ color: "#D64A3F" }}
+      className="cursor-pointer relative py-1.5 px-1 group text-zinc-300"
+      whileHover={{ color: "#f87171" }}
       transition={{ duration: 0.15 }}
     >
       {label}
-      <span
-        className="absolute bottom-0 left-0 h-[2px] w-0 rounded-full bg-primary transition-all duration-200 group-hover:w-full"
-        aria-hidden="true"
-      />
+      <span className="absolute bottom-0 left-0 h-0.5 w-0 rounded-full bg-red-500 transition-all duration-200 group-hover:w-full" aria-hidden="true" />
     </motion.span>
   );
 }

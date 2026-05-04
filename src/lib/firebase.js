@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { reportClientWarn } from "./clientLog";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -34,7 +35,7 @@ if (typeof window !== "undefined" && isFirebaseConfigured) {
         isTokenAutoRefreshEnabled: true,
       });
     } catch (e) {
-      console.warn("App Check init failed:", e?.message || e);
+      reportClientWarn("firebase_appcheck", "App Check init failed", e?.message || e);
     }
   }
 }

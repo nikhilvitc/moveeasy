@@ -81,6 +81,16 @@ function normalizeAuthEmail(email) {
   return String(email || "").toLowerCase().trim();
 }
 
+/** Firestore rejects `undefined` field values; strip before writes. */
+function shallowOmitUndefined(obj) {
+  if (obj == null || typeof obj !== "object") return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
 /** All of a seller's listings (any marketStatus). Email must match Firestore `sellerEmail` (lowercase). */
 export async function getListingsForSellerEmail(sellerEmail) {
   const em = normalizeAuthEmail(sellerEmail);
@@ -100,17 +110,20 @@ export async function upsertListingData(listing, actor) {
   const rawStatus = String(listing.marketStatus || "published").toLowerCase();
   const marketStatus = rawStatus === "withdrawn" || rawStatus === "archived" ? rawStatus : "published";
   const actorEmail = normalizeAuthEmail(listing.sellerEmail || listing.ownerEmail || actor?.email || "");
-  const payload = {
+  const latN = Number(listing.lat);
+  const lngN = Number(listing.lng);
+  const rentN = Number(listing.monthlyRent);
+  const payload = shallowOmitUndefined({
     ...listing,
     id,
     ownerEmail: actorEmail,
     sellerEmail: actorEmail,
-    lat: Number(listing.lat || 12.9716),
-    lng: Number(listing.lng || 77.5946),
-    monthlyRent: Number(listing.monthlyRent || 0),
+    lat: Number.isFinite(latN) ? latN : 12.9716,
+    lng: Number.isFinite(lngN) ? lngN : 77.5946,
+    monthlyRent: Number.isFinite(rentN) ? rentN : 0,
     marketStatus,
     updatedAt: serverTimestamp(),
-  };
+  });
   await setDoc(doc(db, "listings", id), payload, { merge: true });
   return { ...payload, updatedAt: new Date().toISOString() };
 }

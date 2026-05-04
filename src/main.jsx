@@ -39,20 +39,22 @@ class RootErrorBoundary extends Component {
           <p style={{ marginTop: 10, color: "#475569", lineHeight: 1.5 }}>
             Try a refresh or open the site in an updated browser (Chrome or Safari). If you use a private tab, allow storage for this site.
           </p>
-          <pre
-            style={{
-              marginTop: 14,
-              fontSize: 11,
-              overflow: "auto",
-              background: "#f1f5f9",
-              padding: 12,
-              borderRadius: 8,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {String(this.state.err?.message || this.state.err)}
-          </pre>
+          {import.meta.env.DEV ? (
+            <pre
+              style={{
+                marginTop: 14,
+                fontSize: 11,
+                overflow: "auto",
+                background: "#f1f5f9",
+                padding: 12,
+                borderRadius: 8,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {String(this.state.err?.message || this.state.err)}
+            </pre>
+          ) : null}
         </div>
       );
     }

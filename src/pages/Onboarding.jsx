@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, setDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { reportClientError } from "../lib/clientLog";
 import logoSvg from "../assets/logo/moveasy.svg";
 
 const FLAT_TYPES = ["1BHK", "2BHK", "3BHK"];
@@ -115,7 +116,7 @@ export default function Onboarding() {
       );
       navigate("/", { replace: true });
     } catch (err) {
-      console.error("Onboarding save error:", err);
+      reportClientError("onboarding_save", err);
       setErrors({ submit: "Failed to save. Please try again." });
       setLoading(false);
     }

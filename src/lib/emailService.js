@@ -1,4 +1,5 @@
 // src/lib/emailService.js
+import { reportClientError, reportClientWarn } from "./clientLog";
 // Server-side onboarding email trigger.
 // Firebase verification remains built in; welcome/admin emails are delivered by Cloud Functions
 // with idempotency, retries, and Firestore delivery logs.
@@ -94,12 +95,12 @@ export async function triggerListingInterestEmails({
   notes,
 }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY) {
-    console.warn("EmailJS not configured; skipping listing-interest emails.");
+    reportClientWarn("emailjs", "EmailJS not configured; skipping listing-interest emails.");
     return { ok: false, skipped: true };
   }
   const templateId = import.meta.env.VITE_EMAILJS_INTEREST_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
   if (!templateId) {
-    console.warn("No EmailJS template id; set VITE_EMAILJS_TEMPLATE_ID or VITE_EMAILJS_INTEREST_TEMPLATE_ID.");
+    reportClientWarn("emailjs", "No EmailJS template id; set VITE_EMAILJS_TEMPLATE_ID or VITE_EMAILJS_INTEREST_TEMPLATE_ID.");
     return { ok: false, skipped: true };
   }
 
@@ -157,7 +158,7 @@ export async function triggerCustomerApplicationStatusEmail({
   message,
 }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY) {
-    console.warn("EmailJS not configured; skipping customer status email.");
+    reportClientWarn("emailjs", "EmailJS not configured; skipping customer status email.");
     return { ok: false, skipped: true };
   }
   const templateId =
@@ -165,7 +166,7 @@ export async function triggerCustomerApplicationStatusEmail({
     import.meta.env.VITE_EMAILJS_INTEREST_TEMPLATE_ID ||
     EMAILJS_TEMPLATE_ID;
   if (!templateId) {
-    console.warn("No EmailJS template for customer status; set VITE_EMAILJS_STATUS_TEMPLATE_ID or VITE_EMAILJS_TEMPLATE_ID.");
+    reportClientWarn("emailjs", "No EmailJS template for customer status; set VITE_EMAILJS_STATUS_TEMPLATE_ID or VITE_EMAILJS_TEMPLATE_ID.");
     return { ok: false, skipped: true };
   }
   const to = String(to_email || "").trim().toLowerCase();
@@ -195,14 +196,14 @@ export async function triggerCustomerApplicationStatusEmail({
     });
     return { ok: res.ok };
   } catch (e) {
-    console.error("Customer status email failed", e);
+    reportClientError("emailjs_customer_status", e);
     return { ok: false };
   }
 }
 
 export async function triggerVisitNotificationEmail({ customerEmail, customerPhone, sellerEmail, visitTime, notes, listingId }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-    console.warn("EmailJS not configured, skipping visit notification.");
+    reportClientWarn("emailjs", "EmailJS not configured, skipping visit notification.");
     return { ok: false };
   }
 
@@ -229,7 +230,7 @@ export async function triggerVisitNotificationEmail({ customerEmail, customerPho
     });
     return { ok: res.ok };
   } catch (error) {
-    console.error("Failed to send visit notification email", error);
+    reportClientError("emailjs_visit_notification", error);
     return { ok: false };
   }
 }

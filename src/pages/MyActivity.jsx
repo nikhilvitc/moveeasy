@@ -203,6 +203,10 @@ export default function MyActivity() {
                         selectedLocality: h.selectedLocality || "",
                         mapSearchInput: h.selectedLocality || h.workplaceLabel || "",
                         searchMode: h.searchMode || "local",
+                        commuteRadiusKm:
+                          h.commuteRadiusKm != null && Number.isFinite(Number(h.commuteRadiusKm))
+                            ? Number(h.commuteRadiusKm)
+                            : undefined,
                         placeAnchor:
                           h.placeLat != null && h.placeLng != null
                             ? { lat: h.placeLat, lng: h.placeLng, label: h.placeLabel || "Saved place" }

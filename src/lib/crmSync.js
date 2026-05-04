@@ -1,4 +1,5 @@
 import { isFirebaseConfigured } from "./firebase";
+import { reportClientError, reportClientWarn } from "./clientLog";
 import {
   addActivityEventData,
   addInterestRequestData,
@@ -67,7 +68,7 @@ export async function notifyCustomerInterestStatusChanged(row, newStatus) {
       });
     }
   } catch (e) {
-    console.warn("Customer in-app notification failed", e);
+    reportClientWarn("crm_interest_status_notify", "Customer in-app notification failed", e);
   }
 
   try {
@@ -82,7 +83,7 @@ export async function notifyCustomerInterestStatusChanged(row, newStatus) {
       message,
     });
   } catch (e) {
-    console.warn("Customer status email failed", e);
+    reportClientWarn("crm_interest_status_email", "Customer status email failed", e);
   }
 }
 
@@ -144,7 +145,7 @@ export async function notifyCustomerListingAssigned({
       });
     }
   } catch (e) {
-    console.warn("Customer assignment notification failed", e);
+    reportClientWarn("crm_assignment_notify", "Customer assignment notification failed", e);
   }
 
   try {
@@ -159,7 +160,7 @@ export async function notifyCustomerListingAssigned({
       message: body,
     });
   } catch (e) {
-    console.warn("Customer assignment email failed", e);
+    reportClientWarn("crm_assignment_email", "Customer assignment email failed", e);
   }
 }
 
@@ -186,7 +187,7 @@ export async function submitListingInterestFull(user, payload) {
       notes: created.notes,
     });
   } catch (e) {
-    console.warn("Interest email delivery:", e);
+    reportClientWarn("crm_interest_email", "Interest email delivery failed", e);
   }
 
   const interestRow = {
@@ -236,7 +237,7 @@ export async function submitListingInterestFull(user, payload) {
         },
       });
     } catch (e) {
-      console.error("CRM Firestore sync failed", e);
+      reportClientError("crm_interest_firestore_sync", e);
     }
   } else {
     appendInterestGlobal({ ...interestRow, id: `i-${Date.now()}`, createdAt: created.date });

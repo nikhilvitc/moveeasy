@@ -19,6 +19,7 @@ import {
 } from "../lib/firestoreStore";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
 import { interestStatusToCustomerLabel } from "../lib/crmSync";
+import { reportClientError } from "../lib/clientLog";
 
 export default function CustomerDashboard() {
   const { user, logout, requestSeller, refreshRole } = useAuth();
@@ -69,7 +70,7 @@ export default function CustomerDashboard() {
           setCustomerNotifs(Array.isArray(notifs) ? notifs : []);
           setMyAssignments(Array.isArray(assigns) ? assigns : []);
         } catch (e) {
-          console.error("Customer CRM load failed", e);
+          reportClientError("customer_dashboard_crm_load", e);
         }
       } else {
         if (!alive) return;

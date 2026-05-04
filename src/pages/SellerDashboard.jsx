@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../components/layout/PageShell";
@@ -18,6 +18,7 @@ import {
   updateInterestSellerNotesData,
 } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
+import { reportClientError } from "../lib/clientLog";
 import MediaUploadField from "../components/MediaUploadField";
 
 async function readUserRow(email) {
@@ -69,6 +70,7 @@ export default function SellerDashboard() {
   const [badgeMsgKind, setBadgeMsgKind] = useState("ok");
   const [listingSaveMsg, setListingSaveMsg] = useState("");
   const [listingSaveKind, setListingSaveKind] = useState("ok");
+  const listingSaveBannerRef = useRef(null);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [visitRequests, setVisitRequests] = useState([]);
   const [leadInterests, setLeadInterests] = useState([]);
@@ -161,10 +163,30 @@ export default function SellerDashboard() {
     }
   };
 
+  const scrollListingBannerIntoView = () => {
+    requestAnimationFrame(() => {
+      listingSaveBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
+    const formEl = e.currentTarget;
+    if (!formEl.reportValidity()) {
+      const firstBad = formEl.querySelector(":invalid");
+      firstBad?.scrollIntoView({ behavior: "smooth", block: "center" });
+      try {
+        firstBad?.focus({ preventScroll: true });
+      } catch {
+        firstBad?.focus();
+      }
+      return;
+    }
     setListingSaveMsg("");
-    if (!pinPosition) { alert("Please click on the map to set property location"); return; }
+    if (!pinPosition) {
+      alert("Please click on the map to set property location");
+      return;
+    }
     const authEmail = String(user?.email || "").toLowerCase().trim();
     const id = form.id || String(Date.now());
     try {
@@ -227,10 +249,21 @@ export default function SellerDashboard() {
       setShowAdd(false);
       setListingSaveKind("ok");
       setListingSaveMsg("Listing saved successfully.");
+      scrollListingBannerIntoView();
     } catch (err) {
-      console.error(err);
+      reportClientError("seller_listing_save", err);
       setListingSaveKind("err");
-      setListingSaveMsg(err?.message || String(err) || "Save failed. If this persists, check that your account is a seller in Firestore (userRoles) and try again.");
+      const code = err?.code;
+      let msg = err?.message || String(err) || "Save failed.";
+      if (code === "permission-denied") {
+        msg =
+          "Save blocked (permission-denied): Firestore only allows sellers to write listings. In Firebase Console → Firestore → userRoles, this user’s role must be \"seller\", and the listing email must match the signed-in account.";
+      } else if (code === "storage/unauthorized" || code === "storage/canceled") {
+        msg = "Media upload failed (" + code + "). Sign in again or check Firebase Storage rules.";
+      }
+      if (code) msg = `${msg} [${code}]`;
+      setListingSaveMsg(msg);
+      scrollListingBannerIntoView();
     }
   };
 
@@ -499,6 +532,7 @@ export default function SellerDashboard() {
         </div>
         {listingSaveMsg ? (
           <div
+            ref={listingSaveBannerRef}
             style={{
               marginBottom: "14px",
               padding: "12px 14px",

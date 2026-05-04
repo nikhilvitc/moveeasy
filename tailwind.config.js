@@ -15,8 +15,8 @@ export default {
       // ── Brand colors ────────────────────────────────────────────────────
       colors: {
         primary: {
-          DEFAULT: "#E85A4F",
-          dark:    "#D64A3F",
+          DEFAULT: "#FF3131",
+          dark:    "#DC2626",
           darker:  "#B91C1C",
           light:   "#FECACA",
           soft:    "#FFF4F2",
