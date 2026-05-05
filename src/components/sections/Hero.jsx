@@ -1,6 +1,8 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useRef } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 
 /** Premium exterior — Unsplash (license-friendly). */
 const HERO_PHOTO =
@@ -17,6 +19,7 @@ const fadeUp = (delay = 0) => ({
 export default function Hero() {
   const navigate = useNavigate();
   const heroRef = useRef(null);
+  const panelRef = useRef(null);
   const [quickFilters, setQuickFilters] = useState({
     locality: "",
     bhk: "",
@@ -28,6 +31,72 @@ export default function Hero() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const imgY = useTransform(scrollYProgress, [0, 1], ["0%", "22%"]);
   const overlayOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0.65]);
+
+  useGSAP(
+    () => {
+      const root = heroRef.current;
+      const panel = panelRef.current;
+      if (!root || !panel) return;
+
+      const layers = root.querySelectorAll("[data-depth]");
+      const media = gsap.matchMedia();
+
+      media.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set([panel, ...layers], { clearProps: "all" });
+      });
+
+      media.add("(prefers-reduced-motion: no-preference) and (pointer: fine)", () => {
+        gsap.set(panel, { transformPerspective: 1200, transformStyle: "preserve-3d" });
+
+        gsap.to(layers, {
+          y: (idx) => (idx % 2 === 0 ? -10 : 10),
+          duration: 3.2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+          stagger: 0.15,
+        });
+
+        const tiltXTo = gsap.quickTo(panel, "rotateX", { duration: 0.35, ease: "power3.out" });
+        const tiltYTo = gsap.quickTo(panel, "rotateY", { duration: 0.35, ease: "power3.out" });
+        const layerXTo = Array.from(layers).map((el) => gsap.quickTo(el, "x", { duration: 0.5, ease: "power3.out" }));
+        const layerYTo = Array.from(layers).map((el) => gsap.quickTo(el, "y", { duration: 0.5, ease: "power3.out" }));
+
+        const onMove = (event) => {
+          const rect = root.getBoundingClientRect();
+          const relX = (event.clientX - rect.left) / rect.width - 0.5;
+          const relY = (event.clientY - rect.top) / rect.height - 0.5;
+
+          tiltXTo(relY * -10);
+          tiltYTo(relX * 12);
+
+          Array.from(layers).forEach((_, idx) => {
+            const depth = Number(layers[idx].getAttribute("data-depth") || "0.08");
+            layerXTo[idx](relX * depth * 140);
+            layerYTo[idx](relY * depth * 100);
+          });
+        };
+
+        const onLeave = () => {
+          tiltXTo(0);
+          tiltYTo(0);
+          layerXTo.forEach((setX) => setX(0));
+          layerYTo.forEach((setY) => setY(0));
+        };
+
+        root.addEventListener("mousemove", onMove);
+        root.addEventListener("mouseleave", onLeave);
+
+        return () => {
+          root.removeEventListener("mousemove", onMove);
+          root.removeEventListener("mouseleave", onLeave);
+        };
+      });
+
+      return () => media.revert();
+    },
+    { scope: heroRef }
+  );
 
   const featuredLocalities = ["Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
   const budgetRanges = useMemo(
@@ -78,6 +147,7 @@ export default function Hero() {
         {/* Orb 1 — coral top-left */}
         <motion.div
           className="absolute -top-16 -left-16 w-[340px] h-[340px] rounded-full"
+          data-depth="0.22"
           style={{
             background: "radial-gradient(circle, rgba(232,90,79,0.35) 0%, transparent 70%)",
             animation: "float-slow 9s ease-in-out infinite",
@@ -86,6 +156,7 @@ export default function Hero() {
         {/* Orb 2 — blue right */}
         <motion.div
           className="absolute top-1/3 -right-20 w-[260px] h-[260px] rounded-full"
+          data-depth="0.16"
           style={{
             background: "radial-gradient(circle, rgba(14,165,233,0.25) 0%, transparent 70%)",
             animation: "float-slow 11s ease-in-out infinite 2s",
@@ -94,6 +165,7 @@ export default function Hero() {
         {/* Orb 3 — orange bottom-center */}
         <motion.div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] rounded-full"
+          data-depth="0.12"
           style={{
             background: "radial-gradient(ellipse, rgba(249,115,22,0.18) 0%, transparent 70%)",
             animation: "float-slow 13s ease-in-out infinite 1s",
@@ -307,6 +379,7 @@ export default function Hero() {
             initial={{ opacity: 0, x: 30, y: 20 }}
             animate={{ opacity: 1, x: 0, y: 0 }}
             transition={{ duration: 0.7, delay: 0.14, ease: EASE }}
+            ref={panelRef}
             className="relative flex min-h-0 w-full flex-col justify-end rounded-2xl border border-white/25 bg-white/10 p-4 shadow-glass backdrop-blur-md sm:rounded-[28px] sm:p-5 lg:ml-auto lg:h-auto lg:min-h-0 lg:max-w-md lg:justify-start lg:self-start xl:max-w-lg"
           >
             {/* Gradient border glow */}
@@ -329,6 +402,7 @@ export default function Hero() {
               ].map(({ value, label, color }) => (
                 <motion.div
                   key={label}
+                  data-depth="0.28"
                   className="min-w-0 rounded-xl bg-white/95 px-3 py-2.5 shadow-lg ring-1 ring-stone-200/80 sm:rounded-2xl sm:px-4 sm:py-3"
                   whileHover={{ scale: 1.05, boxShadow: "0 8px 24px rgba(0,0,0,0.18)" }}
                   transition={{ duration: 0.2 }}
