@@ -64,7 +64,18 @@ service cloud.firestore {
     // Canonical role by email. This keeps role privileges stable even before/without uid-bound role docs.
     match /emailRoles/{email} {
       allow read: if isSignedIn() && (isAdmin() || email == authEmail());
-      allow write: if isAdmin();
+      // Users must be able to self-provision their own email role during signup/login,
+      // but they must never be able to grant themselves admin.
+      allow create: if isSignedIn()
+        && email == authEmail()
+        && request.resource.data.email == authEmail()
+        && request.resource.data.role in ["customer", "seller"];
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && email == authEmail()
+            && request.resource.data.email == authEmail()
+            && request.resource.data.role in ["customer", "seller"]);
+      allow delete: if isAdmin();
     }
 
     // Roles: admins manage all; users create own customer/seller; bootstrap email can set own admin once.
