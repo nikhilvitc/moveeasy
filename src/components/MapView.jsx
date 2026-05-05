@@ -25,6 +25,20 @@ const MAP_NEARBY_KM = 12;
 /** Default max distance (km) from workplace / geocoded pin; user-adjustable in search panel. */
 const DEFAULT_COMMUTE_RADIUS_KM = 10;
 
+/**
+ * On phones the map is a short strip above the listing drawer; centering the pin in the map pane
+ * leaves it visually near the bottom (obscured by the sheet / FAB). Nudge the map center slightly
+ * south (lower lat) so the property sits higher in the visible area.
+ */
+const MOBILE_LISTING_FOCUS_LAT_OFFSET = 0.0018;
+
+function mapStateForListingFocus(lat, lng, isMobile) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  const offset = isMobile ? MOBILE_LISTING_FOCUS_LAT_OFFSET : 0;
+  return { center: [la - offset, ln], zoom: 17 };
+}
+
 function MediaElement({ src, alt, style }) {
   if (!src) return null;
   const isVideo = src.match(/\.(mp4|webm|ogg|mov)$/i) || src.includes('video');
@@ -325,8 +339,8 @@ export default function MapView() {
     if (!found) return;
     setViewingProperty(found);
     setSelected(found);
-    setMapState({ center: [found.lat, found.lng], zoom: 17 });
-  }, [listingIdFromUrl, listings]);
+    setMapState(mapStateForListingFocus(found.lat, found.lng, isMobile));
+  }, [listingIdFromUrl, listings, isMobile]);
 
   useEffect(() => {
     if (!workplaceAnchor || !selected || !Number.isFinite(Number(selected.lat)) || !Number.isFinite(Number(selected.lng))) {
@@ -1774,13 +1788,13 @@ export default function MapView() {
               tabIndex={0}
               onClick={() => {
                 setSelected(l);
-                setMapState({ center: [Number(l.lat), Number(l.lng)], zoom: 17 });
+                setMapState(mapStateForListingFocus(l.lat, l.lng, isMobile));
               }}
               onKeyDown={(e) => {
                 if (e.key !== "Enter" && e.key !== " ") return;
                 e.preventDefault();
                 setSelected(l);
-                setMapState({ center: [Number(l.lat), Number(l.lng)], zoom: 17 });
+                setMapState(mapStateForListingFocus(l.lat, l.lng, isMobile));
               }}
               style={{
                 background: "white",
