@@ -65,10 +65,10 @@ export default function HowItWorks() {
   const sectionRef = useGsapStaggerReveal({ y: 26, stagger: 0.16, start: "top 80%" });
 
   return (
-    <section ref={sectionRef} className="bg-white py-20 sm:py-24 lg:py-28">
+    <section ref={sectionRef} className="bg-white py-12 sm:py-14 lg:py-16">
       <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 xl:max-w-[90rem] xl:px-12 2xl:px-16">
         <div
-          className="rounded-2xl lg:rounded-3xl px-5 py-14 sm:px-8 sm:py-16 lg:px-12 lg:py-20 xl:px-16"
+          className="rounded-2xl lg:rounded-3xl px-5 py-10 sm:px-8 sm:py-12 lg:px-12 lg:py-14 xl:px-16"
           style={{
             background: "linear-gradient(145deg, #fafafa 0%, #ffffff 50%, #fff8f7 100%)",
             border: "1px solid rgba(232,90,79,0.10)",
@@ -76,7 +76,7 @@ export default function HowItWorks() {
           }}
         >
           {/* Title */}
-          <div className="text-center mb-14 sm:mb-16" data-gsap-reveal>
+          <div className="text-center mb-10 sm:mb-12" data-gsap-reveal>
             <h2 className="text-[28px] sm:text-[36px] lg:text-[42px] font-extrabold text-gray-950 leading-[1.15] tracking-tight">
               Your Move, Simplified in{" "}
               <span className="gradient-text">3 Steps</span>

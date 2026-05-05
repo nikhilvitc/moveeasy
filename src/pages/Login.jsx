@@ -15,14 +15,14 @@ export default function Login() {
   const [error,            setError]            = useState("");
   const [info,             setInfo]             = useState("");
   const [isSignup,         setIsSignup]         = useState(false);
-  const { login, signup, loginWithGoogle, resendVerificationEmail } = useAuth();
+  const { login, signup, loginWithGoogle, forgotPassword, resendVerificationEmail } = useAuth();
   const [resendBusy, setResendBusy] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
   const navigate = useNavigate();
 
   const roleCards = [
-    { id: "admin",    title: "Admin",    hint: "Manage all listings and assignments" },
     { id: "seller",   title: "Seller",   hint: "Manage your listings and leads" },
     { id: "customer", title: "Customer", hint: "Browse homes and apply quickly" },
   ];
@@ -32,11 +32,6 @@ export default function Login() {
     setError("");
     setInfo("");
     setShowResendVerification(false);
-
-    if (selectedAccountType === "admin" && isSignup) {
-      setError("Admin mode supports sign in only.");
-      return;
-    }
 
     if (isSignup) {
       if (!name.trim()) {
@@ -127,6 +122,21 @@ export default function Login() {
     } else {
       setError(result.error || "Google sign-in failed");
     }
+  };
+
+  const handleForgotPassword = async () => {
+    setError("");
+    setInfo("");
+    const normalized = String(email || "").trim();
+    if (!normalized) {
+      setError("Enter your email first, then click forgot password.");
+      return;
+    }
+    setForgotBusy(true);
+    const result = await forgotPassword(normalized);
+    setForgotBusy(false);
+    if (result.success) setInfo(result.info || "Password reset email sent.");
+    else setError(result.error || "Could not send password reset email.");
   };
 
   const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
@@ -250,7 +260,7 @@ export default function Login() {
         </div>
 
         {/* Role cards */}
-        <div className="grid grid-cols-3 gap-2 mt-5 mb-1">
+        <div className="grid grid-cols-2 gap-2 mt-5 mb-1">
           {roleCards.map((card) => {
             const active = selectedAccountType === card.id;
             return (
@@ -262,10 +272,6 @@ export default function Login() {
                   setSelectedAccountType(card.id);
                   setError("");
                   setInfo("");
-                  if (card.id === "admin") {
-                    setIsSignup(false);
-                    return;
-                  }
                   setIsSignup(true);
                   setSignupRole(card.id === "seller" ? "seller" : "customer");
                 }}
@@ -486,6 +492,19 @@ export default function Login() {
               onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px rgba(232,90,79,0.40)")}
               onBlur={(e)  => (e.target.style.boxShadow = "none")}
             />
+            {!isSignup ? (
+              <div className="mt-2 text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={authBusy || forgotBusy}
+                  className="text-[12px] font-semibold disabled:opacity-55 disabled:cursor-not-allowed"
+                  style={{ color: "rgba(255,255,255,0.78)" }}
+                >
+                  {forgotBusy ? "Sending reset…" : "Forgot password?"}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* Submit button */}
@@ -536,38 +555,24 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Admin note */}
-        {selectedAccountType === "admin" ? (
-          <div
-            className="mt-4 rounded-xl px-4 py-3 text-[12px] leading-[1.6]"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              color: "rgba(255,255,255,0.50)",
+        <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+          {isSignup ? "Already have an account? " : "No account? "}
+          <motion.button
+            type="button"
+            disabled={authBusy}
+            onClick={() => {
+              setError("");
+              setInfo("");
+              setIsSignup(!isSignup);
+              if (!isSignup) setSelectedAccountType("customer");
             }}
+            className="font-bold bg-none border-none cursor-pointer text-[13px] gradient-text disabled:opacity-45 disabled:cursor-not-allowed"
+            style={{ background: "none", padding: 0 }}
+            whileHover={authBusy ? {} : { scale: 1.04 }}
           >
-            <strong style={{ color: "rgba(255,255,255,0.70)" }}>Note:</strong> &quot;Admin&quot; here only changes the button text. Moveazy still checks the Gmail you sign in with. Use the admin Gmail your owner configured (and the correct password). A seller Gmail stays a seller even if Admin is selected.
-          </div>
-        ) : (
-          <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {isSignup ? "Already have an account? " : "No account? "}
-            <motion.button
-              type="button"
-              disabled={authBusy}
-              onClick={() => {
-                setError("");
-                setInfo("");
-                setIsSignup(!isSignup);
-                if (!isSignup) setSelectedAccountType("customer");
-              }}
-              className="font-bold bg-none border-none cursor-pointer text-[13px] gradient-text disabled:opacity-45 disabled:cursor-not-allowed"
-              style={{ background: "none", padding: 0 }}
-              whileHover={authBusy ? {} : { scale: 1.04 }}
-            >
-              {isSignup ? "Sign In" : "Sign Up"}
-            </motion.button>
-          </p>
-        )}
+            {isSignup ? "Sign In" : "Sign Up"}
+          </motion.button>
+        </p>
       </motion.div>
     </div>
   );

@@ -187,7 +187,7 @@ export default function SellerDashboard() {
             /storage|bucket|object/i.test(uploadText)
           ) {
             setListingSaveWarning(
-              "Firebase Storage issue detected (images not uploaded). Listing was saved without media. Check Firebase Console -> Storage -> Get Started."
+              "Firebase Storage issue detected (media not uploaded). Listing was saved without media. Check Firebase Console -> Storage -> Get Started."
             );
           } else {
             setListingSaveWarning("Listing saved without uploaded media. You can re-edit and upload media again.");

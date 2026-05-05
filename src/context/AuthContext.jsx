@@ -4,6 +4,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -280,6 +281,20 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const forgotPassword = async (email) => {
+    const e = String(email || "").toLowerCase().trim();
+    if (!e) return { success: false, error: "Enter your email first." };
+    if (!isFirebaseConfigured) {
+      return { success: false, error: "Forgot password requires Firebase configuration." };
+    }
+    try {
+      await sendPasswordResetEmail(auth, e);
+      return { success: true, info: "Password reset email sent. Check inbox and spam." };
+    } catch (error) {
+      return { success: false, error: normalizeFirebaseError(error) };
+    }
+  };
+
   const signup = async (email, password, name, role = "customer", phone = "") => {
     const e = email.toLowerCase().trim();
     if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
@@ -497,6 +512,7 @@ export function AuthProvider({ children }) {
       login,
       loginWithGoogle,
       signup,
+      forgotPassword,
       resendVerificationEmail,
       logout,
       requestSeller,
