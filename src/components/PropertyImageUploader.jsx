@@ -1,30 +1,32 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { uploadPropertyImageFile } from "../lib/propertyImageUpload";
+import { uploadPropertyMediaFile } from "../lib/propertyImageUpload";
 
 export default function PropertyImageUploader({ onUploadComplete }) {
   const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState("");
+  const [uploadedType, setUploadedType] = useState("");
   const [message, setMessage] = useState("");
 
   const handleUpload = async () => {
     setMessage("");
     if (!user?.email) {
-      alert("Please log in first to upload property images.");
+      alert("Please log in first to upload property media.");
       return;
     }
     if (!selectedFile) {
-      setMessage("Please choose an image first.");
+      setMessage("Please choose a photo or video first.");
       return;
     }
 
     setUploading(true);
     try {
-      const url = await uploadPropertyImageFile(selectedFile);
+      const url = await uploadPropertyMediaFile(selectedFile);
       setUploadedUrl(url);
-      setMessage("Image uploaded successfully.");
+      setUploadedType(String(selectedFile.type || ""));
+      setMessage("Media uploaded successfully.");
       if (typeof onUploadComplete === "function") {
         onUploadComplete(url);
       }
@@ -45,12 +47,12 @@ export default function PropertyImageUploader({ onUploadComplete }) {
       }}
     >
       <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>
-        Property image upload
+        Property media upload
       </div>
 
       <input
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
         style={{ marginBottom: "10px" }}
       />
@@ -69,7 +71,7 @@ export default function PropertyImageUploader({ onUploadComplete }) {
           cursor: uploading ? "not-allowed" : "pointer",
         }}
       >
-        {uploading ? "Uploading..." : "Upload image"}
+        {uploading ? "Uploading..." : "Upload media"}
       </button>
 
       {message ? (
@@ -80,12 +82,20 @@ export default function PropertyImageUploader({ onUploadComplete }) {
 
       {uploadedUrl ? (
         <div style={{ marginTop: "10px" }}>
-          <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Uploaded image preview</div>
-          <img
-            src={uploadedUrl}
-            alt="Uploaded property"
-            style={{ width: "100%", maxWidth: "260px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
-          />
+          <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Uploaded media preview</div>
+          {uploadedType.startsWith("video/") ? (
+            <video
+              src={uploadedUrl}
+              controls
+              style={{ width: "100%", maxWidth: "300px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+            />
+          ) : (
+            <img
+              src={uploadedUrl}
+              alt="Uploaded property"
+              style={{ width: "100%", maxWidth: "260px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+            />
+          )}
         </div>
       ) : null}
     </div>

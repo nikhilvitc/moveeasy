@@ -2,9 +2,56 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return isSignedIn()
+        ? firestore.get(/databases/(default)/documents/userRoles/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdminOrSeller() {
+      return isSignedIn() && (userRole() == "admin" || userRole() == "seller");
+    }
+
+    function isAllowedMediaType() {
+      return request.resource != null
+        && request.resource.contentType != null
+        && (
+          request.resource.contentType.matches("image/.*")
+          || request.resource.contentType.matches("video/.*")
+        );
+    }
+
+    // Listing media visible publicly on map/discovery.
+    match /listing-images/{listingId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAdminOrSeller()
+        && isAllowedMediaType()
+        && request.resource.size < 200 * 1024 * 1024;
+      allow delete: if isAdminOrSeller();
+    }
+
+    // New listing media folder used by uploader helpers.
+    match /properties/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAdminOrSeller()
+        && isAllowedMediaType()
+        && request.resource.size < 200 * 1024 * 1024;
+      allow delete: if isAdminOrSeller();
+    }
+
+    // User-private documents stay private to the owner.
+    match /user-documents/{uid}/{allPaths=**} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Deny all other storage paths by default.
     match /{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
     }
   }
 }
