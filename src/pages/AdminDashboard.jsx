@@ -676,6 +676,25 @@ export default function AdminDashboard() {
 
       <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
         <div
+          style={{
+            background: "#0f172a",
+            color: "#e2e8f0",
+            borderRadius: "10px",
+            padding: "10px 12px",
+            marginBottom: "14px",
+            fontSize: "12px",
+            lineHeight: 1.5,
+          }}
+        >
+          <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
+          email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
+          role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
+          source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
+          host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
+          listings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>{" · "}
+          users=<span style={{ color: "#f8fafc" }}>{users.length}</span>
+        </div>
+        <div
           role="tablist"
           aria-label="Admin sections"
           style={{

@@ -350,6 +350,24 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
+        <div
+          style={{
+            background: "#0f172a",
+            color: "#e2e8f0",
+            borderRadius: "10px",
+            padding: "10px 12px",
+            marginBottom: "14px",
+            fontSize: "12px",
+            lineHeight: 1.5,
+          }}
+        >
+          <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
+          email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
+          role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
+          source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
+          host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
+          myListings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>
+        </div>
         <div role="tablist" aria-label="Seller sections" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           {[
             ["leads", "Leads & customers"],
