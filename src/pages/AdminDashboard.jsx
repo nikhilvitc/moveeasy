@@ -196,6 +196,38 @@ export default function AdminDashboard() {
   const [adminListingMsgKind, setAdminListingMsgKind] = useState("ok");
   const [adminListingWarning, setAdminListingWarning] = useState("");
 
+  const parsedListingMediaUrls = useMemo(() => {
+    const raw = String(form.imagesText || form.image || "")
+      .split(/\r?\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (const url of raw) {
+      const key = url.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(url);
+    }
+    return out.slice(0, 24);
+  }, [form.imagesText, form.image]);
+
+  const isVideoUrl = (url) => {
+    const u = String(url || "").toLowerCase();
+    return u.endsWith(".mp4") || u.endsWith(".webm") || u.endsWith(".ogg") || u.endsWith(".mov") || u.includes("video");
+  };
+
+  const showDebugBanner = useMemo(() => {
+    if (import.meta.env.DEV) return true;
+    if (typeof window === "undefined") return false;
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      return qp.get("debug") === "1" || window.localStorage.getItem("moveazy_debug") === "1";
+    } catch {
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     async function load() {
@@ -326,6 +358,7 @@ export default function AdminDashboard() {
 
     const listingId = editingId || String(Date.now());
     try {
+      const existing = editingId ? listingsState.find((l) => String(l?.id) === String(listingId)) : null;
       let uploadedImages = [];
       if (photoFiles.length) {
         try {
@@ -346,8 +379,16 @@ export default function AdminDashboard() {
           }
         }
       }
-      const manualImages = String(form.imagesText || form.image || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
-      const allImages = [...uploadedImages, ...manualImages];
+      const manualImages = String(form.imagesText || form.image || "")
+        .split(/\r?\n|,/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      let allImages = [...uploadedImages, ...manualImages];
+      // Important: when editing, do NOT wipe existing images if admin didn't re-upload / paste URLs.
+      if (editingId && allImages.length === 0) {
+        const prev = Array.isArray(existing?.images) ? existing.images.filter(Boolean) : [];
+        allImages = prev;
+      }
       const payload = {
         ...form,
         id: listingId,
@@ -362,7 +403,7 @@ export default function AdminDashboard() {
         preferredTenants: toList(form.preferredTenants, ["Family"]),
         parking: toList(form.parking, ["2 Wheeler"]),
         images: allImages,
-        image: form.image || allImages[0] || "",
+        image: form.image || allImages[0] || existing?.image || "",
         amenities: String(form.amenitiesText || "").split(",").map((x) => x.trim()).filter(Boolean),
         furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
         updatedAt: new Date().toISOString(),
@@ -686,25 +727,27 @@ export default function AdminDashboard() {
       </div>
 
       <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
-        <div
-          style={{
-            background: "#0f172a",
-            color: "#e2e8f0",
-            borderRadius: "10px",
-            padding: "10px 12px",
-            marginBottom: "14px",
-            fontSize: "12px",
-            lineHeight: 1.5,
-          }}
-        >
-          <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
-          email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
-          role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
-          source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
-          host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
-          listings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>{" · "}
-          users=<span style={{ color: "#f8fafc" }}>{users.length}</span>
-        </div>
+        {showDebugBanner ? (
+          <div
+            style={{
+              background: "#0f172a",
+              color: "#e2e8f0",
+              borderRadius: "10px",
+              padding: "10px 12px",
+              marginBottom: "14px",
+              fontSize: "12px",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
+            email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
+            role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
+            source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
+            host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
+            listings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>{" · "}
+            users=<span style={{ color: "#f8fafc" }}>{users.length}</span>
+          </div>
+        ) : null}
         <div
           role="tablist"
           aria-label="Admin sections"
@@ -1312,6 +1355,27 @@ export default function AdminDashboard() {
             <input placeholder="Gated community (optional) — Yes" value={form.gatedCommunity} onChange={(e) => setForm((p) => ({ ...p, gatedCommunity: e.target.value }))} />
             <textarea placeholder="Furnishings (comma separated, optional) — Sofa, Fridge, Washing machine" value={form.furnishingsText} onChange={(e) => setForm((p) => ({ ...p, furnishingsText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
             <textarea placeholder="Amenities (comma separated, optional) — Gym, Pool, Power backup" value={form.amenitiesText} onChange={(e) => setForm((p) => ({ ...p, amenitiesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "64px" }} />
+            {parsedListingMediaUrls.length > 0 ? (
+              <div style={{ gridColumn: "1 / -1", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+                  Current saved media ({parsedListingMediaUrls.length})
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))", gap: 8 }}>
+                  {parsedListingMediaUrls.map((url) => (
+                    <div key={url} style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                      {isVideoUrl(url) ? (
+                        <video src={url} controls style={{ width: "100%", height: 78, objectFit: "cover", display: "block" }} />
+                      ) : (
+                        <img src={url} alt="" loading="lazy" style={{ width: "100%", height: 78, objectFit: "cover", display: "block" }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                  This is the media already saved in Firestore (`images[]`). Use “Listing Media Upload” below to add more.
+                </div>
+              </div>
+            ) : null}
             <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
             <div style={{ gridColumn: isMobile ? "auto" : "span 4", marginTop: "4px", fontSize: "12px", fontWeight: 600, color: "#334155" }}>
               Map pin: {pinPosition?.[0]?.toFixed(4)}, {pinPosition?.[1]?.toFixed(4)} — search to move map, then click to place the pin.

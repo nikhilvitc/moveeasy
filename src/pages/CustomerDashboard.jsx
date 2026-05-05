@@ -12,9 +12,11 @@ import {
 import { isFirebaseConfigured } from "../lib/firebase";
 import {
   addVisitRequestData,
+  getListingsData,
   getInterestsForCustomerEmail,
   getCustomerNotificationsData,
   getAssignmentsForCustomerEmail,
+  isListingPubliclyVisible,
   markNotificationReadData,
 } from "../lib/firestoreStore";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
@@ -38,10 +40,23 @@ export default function CustomerDashboard() {
   const [dashTick, setDashTick] = useState(0);
 
   useEffect(() => {
-    setListings(getListings());
+    let alive = true;
+    (async () => {
+      try {
+        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 200 }) : getListings();
+        if (!alive) return;
+        setListings(rows.filter(isListingPubliclyVisible));
+      } catch (e) {
+        if (!alive) return;
+        setListings(getListings());
+      }
+    })();
     refreshRole();
     const reqs = JSON.parse(localStorage.getItem("moveasy_seller_requests") || "[]");
     setSellerRequested(reqs.some((r) => r.email === user?.email));
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {

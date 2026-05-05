@@ -2,22 +2,27 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: firebase-live
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           
       - run: npm ci
       
       # Inject ALL secrets from GitHub into .env for Vite production build
       - name: Create .env for production build
         run: |
+          rm -f .env
           echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
           echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}" >> .env
           echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}" >> .env
@@ -39,6 +44,11 @@ jobs:
           echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}" >> .env
           echo "VITE_APPCHECK_RECAPTCHA_SITE_KEY=${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}" >> .env
 
+      - name: Lint + unit tests
+        run: |
+          npm run lint
+          npm run test
+
       - run: npm run build
       
       - uses: FirebaseExtended/action-hosting-deploy@v0
@@ -53,5 +63,5 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}
 
-      - name: Deploy Firestore (rules + indexes)
-        run: npx --yes firebase-tools@13 deploy --only firestore --project moveasy-30eed --non-interactive
+      - name: Deploy Firestore + Storage rules
+        run: npx --yes firebase-tools@13 deploy --only firestore,storage --project moveasy-30eed --non-interactive

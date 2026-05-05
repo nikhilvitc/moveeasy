@@ -76,6 +76,38 @@ export default function SellerDashboard() {
   const [sellerNoteDrafts, setSellerNoteDrafts] = useState({});
   const [savingInterestId, setSavingInterestId] = useState(null);
 
+  const parsedListingMediaUrls = useMemo(() => {
+    const raw = String(form.imagesText || "")
+      .split(/\r?\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const seen = new Set();
+    const out = [];
+    for (const url of raw) {
+      const key = url.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(url);
+    }
+    return out.slice(0, 24);
+  }, [form.imagesText]);
+
+  const isVideoUrl = (url) => {
+    const u = String(url || "").toLowerCase();
+    return u.endsWith(".mp4") || u.endsWith(".webm") || u.endsWith(".ogg") || u.endsWith(".mov") || u.includes("video");
+  };
+
+  const showDebugBanner = useMemo(() => {
+    if (import.meta.env.DEV) return true;
+    if (typeof window === "undefined") return false;
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      return qp.get("debug") === "1" || window.localStorage.getItem("moveazy_debug") === "1";
+    } catch {
+      return false;
+    }
+  }, []);
+
   const listingTitleById = useMemo(() => {
     const m = new Map();
     listings.forEach((l) => m.set(String(l.id), l.title || `Listing #${l.id}`));
@@ -361,24 +393,26 @@ export default function SellerDashboard() {
         </div>
       </div>
       <div style={{ padding: "20px 24px" }}>
-        <div
-          style={{
-            background: "#0f172a",
-            color: "#e2e8f0",
-            borderRadius: "10px",
-            padding: "10px 12px",
-            marginBottom: "14px",
-            fontSize: "12px",
-            lineHeight: 1.5,
-          }}
-        >
-          <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
-          email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
-          role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
-          source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
-          host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
-          myListings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>
-        </div>
+        {showDebugBanner ? (
+          <div
+            style={{
+              background: "#0f172a",
+              color: "#e2e8f0",
+              borderRadius: "10px",
+              padding: "10px 12px",
+              marginBottom: "14px",
+              fontSize: "12px",
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
+            email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
+            role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
+            source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
+            host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
+            myListings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>
+          </div>
+        ) : null}
         <div role="tablist" aria-label="Seller sections" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           {[
             ["leads", "Leads & customers"],
@@ -630,6 +664,27 @@ export default function SellerDashboard() {
               <textarea placeholder="Furnishings (comma separated)" value={form.furnishingsText || ""} onChange={(e) => setForm({ ...form, furnishingsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
               <textarea placeholder="Amenities (comma separated: lift, power backup, geyser...)" value={form.amenitiesText || ""} onChange={(e) => setForm({ ...form, amenitiesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "64px" }} />
               <textarea placeholder="Extra media URLs (one per line)" value={form.imagesText || ""} onChange={(e) => setForm({ ...form, imagesText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2", minHeight: "68px" }} />
+              {parsedListingMediaUrls.length > 0 ? (
+                <div style={{ gridColumn: "span 2", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#fff" }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+                    Current saved media ({parsedListingMediaUrls.length})
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))", gap: 8 }}>
+                    {parsedListingMediaUrls.map((url) => (
+                      <div key={url} style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                        {isVideoUrl(url) ? (
+                          <video src={url} controls style={{ width: "100%", height: 78, objectFit: "cover", display: "block" }} />
+                        ) : (
+                          <img src={url} alt="" loading="lazy" style={{ width: "100%", height: 78, objectFit: "cover", display: "block" }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+                    This is the media already saved in Firestore (`images[]`). Use “Listing Media Upload” below to add more.
+                  </div>
+                </div>
+              ) : null}
               <div style={{ gridColumn: "span 2" }}>
                 <MediaUploadField files={photoFiles} setFiles={setPhotoFiles} maxFiles={12} title="Listing Media Upload" />
               </div>

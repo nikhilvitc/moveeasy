@@ -9,6 +9,9 @@ const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
 
+const ENABLE_SEED_LISTINGS =
+  import.meta.env.DEV || String(import.meta.env.VITE_ENABLE_SEED_LISTINGS || "") === "1";
+
 /** Shown on map / discovery; withdrawn = off-market (seller hid listing; admin can still delete doc). */
 export function isListingPubliclyVisible(listing) {
   const s = String(listing?.marketStatus || "published").toLowerCase();
@@ -50,13 +53,15 @@ export async function getListingsData(options = {}) {
   const snap = await getDocs(q);
   const firestoreListings = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
   
-  // If we have few results from Firestore, supplement with sample data for the demo feel
+  if (!ENABLE_SEED_LISTINGS) return firestoreListings;
+
+  // Dev/demo only: if we have few results from Firestore, supplement with sample data for the demo feel.
   const combined = [...firestoreListings];
   if (combined.length < limitCount) {
     const remaining = limitCount - combined.length;
     combined.push(...listingsData.slice(0, remaining));
   }
-  
+
   return combined;
 }
 
@@ -66,6 +71,7 @@ export async function getListingsData(options = {}) {
  * Rows already in Firestore (same `id`) win; others get `_seedFromStatic: true`.
  */
 export function mergeAdminListingsWithSeedData(firestoreRows) {
+  if (!ENABLE_SEED_LISTINGS) return Array.isArray(firestoreRows) ? [...firestoreRows] : [];
   const fs = Array.isArray(firestoreRows) ? [...firestoreRows] : [];
   const fsIds = new Set(fs.map((r) => String(r?.id ?? "")));
   const seeds = listingsData

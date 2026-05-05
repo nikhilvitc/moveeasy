@@ -97,6 +97,8 @@ npm run preview
   - `docs/EMAIL_VERIFICATION_AND_WELCOME_SETUP.md`
 - Go-live checklist:
   - `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`
+- Deployment (deterministic CI/CD + rollback):
+  - `docs/DEPLOYMENT.md`
 
 ## License
 

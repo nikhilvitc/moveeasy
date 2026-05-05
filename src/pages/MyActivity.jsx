@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PageShell from "../components/layout/PageShell";
 import { getListings } from "../lib/store";
+import { isFirebaseConfigured } from "../lib/firebase";
+import { getListingsData, isListingPubliclyVisible } from "../lib/firestoreStore";
 import { getSavedMap, getFilterHistory, getBookings, setMapRestorePayload } from "../lib/userActivity";
 
 const tenancyLabels = {
@@ -18,7 +20,20 @@ export default function MyActivity() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
-    setListings(getListings());
+    let alive = true;
+    (async () => {
+      try {
+        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 250 }) : getListings();
+        if (!alive) return;
+        setListings(rows.filter(isListingPubliclyVisible));
+      } catch {
+        if (!alive) return;
+        setListings(getListings());
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
