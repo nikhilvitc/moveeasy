@@ -232,12 +232,17 @@ export default function SellerDashboard() {
         images: finalImages,
         image: finalImages[0] || "",
       };
-      if (isFirebaseConfigured) await upsertListingData(newItem, user);
-      else upsertListing(newItem);
+      const saved = isFirebaseConfigured ? await upsertListingData(newItem, user) : upsertListing(newItem);
+      setListings((prev) => {
+        const withoutOld = prev.filter((l) => String(l.id) !== String(saved.id));
+        return [saved, ...withoutOld];
+      });
       const all = isFirebaseConfigured ? await getListingsForSellerEmail(authEmail) : getListings();
-      setListings(
-        isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === authEmail)
-      );
+      if (all.length) {
+        setListings(
+          isFirebaseConfigured ? all : all.filter((l) => String(l.sellerEmail || "").toLowerCase().trim() === authEmail)
+        );
+      }
       setForm(emptyForm());
       setPinPosition(null);
       setPhotoFiles([]);

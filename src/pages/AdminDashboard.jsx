@@ -356,8 +356,11 @@ export default function AdminDashboard() {
         furnishings: String(form.furnishingsText || "").split(",").map((x) => x.trim()).filter(Boolean),
         updatedAt: new Date().toISOString(),
       };
-      if (isFirebaseConfigured) await upsertListingData(payload, user);
-      else upsertListing(payload);
+      const saved = isFirebaseConfigured ? await upsertListingData(payload, user) : upsertListing(payload);
+      setListingsState((prev) => {
+        const withoutOld = prev.filter((l) => String(l.id) !== String(saved.id));
+        return [saved, ...withoutOld];
+      });
       setEditingId(null);
       setForm(DEFAULT_FORM);
       setPhotoFiles([]);
