@@ -1,11 +1,7 @@
-// src/components/sections/Features.jsx
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useInView } from "react-intersection-observer";
 import userMaleIcon from "../../assets/icons/user-male.png";
 import Tilt3D from "../ui/Tilt3D";
-
-const EASE = [0.22, 1, 0.36, 1];
+import useGsapStaggerReveal from "../../hooks/useGsapStaggerReveal";
 
 const FEATURES = [
   {
@@ -38,16 +34,9 @@ const FEATURES = [
   },
 ];
 
-function FeatureCard({ icon, title, desc, gradient, glow, delay }) {
-  const { ref, inView } = useInView({ threshold: 0.15, triggerOnce: true });
-
+function FeatureCard({ icon, title, desc, gradient, glow }) {
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay, ease: EASE }}
-    >
+    <div data-gsap-reveal>
       <Tilt3D intensity={6} scale={1.02} className="h-full">
         <div
           className="flex gap-4 sm:gap-5 p-5 rounded-2xl bg-white border border-gray-100 h-full"
@@ -87,15 +76,16 @@ function FeatureCard({ icon, title, desc, gradient, glow, delay }) {
           </div>
         </div>
       </Tilt3D>
-    </motion.div>
+    </div>
   );
 }
 
 export default function Features() {
   const navigate = useNavigate();
+  const sectionRef = useGsapStaggerReveal({ y: 24, stagger: 0.1, start: "top 78%" });
 
   return (
-    <section className="bg-mesh-light py-20 sm:py-24 lg:py-28" style={{ background: "" }}>
+    <section ref={sectionRef} className="bg-mesh-light py-20 sm:py-24 lg:py-28" style={{ background: "" }}>
       <div
         className="mx-auto w-full max-w-7xl px-5 sm:px-8 xl:max-w-[90rem] xl:px-12 2xl:px-16 pt-8 sm:pt-12"
         style={{
@@ -103,19 +93,13 @@ export default function Features() {
         }}
       >
         {/* Title */}
-        <motion.div
-          className="text-center mb-14 sm:mb-16 lg:mb-20"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.25 }}
-          transition={{ duration: 0.6, ease: EASE }}
-        >
+        <div className="text-center mb-14 sm:mb-16 lg:mb-20" data-gsap-reveal>
           <h2 className="text-[32px] sm:text-[40px] lg:text-[48px] xl:text-[52px] font-extrabold text-gray-950 leading-[1.12] tracking-tight max-w-[1100px] mx-auto">
             Thousands Are Moving{" "}
             <span className="gradient-text">Smarter</span>{" "}
             with Moveazy
           </h2>
-        </motion.div>
+        </div>
 
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-6 lg:gap-x-8">
@@ -127,29 +111,20 @@ export default function Features() {
               desc={desc}
               gradient={gradient}
               glow={glow}
-              delay={0.05 * i}
             />
           ))}
         </div>
 
         {/* CTA */}
-        <motion.div
-          className="flex justify-center mt-14 sm:mt-16 lg:mt-20"
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5, ease: EASE }}
-        >
-          <motion.button
+        <div className="flex justify-center mt-14 sm:mt-16 lg:mt-20" data-gsap-reveal>
+          <button
             type="button"
             onClick={() => navigate("/map")}
             className="px-9 py-4 text-[15px] sm:text-[16px] font-semibold text-white bg-primary rounded-xl btn-glow-pulse"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
           >
             Book a Free Consultation Now
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
       </div>
     </section>
   );

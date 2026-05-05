@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-
-const EASE = [0.22, 1, 0.36, 1];
+import useGsapStaggerReveal from "../../hooks/useGsapStaggerReveal";
 
 const STATS = [
   { value: 10000, suffix: "+",  label: "Moves Simplified Across Cities", accent: "#e85a4f" },
@@ -39,12 +37,7 @@ function StatItem({ stat, inView, index }) {
   const formatted = count.toLocaleString("en-IN");
 
   return (
-    <motion.div
-      className="flex flex-col items-center text-center px-2 sm:px-4"
-      initial={{ opacity: 0, y: 14 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.1, ease: EASE }}
-    >
+    <div className="flex flex-col items-center text-center px-2 sm:px-4" data-gsap-reveal>
       {/* Glowing number */}
       <span
         className="text-[30px] sm:text-[46px] lg:text-[58px] font-bold leading-none tracking-tight"
@@ -62,15 +55,16 @@ function StatItem({ stat, inView, index }) {
       <span className="mt-1.5 text-[11px] sm:text-[13px] lg:text-[14px] text-gray-400 max-w-[150px] sm:max-w-[180px] leading-snug">
         {stat.label}
       </span>
-    </motion.div>
+    </div>
   );
 }
 
 export default function Stats() {
   const { ref, inView } = useInView({ threshold: 0.35, triggerOnce: true });
+  const sectionRef = useGsapStaggerReveal({ y: 20, stagger: 0.14, start: "top 84%" });
 
   return (
-    <section className="bg-transparent py-0">
+    <section ref={sectionRef} className="bg-transparent py-0">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div
           ref={ref}
