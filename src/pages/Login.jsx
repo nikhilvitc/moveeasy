@@ -15,7 +15,7 @@ export default function Login() {
   const [error,            setError]            = useState("");
   const [info,             setInfo]             = useState("");
   const [isSignup,         setIsSignup]         = useState(false);
-  const { login, signup, resendVerificationEmail } = useAuth();
+  const { login, signup, loginWithGoogle, resendVerificationEmail } = useAuth();
   const [resendBusy, setResendBusy] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
@@ -98,6 +98,35 @@ export default function Login() {
     setResendBusy(false);
     if (result.success) setInfo(result.info  || "Verification email sent.");
     else                setError(result.error || "Could not resend.");
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setInfo("");
+    setShowResendVerification(false);
+    setAuthBusy(true);
+    let result = { success: false, error: "Something went wrong" };
+    try {
+      result = await loginWithGoogle(selectedAccountType);
+    } catch (err) {
+      result = { success: false, error: err?.message || "Something went wrong" };
+    } finally {
+      setAuthBusy(false);
+    }
+
+    if (result.success) {
+      if (result.emailWarning) {
+        sessionStorage.setItem("moveasy_onboarding_email_warning", result.emailWarning);
+      } else {
+        sessionStorage.removeItem("moveasy_onboarding_email_warning");
+      }
+      const r = result.role || "customer";
+      if      (r === "admin")  navigate("/admin");
+      else if (r === "seller") navigate("/seller");
+      else                     navigate("/");
+    } else {
+      setError(result.error || "Google sign-in failed");
+    }
   };
 
   const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
@@ -485,6 +514,26 @@ export default function Login() {
               {authBusy ? (isSignup ? "Creating account…" : "Signing in…") : isSignup ? `Create ${selectedTitle} Account` : `Sign In as ${selectedTitle}`}
             </span>
           </motion.button>
+
+          <div className="my-3 flex items-center gap-2 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+            <span className="h-px flex-1" style={{ background: "rgba(255,255,255,0.18)" }} />
+            or
+            <span className="h-px flex-1" style={{ background: "rgba(255,255,255,0.18)" }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={authBusy}
+            className="w-full h-10 rounded-xl text-[14px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: "rgba(255,255,255,0.92)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              color: "#111827",
+            }}
+          >
+            Continue with Google
+          </button>
         </form>
 
         {/* Admin note */}

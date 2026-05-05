@@ -2,9 +2,11 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { gmailSignupErrorMessage, isGmailAddress } from "../lib/emailPolicy";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendEmailVerification,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
@@ -176,6 +178,58 @@ export function AuthProvider({ children }) {
         uid: profile.uid || cred.user.uid,
       };
       setUser(u);
+      const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
+      return {
+        success: true,
+        role: u.role,
+        emailWarning: onboardingEmail.ok || onboardingEmail.alreadySent
+          ? ""
+          : onboardingEmail.error || "Welcome email is queued for retry.",
+      };
+    } catch (error) {
+      return { success: false, error: normalizeFirebaseError(error) };
+    }
+  };
+
+  const loginWithGoogle = async (preferredRole = "customer") => {
+    if (!isFirebaseConfigured) {
+      return { success: false, error: "Google sign-in requires Firebase configuration." };
+    }
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const cred = await signInWithPopup(auth, provider);
+      if (!cred?.user?.email) {
+        await signOut(auth);
+        return { success: false, error: "Google account did not return an email." };
+      }
+
+      await ensureUserProfileDocuments(cred.user);
+      let profile = await getProfileForUser(cred.user);
+      const normalizedEmail = String(profile.email || cred.user.email || "").toLowerCase().trim();
+      const wantsSeller = preferredRole === "seller";
+      const canAutoPromoteToSeller = wantsSeller && profile.role === "customer" && !ADMIN_EMAILS.includes(normalizedEmail);
+
+      if (canAutoPromoteToSeller) {
+        const uid = profile.uid || cred.user.uid;
+        await Promise.all([
+          setDoc(doc(db, "userRoles", uid), { uid, email: normalizedEmail, role: "seller", updatedAt: serverTimestamp() }, { merge: true }),
+          setDoc(doc(db, "emailRoles", normalizedEmail), { email: normalizedEmail, role: "seller", updatedAt: serverTimestamp() }, { merge: true }),
+          setDoc(doc(db, "userProfiles", uid), { role: "seller", sellerBadgeStatus: "none", updatedAt: serverTimestamp() }, { merge: true }),
+        ]);
+        profile = await getProfileForUser(cred.user);
+      }
+
+      const u = {
+        email: profile.email,
+        role: profile.role || "customer",
+        name: profile.name || normalizedEmail.split("@")[0],
+        phone: profile.phone || "",
+        uid: profile.uid || cred.user.uid,
+      };
+      setUser(u);
+      if (u.role === "admin") loadPendingSellerBadgeApplications();
+
       const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
       return {
         success: true,
@@ -428,6 +482,7 @@ export function AuthProvider({ children }) {
       user,
       loading,
       login,
+      loginWithGoogle,
       signup,
       resendVerificationEmail,
       logout,
