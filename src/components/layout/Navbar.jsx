@@ -100,6 +100,14 @@ export default function Navbar() {
               <span className="hidden xl:inline-flex max-w-[200px] truncate text-zinc-500 text-xs font-medium" title={user.email}>
                 {user.email}
               </span>
+              {user.authProvider === "google" && (
+                <span
+                  className="inline-flex items-center rounded-md border border-emerald-700/70 bg-emerald-950/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300"
+                  title="Signed in with Google"
+                >
+                  Google
+                </span>
+              )}
               <motion.button type="button" onClick={handleLogout} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 Logout
               </motion.button>
@@ -182,6 +190,9 @@ export default function Navbar() {
               )}
               {user && (
                 <>
+                  {user.authProvider === "google" && (
+                    <div className="text-[11px] text-emerald-300 font-semibold">Signed in with Google</div>
+                  )}
                   <div className="text-xs text-zinc-500 break-all pt-1">{user.email}</div>
                   <button type="button" onClick={handleLogout} className="text-left text-red-400 font-semibold rounded-lg py-2">
                     Logout

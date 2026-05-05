@@ -20,6 +20,15 @@ const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
 
+function getProviderLabel(firebaseUser) {
+  const ids = Array.isArray(firebaseUser?.providerData)
+    ? firebaseUser.providerData.map((entry) => entry?.providerId).filter(Boolean)
+    : [];
+  if (ids.includes("google.com")) return "google";
+  if (ids.includes("password")) return "password";
+  return ids[0] || "";
+}
+
 function getCachedSessionUser() {
   if (isFirebaseConfigured) return null;
   try {
@@ -120,6 +129,7 @@ export function AuthProvider({ children }) {
           name: profile.name,
           phone: profile.phone || "",
           uid: profile.uid || firebaseUser.uid,
+          authProvider: getProviderLabel(firebaseUser),
         });
         if (profile.role === "admin") loadPendingSellerBadgeApplications();
       } catch {
@@ -176,6 +186,7 @@ export function AuthProvider({ children }) {
         name: profile.name || e.split("@")[0],
         phone: profile.phone || "",
         uid: profile.uid || cred.user.uid,
+        authProvider: getProviderLabel(cred.user),
       };
       setUser(u);
       const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
@@ -226,6 +237,7 @@ export function AuthProvider({ children }) {
         name: profile.name || normalizedEmail.split("@")[0],
         phone: profile.phone || "",
         uid: profile.uid || cred.user.uid,
+        authProvider: getProviderLabel(cred.user),
       };
       setUser(u);
       if (u.role === "admin") loadPendingSellerBadgeApplications();
@@ -463,6 +475,7 @@ export function AuthProvider({ children }) {
                 name: profile.name,
                 phone: profile.phone || "",
                 uid: profile.uid || auth.currentUser.uid,
+                authProvider: getProviderLabel(auth.currentUser),
               });
             }
           })
