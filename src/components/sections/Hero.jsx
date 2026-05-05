@@ -1,8 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useRef } from "react";
-import Home3DShowcase from "../ui/Home3DShowcase";
-import MovEasyMascot from "../ui/MovEasyMascot";
 
 /** Premium exterior — Unsplash (license-friendly). */
 const HERO_PHOTO =
@@ -276,47 +274,31 @@ export default function Hero() {
               </div>
             </motion.div>
 
-            {/* Blender-style 3D motion scenes (CSS + Framer — swap for GLB later if needed) */}
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.26, ease: EASE }}
-              className="mt-5 sm:mt-6"
-            >
-              <Home3DShowcase variant="full" surface="on-dark" />
-            </motion.div>
-
-            {/* CTA Buttons + mascot pointing at listings */}
+            {/* CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.3, ease: EASE }}
-              className="mt-5 flex w-full flex-col items-stretch gap-3 min-[400px]:mt-6 min-[400px]:flex-row min-[400px]:items-end min-[400px]:justify-between sm:gap-4"
+              className="mt-5 flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center sm:mt-6 sm:gap-3"
             >
-              <div className="flex w-full flex-col gap-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center min-[400px]:gap-3">
-                <motion.button
-                  type="button"
-                  id="hero-view-listings"
-                  onClick={runSearch}
-                  className="inline-flex w-full min-[400px]:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-[14px] font-semibold text-white shadow-red-lg btn-glow-pulse"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  View Listings <span aria-hidden>→</span>
-                </motion.button>
-                <motion.button
-                  type="button"
-                  onClick={() => navigate("/guarantee")}
-                  className="w-full min-[400px]:w-auto rounded-full border-2 border-white/70 bg-white/10 px-6 py-3 text-center text-[14px] font-semibold text-white backdrop-blur-sm"
-                  whileHover={{ backgroundColor: "rgba(255,255,255,0.22)" }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Deposit Saver
-                </motion.button>
-              </div>
-              <div className="flex shrink-0 justify-center min-[400px]:justify-end min-[400px]:pb-0.5">
-                <MovEasyMascot direction="left" />
-              </div>
+              <motion.button
+                type="button"
+                onClick={runSearch}
+                className="inline-flex w-full min-[400px]:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-[14px] font-semibold text-white shadow-red-lg btn-glow-pulse"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                View Listings <span aria-hidden>→</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => navigate("/guarantee")}
+                className="w-full min-[400px]:w-auto rounded-full border-2 border-white/70 bg-white/10 px-6 py-3 text-center text-[14px] font-semibold text-white backdrop-blur-sm"
+                whileHover={{ backgroundColor: "rgba(255,255,255,0.22)" }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Deposit Saver
+              </motion.button>
             </motion.div>
           </motion.div>
 
