@@ -180,7 +180,18 @@ export default function SellerDashboard() {
           uploadedImages = await uploadListingFiles(photoFiles, id);
         } catch (uploadErr) {
           reportClientError("seller_listing_media_upload", uploadErr);
-          setListingSaveWarning("Listing saved without uploaded media. You can re-edit and upload media again.");
+          const uploadCode = String(uploadErr?.code || "");
+          const uploadText = String(uploadErr?.message || "");
+          if (
+            uploadCode.includes("storage/") ||
+            /storage|bucket|object/i.test(uploadText)
+          ) {
+            setListingSaveWarning(
+              "Firebase Storage issue detected (images not uploaded). Listing was saved without media. Check Firebase Console -> Storage -> Get Started."
+            );
+          } else {
+            setListingSaveWarning("Listing saved without uploaded media. You can re-edit and upload media again.");
+          }
         }
       }
       const manualImages = String(form.imagesText || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
