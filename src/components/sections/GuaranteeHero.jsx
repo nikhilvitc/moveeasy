@@ -1,6 +1,7 @@
 // src/components/sections/GuaranteeHero.jsx
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import Home3DShowcase from "../ui/Home3DShowcase";
 import keyhandoverImg from "../../assets/images/guarentee-keyhandover.jpg";
 import depositImg from "../../assets/images/guarentee-deposit.png";
 import disputeImg from "../../assets/images/guarentee-dispute.png";
@@ -50,6 +51,10 @@ export default function GuaranteeHero() {
               No More Unfair Deductions, Arguments, Or Hidden Charges
               When You Move Out.
             </motion.p>
+
+            <motion.div {...fadeUp(0.14)} className="mt-6 max-w-md">
+              <Home3DShowcase variant="compact" surface="on-light" />
+            </motion.div>
 
             {/* CTA Button + trust line */}
             <motion.div {...fadeUp(0.18)} className="mt-7 flex flex-col gap-3">
