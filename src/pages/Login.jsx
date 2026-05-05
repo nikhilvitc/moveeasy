@@ -213,7 +213,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-2">
           <h1 className="text-[32px] font-black tracking-tight gradient-text-shimmer">
-            MovEasy
+            Moveazy
           </h1>
           <p className="text-white/55 text-[14px] mt-1">
             {isSignup ? "Create your account" : "Sign in to your account"}
@@ -497,7 +497,7 @@ export default function Login() {
               color: "rgba(255,255,255,0.50)",
             }}
           >
-            <strong style={{ color: "rgba(255,255,255,0.70)" }}>Note:</strong> &quot;Admin&quot; here only changes the button text. MovEasy still checks the Gmail you sign in with. Use the admin Gmail your owner configured (and the correct password). A seller Gmail stays a seller even if Admin is selected.
+            <strong style={{ color: "rgba(255,255,255,0.70)" }}>Note:</strong> &quot;Admin&quot; here only changes the button text. Moveazy still checks the Gmail you sign in with. Use the admin Gmail your owner configured (and the correct password). A seller Gmail stays a seller even if Admin is selected.
           </div>
         ) : (
           <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>

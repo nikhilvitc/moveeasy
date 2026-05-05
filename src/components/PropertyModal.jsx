@@ -264,7 +264,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
             }}
           >
             <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center", minWidth: 0, flex: "1 1 auto" }}>
-              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48", flexShrink: 0 }}>MovEasy</div>
+              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48", flexShrink: 0 }}>Moveazy</div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
                 {nearbyListings.length > 0 && typeof onSelectListing === "function" ? (
@@ -326,7 +326,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                 lineHeight: 1.45,
               }}
             >
-              This home is off market — new interest and tour requests are closed. (Same policy as major rental marketplaces: sellers withdraw; only MovEasy admin can permanently remove a listing.)
+              This home is off market — new interest and tour requests are closed. (Same policy as major rental marketplaces: sellers withdraw; only Moveazy admin can permanently remove a listing.)
             </div>
           ) : null}
 
@@ -784,7 +784,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   <div style={{ marginTop: "20px", display: "flex", gap: "12px", alignItems: "flex-start", background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
                     <div style={{ fontSize: "20px" }}>💡</div>
                     <div style={{ fontSize: "12px", color: "#475569", lineHeight: "1.5" }}>
-                      <strong>MovEasy Guarantee Plan Available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
+                      <strong>Moveazy Guarantee Plan Available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
                     </div>
                   </div>
                 </div>

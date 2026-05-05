@@ -194,6 +194,7 @@ export default function AdminDashboard() {
   const [sitePublicStatus, setSitePublicStatus] = useState("");
   const [adminListingMsg, setAdminListingMsg] = useState("");
   const [adminListingMsgKind, setAdminListingMsgKind] = useState("ok");
+  const [adminListingWarning, setAdminListingWarning] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -313,6 +314,7 @@ export default function AdminDashboard() {
   const handleSubmitListing = async (e) => {
     e.preventDefault();
     setAdminListingMsg("");
+    setAdminListingWarning("");
     const rawSeller = String(form.sellerEmail || "").trim().toLowerCase();
     const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawSeller);
     const fallbackAdmin = String(user?.email || "").trim().toLowerCase();
@@ -324,7 +326,15 @@ export default function AdminDashboard() {
 
     const listingId = editingId || String(Date.now());
     try {
-      const uploadedImages = photoFiles.length ? await uploadListingFiles(photoFiles, listingId) : [];
+      let uploadedImages = [];
+      if (photoFiles.length) {
+        try {
+          uploadedImages = await uploadListingFiles(photoFiles, listingId);
+        } catch (uploadErr) {
+          reportClientError("admin_listing_media_upload", uploadErr);
+          setAdminListingWarning("Listing saved without uploaded media. You can re-edit and upload media again.");
+        }
+      }
       const manualImages = String(form.imagesText || form.image || "").split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
       const allImages = [...uploadedImages, ...manualImages];
       const payload = {
@@ -1226,6 +1236,11 @@ export default function AdminDashboard() {
               }}
             >
               {adminListingMsg}
+              {adminListingWarning ? (
+                <div style={{ marginTop: "6px", fontSize: "12px", color: "#92400e", fontWeight: 600 }}>
+                  {adminListingWarning}
+                </div>
+              ) : null}
             </div>
           ) : null}
           <form onSubmit={handleSubmitListing} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: "10px" }}>

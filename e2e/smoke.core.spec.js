@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("MovEazy core smoke", () => {
+test.describe("Moveazy core smoke", () => {
   test("home page renders primary CTA", async ({ page }) => {
     await page.goto("./");
     await expect(page.getByRole("heading", { name: /Find Verified Properties/i })).toBeVisible();
@@ -23,6 +23,6 @@ test.describe("MovEazy core smoke", () => {
   test("admin route is protected for signed-out users", async ({ page }) => {
     await page.goto("./admin");
     await expect(page).toHaveURL(/login/);
-    await expect(page.getByRole("heading", { name: /MovEasy/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Moveazy/i })).toBeVisible();
   });
 });

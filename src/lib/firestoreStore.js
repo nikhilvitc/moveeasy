@@ -123,7 +123,10 @@ export async function upsertListingData(listing, actor) {
   const id = String(listing.id || crypto.randomUUID());
   const rawStatus = String(listing.marketStatus || "published").toLowerCase();
   const marketStatus = rawStatus === "withdrawn" || rawStatus === "archived" ? rawStatus : "published";
-  const actorEmail = normalizeAuthEmail(listing.sellerEmail || listing.ownerEmail || actor?.email || "");
+  const actorEmail = normalizeAuthEmail(actor?.email || listing.ownerEmail || listing.sellerEmail || "");
+  const requestedSellerEmail = normalizeAuthEmail(listing.sellerEmail || actor?.email || "");
+  const isActorAdmin = String(actor?.role || "").toLowerCase() === "admin";
+  const sellerEmail = isActorAdmin ? (requestedSellerEmail || actorEmail) : actorEmail;
   const latN = Number(listing.lat);
   const lngN = Number(listing.lng);
   const rentN = Number(listing.monthlyRent);
@@ -131,7 +134,7 @@ export async function upsertListingData(listing, actor) {
     ...listing,
     id,
     ownerEmail: actorEmail,
-    sellerEmail: actorEmail,
+    sellerEmail,
     lat: Number.isFinite(latN) ? latN : 12.9716,
     lng: Number.isFinite(lngN) ? lngN : 77.5946,
     monthlyRent: Number.isFinite(rentN) ? rentN : 0,
@@ -229,7 +232,7 @@ export async function getAllUsersData() {
     .filter((row) => !adminEmailSet.has(String(row.email || "").toLowerCase().trim()));
 
   return [
-    ...ADMIN_EMAILS.map((email) => ({ uid: `reserved-admin-${email}`, email, name: "MovEasy Admin", role: "admin", phone: "" })),
+    ...ADMIN_EMAILS.map((email) => ({ uid: `reserved-admin-${email}`, email, name: "Moveazy Admin", role: "admin", phone: "" })),
     ...fromProfiles,
   ];
 }
@@ -237,6 +240,7 @@ export async function getAllUsersData() {
 export async function addUserProfileData(email, name, role, phone = "") {
   const normalized = String(email || "").toLowerCase().trim();
   if (!normalized) return;
+  const normalizedRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "customer";
   const existing = await getProfileByEmail(normalized);
   const uid = existing?.uid || crypto.randomUUID();
   await Promise.all([
@@ -247,7 +251,8 @@ export async function addUserProfileData(email, name, role, phone = "") {
         email: normalized,
         name: name || normalized.split("@")[0],
         phone: String(phone || "").trim(),
-        sellerBadgeStatus: role === "seller" ? "none" : null,
+        role: normalizedRole,
+        sellerBadgeStatus: normalizedRole === "seller" ? "none" : null,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -257,7 +262,16 @@ export async function addUserProfileData(email, name, role, phone = "") {
       {
         uid,
         email: normalized,
-        role: role === "admin" ? "admin" : role === "seller" ? "seller" : "customer",
+        role: normalizedRole,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    setDoc(
+      doc(db, "emailRoles", normalized),
+      {
+        email: normalized,
+        role: normalizedRole,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -278,7 +292,11 @@ export async function updateUserProfileData(email, updates) {
   const promises = [setDoc(doc(db, "userProfiles", existing.uid), profileUpdates, { merge: true })];
 
   if (updates.role !== undefined) {
-    promises.push(setDoc(doc(db, "userRoles", existing.uid), { role: updates.role, updatedAt: serverTimestamp() }, { merge: true }));
+    const normalizedRole = updates.role === "admin" ? "admin" : updates.role === "seller" ? "seller" : "customer";
+    promises.push(setDoc(doc(db, "userRoles", existing.uid), { role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
+    promises.push(setDoc(doc(db, "emailRoles", normalized), { email: normalized, role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
+    profileUpdates.role = normalizedRole;
+    if (normalizedRole !== "seller") profileUpdates.sellerBadgeStatus = null;
   }
 
   await Promise.all(promises);

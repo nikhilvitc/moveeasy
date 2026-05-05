@@ -17,12 +17,18 @@ service cloud.firestore {
         : "customer";
     }
 
+    function emailRole() {
+      return exists(/databases/$(database)/documents/emailRoles/$(authEmail()))
+        ? get(/databases/$(database)/documents/emailRoles/$(authEmail())).data.role
+        : "customer";
+    }
+
     function isAdmin() {
-      return isSignedIn() && accountRole() == "admin";
+      return isSignedIn() && (accountRole() == "admin" || emailRole() == "admin" || isDefaultSeedAdminEmail());
     }
 
     function isSeller() {
-      return isSignedIn() && accountRole() == "seller";
+      return isSignedIn() && (accountRole() == "seller" || emailRole() == "seller");
     }
 
     // Console-only seed list: doc id must equal the user's auth email (lowercase).
@@ -51,9 +57,17 @@ service cloud.firestore {
     // Hard delete is admin-only (marketplace-style audit trail; matches Housing / NoBroker-style policy).
     match /listings/{listingId} {
       allow read: if true;
-      allow create, update: if isAdmin()
-        || (isSeller() && request.resource.data.sellerEmail == authEmail());
+      allow create: if isAdmin()
+        || (isSignedIn() && request.resource.data.sellerEmail == authEmail());
+      allow update: if isAdmin()
+        || (isSignedIn() && resource.data.sellerEmail == authEmail() && request.resource.data.sellerEmail == authEmail());
       allow delete: if isAdmin();
+    }
+
+    // Canonical role by email. This keeps role privileges stable even before/without uid-bound role docs.
+    match /emailRoles/{email} {
+      allow read: if isSignedIn() && (isAdmin() || email == authEmail());
+      allow write: if isAdmin();
     }
 
     // Roles: admins manage all; users create own customer/seller; bootstrap email can set own admin once.

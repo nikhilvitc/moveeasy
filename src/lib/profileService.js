@@ -39,6 +39,11 @@ export async function createProfileAfterSignup({ firebaseUser, name, role, phone
         role: normalizedRole,
         updatedAt: serverTimestamp(),
       }, { merge: true }),
+      setDoc(doc(db, "emailRoles", email), {
+        email,
+        role: normalizedRole,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }),
     ]);
   }
 
@@ -47,17 +52,20 @@ export async function createProfileAfterSignup({ firebaseUser, name, role, phone
 export async function getProfileForUser(firebaseUser) {
   const email = firebaseUser.email.toLowerCase().trim();
   if (ADMIN_EMAILS.includes(email)) {
-    return { email, name: "MovEasy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
+    return { email, name: "Moveazy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
   }
 
-  const [profileSnap, roleSnap] = await Promise.all([
+  const [profileSnap, roleSnap, emailRoleSnap] = await Promise.all([
     getDoc(doc(db, "userProfiles", firebaseUser.uid)),
     getDoc(doc(db, "userRoles", firebaseUser.uid)),
+    getDoc(doc(db, "emailRoles", email)),
   ]);
 
   const profile = profileSnap.exists() ? profileSnap.data() : {};
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};
-  const role = ["admin", "seller", "customer"].includes(roleRow.role) ? roleRow.role : "customer";
+  const emailRoleRow = emailRoleSnap.exists() ? emailRoleSnap.data() : {};
+  const roleCandidate = roleRow.role || emailRoleRow.role || profile.role;
+  const role = ["admin", "seller", "customer"].includes(roleCandidate) ? roleCandidate : "customer";
   const name = profile.name || firebaseUser.displayName || email.split("@")[0];
   const phone = profile.phone || firebaseUser.phoneNumber || "";
 
@@ -82,6 +90,11 @@ export async function ensureUserProfileDocuments(firebaseUser) {
     await setDoc(
       doc(db, "userRoles", uid),
       { uid, email, role: "admin", updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, "emailRoles", email),
+      { email, role: "admin", updatedAt: serverTimestamp() },
       { merge: true }
     );
     await setDoc(
@@ -146,6 +159,18 @@ export async function ensureUserProfileDocuments(firebaseUser) {
       )
     );
   }
+
+  writes.push(
+    setDoc(
+      doc(db, "emailRoles", email),
+      {
+        email,
+        role,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+  );
 
   if (writes.length) await Promise.all(writes);
 }

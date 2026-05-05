@@ -32,7 +32,7 @@ function getCachedSessionUser() {
 function ensureLocalAccounts() {
   const users = getUsers();
   for (const adminEmail of ADMIN_EMAILS) {
-    users[adminEmail] = { ...(users[adminEmail] || {}), name: users[adminEmail]?.name || "MovEasy Admin", role: "admin" };
+    users[adminEmail] = { ...(users[adminEmail] || {}), name: users[adminEmail]?.name || "Moveazy Admin", role: "admin" };
   }
   saveUsers(users);
   return users;
