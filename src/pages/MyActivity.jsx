@@ -23,7 +23,7 @@ export default function MyActivity() {
     let alive = true;
     (async () => {
       try {
-        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 250 }) : getListings();
+        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 500 }) : getListings();
         if (!alive) return;
         setListings(rows.filter(isListingPubliclyVisible));
       } catch {

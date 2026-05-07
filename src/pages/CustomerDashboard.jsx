@@ -43,7 +43,7 @@ export default function CustomerDashboard() {
     let alive = true;
     (async () => {
       try {
-        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 200 }) : getListings();
+        const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 500 }) : getListings();
         if (!alive) return;
         setListings(rows.filter(isListingPubliclyVisible));
       } catch (e) {

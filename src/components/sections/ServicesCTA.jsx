@@ -87,7 +87,7 @@ export default function ServicesCTA() {
                 hover:bg-white/10 active:scale-[0.975]
                 transition-all duration-200
               ">
-                Get Started
+                Explore Full Map
               </button>
             </motion.div>
 

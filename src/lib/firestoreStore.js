@@ -29,7 +29,7 @@ export async function uploadListingFiles(files = [], listingId = crypto.randomUU
 }
 
 export async function getListingsData(options = {}) {
-  const { limitCount = 100, bhk, maxRent } = options;
+  const { limitCount = 500, bhk, maxRent } = options;
 
   const col = collection(db, "listings");
   const published = where("marketStatus", "==", "published");
@@ -47,7 +47,8 @@ export async function getListingsData(options = {}) {
   } else {
     constraints.push(orderBy("updatedAt", "desc"));
   }
-  constraints.push(limit(limitCount));
+  const cap = Math.min(Math.max(Number(limitCount) || 500, 1), 500);
+  constraints.push(limit(cap));
 
   const q = query(col, ...constraints);
   const snap = await getDocs(q);

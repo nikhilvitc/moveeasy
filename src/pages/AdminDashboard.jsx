@@ -71,7 +71,7 @@ const DEFAULT_FORM = {
   availability: "Immediate",
   propertyType: "Apartment",
   furnishing: "Semi",
-  preferredTenants: ["Family"],
+  preferredTenants: ["Family", "Bachelor"],
   parking: ["2 Wheeler"],
   securityDeposit: "",
   maintenanceCost: "",
@@ -101,7 +101,38 @@ function toList(value, fallback) {
   return fallback;
 }
 
+function normalizeUrlList(value) {
+  const raw = [];
+  if (Array.isArray(value)) raw.push(...value);
+  else if (typeof value === "string" && value.trim()) raw.push(...value.split(/\r?\n|,/));
+  return raw.map((x) => String(x || "").trim()).filter(Boolean);
+}
+
+function pickListingMediaUrls(listing) {
+  const candidates = [
+    listing?.images,
+    listing?.photos,
+    listing?.gallery,
+    listing?.media,
+    listing?.mediaUrls,
+    listing?.imageUrls,
+  ];
+  const urls = [];
+  candidates.forEach((c) => urls.push(...normalizeUrlList(c)));
+  if (listing?.image) urls.unshift(String(listing.image).trim());
+  const seen = new Set();
+  const out = [];
+  for (const u of urls) {
+    const k = u.toLowerCase();
+    if (!u || seen.has(k)) continue;
+    seen.add(k);
+    out.push(u);
+  }
+  return out;
+}
+
 function listingToForm(listing) {
+  const mediaUrls = pickListingMediaUrls(listing);
   return {
     title: listing.title || "",
     price: listing.price || "",
@@ -110,8 +141,8 @@ function listingToForm(listing) {
     seller: listing.seller || "",
     sellerEmail: listing.sellerEmail || "",
     contact: listing.contact || "",
-    image: listing.image || listing.images?.[0] || "",
-    imagesText: Array.isArray(listing.images) ? listing.images.join("\n") : "",
+    image: listing.image || mediaUrls[0] || "",
+    imagesText: mediaUrls.length ? mediaUrls.join("\n") : "",
     source: listing.source || "manual",
     sourceUrl: listing.sourceUrl || "",
     description: listing.description || "",
@@ -714,15 +745,34 @@ export default function AdminDashboard() {
 
   return (
     <PageShell variant="marketing" overlayOnly className="bg-slate-100">
-      <div style={{ background: "linear-gradient(135deg, #DC2626, #EF4444)", color: "white", padding: isMobile ? "14px 12px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
-        <div>
-          <div style={{ fontSize: "20px", fontWeight: 800 }}>Admin Dashboard</div>
-          <div style={{ fontSize: "12px", opacity: 0.7 }}>{user?.email}</div>
+      <div style={{ background: "#000000", color: "white", padding: isMobile ? "12px 14px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div 
+            onClick={() => navigate("/")}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+          >
+            <img 
+              src="/logo-moveazy-bar.png" 
+              alt="Moveazy" 
+              style={{ height: isMobile ? "24px" : "32px", width: "auto" }} 
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextSibling.style.display = 'block';
+              }}
+            />
+            <span style={{ display: "none", color: "#fff", fontWeight: 800, fontSize: "18px" }}>Admin Dashboard</span>
+          </div>
+          {!isMobile && (
+            <div style={{ borderLeft: "1px solid #3f3f46", paddingLeft: "16px" }}>
+              <div style={{ fontSize: "16px", fontWeight: 800 }}>Admin Dashboard</div>
+              <div style={{ fontSize: "11px", opacity: 0.6 }}>{user?.email}</div>
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button onClick={() => navigate("/map")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Map</button>
-          <button onClick={() => navigate("/")} style={{ ...btn, background: "rgba(255,255,255,0.15)", color: "white" }}>Home</button>
-          <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#ef4444", color: "white" }}>Logout</button>
+          <button onClick={() => navigate("/map")} style={{ ...btn, background: "#262626", border: "1px solid #404040", color: "white" }}>Map</button>
+          <button onClick={() => navigate("/")} style={{ ...btn, background: "#262626", border: "1px solid #404040", color: "white" }}>Home</button>
+          <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#7f1d1d", border: "1px solid #991b1b", color: "white" }}>Logout</button>
         </div>
       </div>
 
@@ -1340,8 +1390,9 @@ export default function AdminDashboard() {
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
             <textarea placeholder="Gallery photo URLs, one per line" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
             <textarea placeholder="Listing description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ gridColumn: isMobile ? "auto" : "span 2", minHeight: "70px" }} />
-            <input placeholder="Security deposit (optional) — 50000" value={form.securityDeposit} onChange={(e) => setForm((p) => ({ ...p, securityDeposit: e.target.value }))} />
-            <input placeholder="Maintenance cost (optional) — 2000" value={form.maintenanceCost} onChange={(e) => setForm((p) => ({ ...p, maintenanceCost: e.target.value }))} />
+            <input placeholder="Security deposit — e.g. 3 months or 126000" value={form.securityDeposit} onChange={(e) => setForm((p) => ({ ...p, securityDeposit: e.target.value }))} />
+            <input placeholder="Maintenance cost (optional) — 2000 or Including" value={form.maintenanceCost} onChange={(e) => setForm((p) => ({ ...p, maintenanceCost: e.target.value }))} />
+            <input placeholder="Preferred tenants — e.g. Family, Bachelor" value={Array.isArray(form.preferredTenants) ? form.preferredTenants.join(", ") : form.preferredTenants || ""} onChange={(e) => setForm((p) => ({ ...p, preferredTenants: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))} />
             <input placeholder="Brokerage (optional) — Half month rent" value={form.brokerage} onChange={(e) => setForm((p) => ({ ...p, brokerage: e.target.value }))} />
             <input placeholder="Built up area (optional) — 1200" value={form.builtUpArea} onChange={(e) => setForm((p) => ({ ...p, builtUpArea: e.target.value }))} />
             <input placeholder="Bathrooms (optional) — 2" value={form.bathrooms} onChange={(e) => setForm((p) => ({ ...p, bathrooms: e.target.value }))} />

@@ -566,8 +566,14 @@ export default function Login() {
               setIsSignup(!isSignup);
               if (!isSignup) setSelectedAccountType("customer");
             }}
-            className="font-bold bg-none border-none cursor-pointer text-[13px] gradient-text disabled:opacity-45 disabled:cursor-not-allowed"
-            style={{ background: "none", padding: 0 }}
+            className="font-bold border-none cursor-pointer text-[13px] disabled:opacity-45 disabled:cursor-not-allowed"
+            style={{
+              background: "linear-gradient(135deg, #f97316, #e85a4f)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              padding: 0,
+            }}
             whileHover={authBusy ? {} : { scale: 1.04 }}
           >
             {isSignup ? "Sign In" : "Sign Up"}

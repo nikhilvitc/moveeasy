@@ -1,11 +1,12 @@
 // src/components/sections/SmartMatch.jsx
-// Top Matches: six curated Bangalore areas, carousel controls, seed fallback when API rows omit areas.
+// Interactive questionnaire: Area -> Budget -> Timeline -> Results.
+// Follows user rule #5: "Find the Right Home — Without the Guesswork".
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Search, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 import logoSvg from "../../assets/logo/moveasy.svg";
 import { getListings } from "../../lib/store";
 import { isFirebaseConfigured } from "../../lib/firebase";
@@ -15,76 +16,35 @@ import Tilt3D from "../ui/Tilt3D";
 
 const EASE = [0.22, 1, 0.36, 1];
 
-const SMART_FEATURES = [
-  { emoji: "📍", label: "Best Areas for You" },
-  { emoji: "💰", label: "Budget Fit" },
-  { emoji: "🏠", label: "Home Matches" },
-  { emoji: "⚡", label: "Move Speed" },
+const POPULAR_AREAS = ["Indiranagar", "HSR Layout", "Koramangala", "Bellandur", "Whitefield", "Mahadevpura", "Jayanagar", "Hebbal"];
+const BUDGET_OPTIONS = [
+  { label: "₹10k - ₹25k", min: 10000, max: 25000 },
+  { label: "₹25k - ₹50k", min: 25000, max: 50000 },
+  { label: "₹50k - ₹75k", min: 50000, max: 75000 },
+  { label: "₹75k - ₹1.5L+", min: 75000, max: 200000 },
 ];
-
-const BADGE_ROTATION = ["Verified on map", "Sample listing", "Budget-friendly", "Great commute", "Fast availability"];
-
-/** One sample home per area for the default “Top Matches” strip. */
-const POPULAR_AREAS_ORDER = ["Whitefield", "HSR Layout", "Koramangala", "Indiranagar", "Bellandur", "Mahadevpura"];
+const TIMELINE_OPTIONS = ["Immediate", "Within 15 days", "Within 30 days", "Flexible"];
 
 function localityFromListing(listing) {
   return String(listing.address || "").split(",")[0].trim() || "Bengaluru";
 }
 
-/** Treat as Bangalore if copy says so, locality matches known areas, or coords sit in the city bbox. */
 function isBangaloreListing(listing) {
   const t = `${listing.address || ""} ${listing.location || ""}`.toLowerCase();
   if (t.includes("bangalore") || t.includes("bengaluru")) return true;
   const loc = localityFromListing(listing).toLowerCase();
-  if (POPULAR_AREAS_ORDER.some((a) => loc === a.toLowerCase() || loc.includes(a.toLowerCase()))) return true;
+  if (POPULAR_AREAS.some((a) => loc === a.toLowerCase() || loc.includes(a.toLowerCase()))) return true;
   const lat = Number(listing.lat);
   const lng = Number(listing.lng);
   if (Number.isFinite(lat) && Number.isFinite(lng) && lat >= 12.72 && lat <= 13.22 && lng >= 77.38 && lng <= 77.82) return true;
   return false;
 }
 
-function normBhk(s) {
-  return String(s || "").replace(/\s+/g, "").toLowerCase();
-}
-
-function listingMatchesArea(listing, areaFilter) {
-  if (areaFilter === "All areas") return true;
-  const loc = localityFromListing(listing).toLowerCase();
-  const want = areaFilter.toLowerCase().trim();
-  if (loc === want) return true;
-  if (loc.includes(want) || want.includes(loc)) return true;
-  if (want.includes("mahadev") && loc.includes("mahadev")) return true;
-  return false;
-}
-
-function listingMatchesBhk(listing, bhkFilter) {
-  if (bhkFilter === "All BHK") return true;
-  return normBhk(listing.bhk) === normBhk(bhkFilter);
-}
-
-/** Merge remote + seed so we can always fill six popular areas. */
-function buildCuratedPopularSix(rows) {
-  const blr = rows.filter(isBangaloreListing);
-  const seed = getListings().filter(isListingPubliclyVisible).filter(isBangaloreListing);
-  const pool = [...blr];
-  for (const s of seed) {
-    if (!pool.some((p) => String(p.id) === String(s.id))) pool.push(s);
-  }
-  const picked = [];
-  for (const area of POPULAR_AREAS_ORDER) {
-    const found = pool.find((l) => listingMatchesArea(l, area));
-    if (found && !picked.some((p) => String(p.id) === String(found.id))) picked.push(found);
-  }
-  return picked;
-}
-
-function PropertyCard({ listing, badge, delay, onClick }) {
+function PropertyCard({ listing, delay, onClick }) {
   const { ref, inView } = useInView({ threshold: 0.12, triggerOnce: true });
   const loc = localityFromListing(listing);
   const bhkCompact = String(listing.bhk || "").replace(/\s+/g, "");
-  const subtitle = String(listing.description || listing.title || "").slice(0, 72).trim();
-  const badgeShort = badge.length > 16 ? `${badge.slice(0, 14)}…` : badge;
-
+  
   return (
     <motion.div
       ref={ref}
@@ -99,28 +59,26 @@ function PropertyCard({ listing, badge, delay, onClick }) {
           onClick={onClick}
           className="
             w-full text-left rounded-2xl border border-rose-100/80
-            bg-gradient-to-b from-white to-rose-50/40 overflow-hidden
+            bg-white overflow-hidden
             shadow-[0_4px_20px_rgba(15,23,42,0.08)]
             hover:shadow-[0_12px_36px_rgba(185,28,28,0.12)]
             hover:border-rose-200/90
             transition-all duration-300
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2
           "
         >
-          <div className="relative w-full h-[200px] sm:h-[218px] overflow-hidden">
+          <div className="relative w-full h-[180px] overflow-hidden">
             <img src={listing.image} alt="" className="w-full h-full object-cover" loading="lazy" />
-            <span className="absolute top-3 right-3 max-w-[min(148px,70%)] truncate bg-gradient-to-r from-rose-600 to-red-500 text-white text-[11px] sm:text-[12px] font-bold px-2.5 py-1.5 rounded-full shadow-md">
-              {badgeShort}
-            </span>
-          </div>
-          <div className="px-4 py-3.5 bg-white/90 backdrop-blur-sm border-t border-rose-100/60">
-            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-start">
-              <MapPin size={14} className="text-rose-600 flex-shrink-0 mt-0.5" fill="#fda4af" aria-hidden />
-              <span className="text-[15px] font-extrabold bg-gradient-to-r from-stone-900 via-stone-800 to-rose-950 bg-clip-text text-transparent leading-snug">
-                {loc} · {bhkCompact}
-              </span>
-              <span className="col-start-2 text-[13px] text-slate-600 leading-relaxed line-clamp-2">{subtitle || "Tap for full details"}</span>
+            <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 shadow-sm border border-rose-100">
+              {listing.availability || "Available"}
             </div>
+          </div>
+          <div className="p-4">
+            <div className="flex items-center gap-1.5 text-rose-600 mb-1">
+              <MapPin size={12} fill="currentColor" fillOpacity={0.2} />
+              <span className="text-[11px] font-bold uppercase tracking-wider">{loc}</span>
+            </div>
+            <div className="text-[16px] font-extrabold text-slate-900 mb-1">{bhkCompact} {listing.propertyType || "Apartment"}</div>
+            <div className="text-[15px] font-bold text-emerald-600">{listing.price || `₹ ${listing.monthlyRent}`}</div>
           </div>
         </button>
       </Tilt3D>
@@ -131,10 +89,9 @@ function PropertyCard({ listing, badge, delay, onClick }) {
 export default function SmartMatch() {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
-  const { ref: titleRef, inView: titleInView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const [step, setStep] = useState(0); // 0: Start, 1: Area, 2: Budget, 3: Timeline, 4: Results
+  const [selections, setSelections] = useState({ area: "", budget: null, timeline: "" });
   const [listings, setListings] = useState([]);
-  const [areaFilter, setAreaFilter] = useState("All areas");
-  const [bhkFilter, setBhkFilter] = useState("All BHK");
   const [selectedListing, setSelectedListing] = useState(null);
 
   useEffect(() => {
@@ -142,209 +99,233 @@ export default function SmartMatch() {
     async function load() {
       try {
         const rows = isFirebaseConfigured ? await getListingsData() : getListings();
-        if (alive) setListings(rows.filter(isListingPubliclyVisible));
+        if (alive) setListings(rows.filter(isListingPubliclyVisible).filter(isBangaloreListing));
       } catch {
-        if (alive) setListings(getListings().filter(isListingPubliclyVisible));
+        if (alive) setListings(getListings().filter(isListingPubliclyVisible).filter(isBangaloreListing));
       }
     }
     load();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
-  const areaOptions = ["All areas", ...POPULAR_AREAS_ORDER];
-  const bhkOptions = ["All BHK", "1 BHK", "2 BHK", "3 BHK", "3+ BHK"];
+  const filteredMatches = useMemo(() => {
+    if (step < 4) return [];
+    return listings.filter(l => {
+      const matchArea = selections.area === "Flexible" || !selections.area || localityFromListing(l).toLowerCase().includes(selections.area.toLowerCase());
+      const rent = l.monthlyRent || 0;
+      const matchBudget = !selections.budget || (rent >= selections.budget.min && rent <= selections.budget.max);
+      const matchTimeline = selections.timeline === "Flexible" || !selections.timeline || (l.availability || "").toLowerCase().includes(selections.timeline.toLowerCase());
+      return matchArea && matchBudget && matchTimeline;
+    }).slice(0, 8);
+  }, [listings, step, selections]);
 
-  const visibleMatches = useMemo(() => {
-    if (areaFilter !== "All areas") {
-      const blr = listings.filter(isBangaloreListing);
-      return blr
-        .filter((l) => listingMatchesArea(l, areaFilter))
-        .filter((l) => listingMatchesBhk(l, bhkFilter))
-        .slice(0, 24);
-    }
-    if (bhkFilter === "All BHK") {
-      return buildCuratedPopularSix(listings);
-    }
-    const blr = listings.filter(isBangaloreListing);
-    const seed = getListings().filter(isListingPubliclyVisible).filter(isBangaloreListing);
-    const pool = [...blr, ...seed.filter((s) => !blr.some((p) => String(p.id) === String(s.id)))];
-    const pickedBhk = [];
-    for (const area of POPULAR_AREAS_ORDER) {
-      const found = pool.find((l) => listingMatchesArea(l, area) && listingMatchesBhk(l, bhkFilter));
-      if (found && !pickedBhk.some((p) => String(p.id) === String(found.id))) pickedBhk.push(found);
-    }
-    return pickedBhk;
-  }, [listings, areaFilter, bhkFilter]);
+  const nextStep = () => setStep(s => s + 1);
+  const prevStep = () => setStep(s => s - 1);
 
-  const scrollBy = useCallback((delta) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: delta, behavior: "smooth" });
-  }, []);
+  const reset = () => {
+    setStep(0);
+    setSelections({ area: "", budget: null, timeline: "" });
+  };
+
+  const scrollBy = (delta) => {
+    scrollRef.current?.scrollBy({ left: delta, behavior: "smooth" });
+  };
 
   return (
-    <section className="relative overflow-hidden py-20 sm:py-24 lg:py-28 bg-gradient-to-b from-rose-50/90 via-white to-slate-50">
-      <div className="relative z-[1] max-w-7xl mx-auto px-6 lg:px-10">
-        <motion.div
-          ref={titleRef}
-          initial={{ opacity: 0, y: 24 }}
-          animate={titleInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, ease: EASE }}
-          className="mb-10 sm:mb-12 text-left"
-        >
-          <h2 className="text-[26px] sm:text-[34px] lg:text-[40px] font-extrabold leading-[1.15] tracking-tight max-w-3xl">
-            <span className="text-stone-900">Find the </span>
-            <span className="bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 bg-clip-text text-transparent">Right Home</span>
-            <span className="text-stone-900"> — Without the Guesswork</span>
-          </h2>
-          <p className="mt-3 text-[14.5px] sm:text-[15.5px] text-slate-600 max-w-2xl leading-relaxed">
-            Answer a few quick questions and we&apos;ll guide you to the best areas, brokers, and homes based on your needs.
-          </p>
-        </motion.div>
+    <section id="smart-match" className="py-24 sm:py-32 bg-white overflow-hidden relative">
+      {/* Background Accents */}
+      <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-rose-50/50 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-1/4 h-1/4 bg-blue-50/50 rounded-full blur-[100px] pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row lg:items-stretch gap-10 lg:gap-12">
-          <motion.div
-            initial={{ opacity: 0, x: -24 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.6, ease: EASE }}
-            className="
-              w-full max-w-md mx-auto lg:mx-0 lg:w-[300px] xl:w-[320px] lg:flex-shrink-0
-              rounded-2xl border border-rose-100/90
-              bg-white/95 backdrop-blur-md p-7
-              flex flex-col min-w-0 overflow-hidden
-              shadow-[0_8px_32px_rgba(15,23,42,0.08)]
-            "
+      <div className="max-w-6xl mx-auto px-6 relative z-10">
+        <div className="text-center mb-12">
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl sm:text-4xl font-black text-slate-900 mb-4"
           >
-            <div className="mb-7 pb-5 border-b border-rose-100/80 w-full min-w-0">
-              <img src={logoSvg} alt="MovEASY" className="h-8 w-auto mb-3.5" />
-              <div className="min-w-0">
-                <div className="text-[17px] font-extrabold leading-tight text-stone-900">Smart Match</div>
-                <p className="text-[12.5px] font-medium text-slate-500 mt-1.5 leading-snug">
-                  Your move, simplified
-                </p>
-              </div>
-            </div>
+            Find the <span className="text-rose-600">Right Home</span> — Without the Guesswork
+          </motion.h2>
+          <p className="text-slate-500 max-w-2xl mx-auto">
+            Skip the endless scrolling. Tell us what you need, and we'll match you with the perfect home in Bangalore.
+          </p>
+        </div>
 
-            <ul className="flex flex-col gap-4 flex-1">
-              {SMART_FEATURES.map(({ emoji, label }) => (
-                <li key={label} className="flex items-center gap-3 text-[15px] text-slate-700">
-                  <span className="text-[18px] leading-none">{emoji}</span>
-                  <span className="font-medium">{label}</span>
-                </li>
-              ))}
-            </ul>
-
-            <button
-              type="button"
-              onClick={() => navigate("/map?openFilters=1")}
-              className="
-              mt-8 w-full py-[14px]
-              text-[14.5px] font-bold text-white
-              rounded-xl bg-gradient-to-r from-rose-600 to-red-600
-              hover:from-rose-700 hover:to-red-700 active:scale-[0.98]
-              transition-all duration-200
-              shadow-[0_6px_22px_rgba(225,29,72,0.35)]
-            "
-            >
-              Get Started →
-            </button>
-          </motion.div>
-
-          <div className="hidden lg:block w-px self-stretch flex-shrink-0 bg-gradient-to-b from-transparent via-rose-200/60 to-transparent" aria-hidden />
-
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col lg:pl-0">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-4">
-              <div className="min-w-0">
-                <h3 className="text-[19px] sm:text-[21px] font-extrabold tracking-tight">
-                  <span className="bg-gradient-to-r from-stone-900 to-rose-950 bg-clip-text text-transparent">Top Matches</span>
-                </h3>
-                <p className="text-[12.5px] sm:text-[13px] text-slate-600 mt-1 font-medium">
-                  Six popular areas · swipe or use arrows · tap a card for details
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/map?openFilters=1")}
-                className="self-start sm:self-auto shrink-0 text-[14px] font-bold text-rose-600 hover:text-rose-700 transition-colors py-1"
-              >
-                View all on map →
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <select
-                value={areaFilter}
-                onChange={(e) => setAreaFilter(e.target.value)}
-                className="h-9 rounded-lg border border-rose-100 bg-white/90 px-2.5 text-[12px] font-semibold text-slate-700 shadow-sm"
-              >
-                {areaOptions.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-              <select
-                value={bhkFilter}
-                onChange={(e) => setBhkFilter(e.target.value)}
-                className="h-9 rounded-lg border border-rose-100 bg-white/90 px-2.5 text-[12px] font-semibold text-slate-700 shadow-sm"
-              >
-                {bhkOptions.map((opt) => (
-                  <option key={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-end gap-2" role="group" aria-label="Scroll top matches">
-                <button
-                  type="button"
-                  aria-label="Scroll top matches left"
-                  onClick={() => scrollBy(-300)}
-                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-sm hover:bg-rose-50"
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-xl shadow-slate-200/50 min-h-[400px] flex flex-col">
+            
+            <AnimatePresence mode="wait">
+              {step === 0 && (
+                <motion.div 
+                  key="step0"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="flex flex-col items-center justify-center flex-1 text-center"
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Scroll top matches right"
-                  onClick={() => scrollBy(300)}
-                  className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-rose-100 bg-white/95 text-rose-700 shadow-sm hover:bg-rose-50"
-                >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
-                </button>
-              </div>
+                  <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mb-6">
+                    <Search className="text-rose-600" size={32} />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-3">Ready to find your match?</h3>
+                  <p className="text-slate-500 mb-8 max-w-sm">3 quick questions to narrow down the best properties for you.</p>
+                  <button 
+                    onClick={nextStep}
+                    className="bg-rose-600 text-white px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                  >
+                    Get Started <ArrowRight size={20} />
+                  </button>
+                </motion.div>
+              )}
 
-              <div
-                ref={scrollRef}
-                className="
-                  flex gap-4 sm:gap-5
-                  overflow-x-auto overflow-y-visible py-1
-                  pl-0.5 pr-0.5
-                  scroll-smooth
-                  scrollbar-hide
-                  snap-x snap-mandatory
-                "
-              >
-                {visibleMatches.length === 0 && (
-                  <p className="text-sm text-slate-500 py-6">
-                    No homes for this filter.{" "}
-                    <button type="button" className="font-bold text-rose-600" onClick={() => navigate("/map?openFilters=1")}>
-                      Open map
+              {step === 1 && (
+                <motion.div 
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="flex flex-col flex-1"
+                >
+                  <div className="flex items-center gap-2 text-rose-600 font-bold mb-6">
+                    <div className="w-8 h-8 rounded-full border-2 border-rose-600 flex items-center justify-center text-sm">1</div>
+                    <span>Select Preferred Area</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[...POPULAR_AREAS, "Flexible"].map(area => (
+                      <button
+                        key={area}
+                        onClick={() => { setSelections(p => ({...p, area})); nextStep(); }}
+                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all ${selections.area === area ? 'border-rose-600 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white text-slate-600 hover:border-rose-200'}`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 2 && (
+                <motion.div 
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="flex flex-col flex-1"
+                >
+                  <div className="flex items-center gap-2 text-rose-600 font-bold mb-6">
+                    <button onClick={prevStep} className="mr-2 text-slate-400 hover:text-slate-600"><ArrowLeft size={20} /></button>
+                    <div className="w-8 h-8 rounded-full border-2 border-rose-600 flex items-center justify-center text-sm">2</div>
+                    <span>Monthly Budget</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {BUDGET_OPTIONS.map(opt => (
+                      <button
+                        key={opt.label}
+                        onClick={() => { setSelections(p => ({...p, budget: opt})); nextStep(); }}
+                        className={`p-6 rounded-2xl border-2 text-lg font-bold transition-all ${selections.budget?.label === opt.label ? 'border-rose-600 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white text-slate-600 hover:border-rose-200'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div 
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="flex flex-col flex-1"
+                >
+                  <div className="flex items-center gap-2 text-rose-600 font-bold mb-6">
+                    <button onClick={prevStep} className="mr-2 text-slate-400 hover:text-slate-600"><ArrowLeft size={20} /></button>
+                    <div className="w-8 h-8 rounded-full border-2 border-rose-600 flex items-center justify-center text-sm">3</div>
+                    <span>When do you want to move?</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {TIMELINE_OPTIONS.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => { setSelections(p => ({...p, timeline: opt})); nextStep(); }}
+                        className={`p-6 rounded-2xl border-2 text-lg font-bold transition-all ${selections.timeline === opt ? 'border-rose-600 bg-rose-50 text-rose-600' : 'border-slate-200 bg-white text-slate-600 hover:border-rose-200'}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 4 && (
+                <motion.div 
+                  key="step4"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col flex-1"
+                >
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold">
+                      <CheckCircle2 size={24} />
+                      <span>{filteredMatches.length} Matches Found</span>
+                    </div>
+                    <button onClick={reset} className="text-slate-400 hover:text-rose-600 text-sm font-bold flex items-center gap-1">
+                      <ArrowLeft size={16} /> Reset
                     </button>
-                  </p>
-                )}
-                {visibleMatches.map((listing, i) => (
-                  <PropertyCard
-                    key={`${listing.id}-${i}`}
-                    listing={listing}
-                    badge={BADGE_ROTATION[i % BADGE_ROTATION.length]}
-                    delay={0.06 + i * 0.06}
-                    onClick={() => setSelectedListing(listing)}
-                  />
-                ))}
-              </div>
-            </div>
+                  </div>
+
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex gap-2">
+                        <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-bold">{selections.area}</span>
+                        <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">{selections.budget?.label}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => scrollBy(-300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronLeft size={20} /></button>
+                        <button onClick={() => scrollBy(300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronRight size={20} /></button>
+                      </div>
+                    </div>
+
+                    <div 
+                      ref={scrollRef}
+                      className="flex gap-4 overflow-x-auto scroll-smooth pb-4 scrollbar-hide snap-x"
+                    >
+                      {filteredMatches.length > 0 ? (
+                        filteredMatches.map((l, i) => (
+                          <PropertyCard 
+                            key={l.id} 
+                            listing={l} 
+                            delay={i * 0.1} 
+                            onClick={() => setSelectedListing(l)} 
+                          />
+                        ))
+                      ) : (
+                        <div className="w-full py-12 text-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                          <p className="text-slate-400 font-medium mb-4">No perfect matches for these specific filters.</p>
+                          <button 
+                            onClick={() => navigate("/map")}
+                            className="bg-slate-900 text-white px-6 py-2 rounded-xl text-sm font-bold"
+                          >
+                            Explore All Bangalore Listings
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 text-center">
+                    <button 
+                      onClick={() => navigate("/map?locality=" + (selections.area === "Flexible" ? "" : selections.area))}
+                      className="text-rose-600 font-bold hover:underline"
+                    >
+                      View results on full map →
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
           </div>
         </div>
       </div>

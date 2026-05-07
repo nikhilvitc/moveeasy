@@ -8,13 +8,27 @@ import { findNearbyListings } from "../lib/geo";
 import { isListingSaved, toggleSavedListing } from "../lib/userActivity";
 import { submitListingInterestFull, logSavedListingChange } from "../lib/crmSync";
 
-function MediaElement({ src, alt, style }) {
+function MediaElement({ src, alt, style, firstImage }) {
   if (!src) return null;
   const isVideo = src.match(/\.(mp4|webm|ogg|mov)$/i) || src.includes('video');
   if (isVideo) {
-    return <video src={src} style={style} controls playsInline preload="metadata" />;
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        {firstImage && (
+          <img src={firstImage} alt="" style={{ position: "absolute", width: "115%", height: "115%", objectFit: "cover", filter: "blur(30px) brightness(0.8)", opacity: 0.9 }} />
+        )}
+        <video src={src} style={{ ...style, objectFit: "contain", maxWidth: "100%", maxHeight: "100%", position: "relative", zIndex: 1 }} controls playsInline preload="metadata" />
+      </div>
+    );
   }
-  return <img src={src} alt={alt} loading="lazy" style={style} />;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center" }}>
+      {/* Blurred background layer */}
+      <img src={src} alt="" style={{ position: "absolute", width: "115%", height: "115%", objectFit: "cover", filter: "blur(25px) brightness(0.85)", opacity: 0.9 }} />
+      {/* Main image layer */}
+      <img src={src} alt={alt} loading="lazy" style={{ ...style, objectFit: "contain", position: "relative", zIndex: 1, maxWidth: "100%", maxHeight: "100%" }} />
+    </div>
+  );
 }
 
 export default function PropertyModal({ property, onClose, listings = [], onSelectListing, onSavedChange }) {
@@ -84,23 +98,50 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
     .filter((u) => u.length > 0 && u !== "undefined" && u !== "null");
   const uniqueMedia = [...new Set(cleaned)];
   const images = uniqueMedia.length > 0 ? uniqueMedia : [PLACEHOLDER_IMAGE];
+  // Robust background image for media gallery (especially for videos)
+  const firstImageUrl = useMemo(() => {
+    const isVid = (u) => String(u).match(/\.(mp4|webm|ogg|mov)$/i) || String(u).includes("video");
+    // Find the first non-video image
+    const found = images.find(u => !isVid(u));
+    // If no static image found, use a placeholder instead of a video URL for the background img tag
+    return found || PLACEHOLDER_IMAGE;
+  }, [images, PLACEHOLDER_IMAGE]);
+
   const numericRent = Number(String(property.monthlyRent || property.rent || "0").replace(/[^0-9.]/g, "")) || 0;
   const parseMoney = (raw) => {
-    const n = Number(String(raw ?? "").replace(/[^0-9.]/g, ""));
+    const s = String(raw ?? "").trim();
+    if (!s) return null;
+    // If the value contains letters (like "3 months", "Including"), don't parse as number
+    if (/[a-zA-Z]/.test(s)) return null;
+    const n = Number(s.replace(/[^0-9.]/g, ""));
     return Number.isFinite(n) && n > 0 ? n : null;
   };
   const depositFromField = parseMoney(property.securityDeposit);
   const maintenanceFromField = parseMoney(property.maintenanceCost);
   const securityDeposit = depositFromField ?? (numericRent > 0 ? Math.round(numericRent * 2.5) : 0);
   const maintenance = maintenanceFromField ?? (numericRent > 0 ? Math.round(numericRent * 0.08) : 0);
-  const moveInCharges = maintenance + 1999;
   const formatInr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
-  const depositSidebar =
-    depositFromField != null
-      ? formatInr(depositFromField)
-      : String(property.securityDeposit || "").trim()
-        ? String(property.securityDeposit)
-        : formatInr(securityDeposit);
+  // Show raw string (e.g. "3 months") if it contains text, otherwise format as INR
+  const rawDeposit = String(property.securityDeposit || "").trim();
+  
+  // Robust deposit display logic
+  let finalDeposit = "";
+  if (rawDeposit) {
+    if (/[a-zA-Z]/.test(rawDeposit)) {
+      finalDeposit = rawDeposit; // e.g. "3 months"
+    } else {
+      const num = Number(rawDeposit.replace(/[^0-9.]/g, ""));
+      if (num > 0 && num <= 15) {
+        finalDeposit = `${num} months`; // Auto-append months for small numbers
+      } else {
+        finalDeposit = formatInr(num); // Format as currency for large numbers
+      }
+    }
+  } else {
+    finalDeposit = formatInr(securityDeposit);
+  }
+
+  const depositSidebar = finalDeposit;
   const maintenanceSidebar =
     maintenanceFromField != null
       ? formatInr(maintenanceFromField)
@@ -122,7 +163,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
       ? `${dash(property.floorNumber)} of ${dash(property.totalFloors)} floors`
       : "—";
   const detailRows = [
-    ["Security deposit", property.securityDeposit ? dash(property.securityDeposit) : formatInr(securityDeposit)],
+    ["Security deposit", depositSidebar],
     ["Area unit", dash(property.areaUnit) !== "—" ? property.areaUnit : "sq ft"],
     ["Brokerage", dash(property.brokerage)],
     ["Maintenance", property.maintenanceCost ? dash(property.maintenanceCost) : formatInr(maintenance)],
@@ -259,18 +300,33 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
               alignItems: "center",
               gap: "12px",
               flexWrap: "wrap",
-              background: "#fff9f7",
+              background: "#000000",
+              borderBottom: "1px solid #27272a",
               zIndex: 10,
             }}
           >
             <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center", minWidth: 0, flex: "1 1 auto" }}>
-              <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: 800, color: "#e11d48", flexShrink: 0 }}>Moveazy</div>
-              <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#475569", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
-                <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer" }}>Overview</span>
+              <div 
+                onClick={() => onClose()}
+                style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
+              >
+                <img 
+                  src="/logo-moveazy-bar.png" 
+                  alt="Moveazy" 
+                  style={{ height: isMobile ? "22px" : "28px", width: "auto" }} 
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextSibling.style.display = 'block';
+                  }}
+                />
+                <span style={{ display: "none", color: "#e11d48", fontWeight: 900, fontSize: "18px" }}>Moveazy</span>
+              </div>
+              <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#cbd5e1", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
+                <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Overview</span>
                 {nearbyListings.length > 0 && typeof onSelectListing === "function" ? (
-                  <span onClick={() => scrollTo("nearby-homes")} style={{ cursor: "pointer" }}>Nearby</span>
+                  <span onClick={() => scrollTo("nearby-homes")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Nearby</span>
                 ) : null}
-                <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer" }}>Facts & Features</span>
+                <span onClick={() => scrollTo("facts")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Facts & Features</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0, marginLeft: "auto" }}>
@@ -282,11 +338,23 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   void logSavedListingChange(user, property.id, now, property.title);
                   onSavedChange?.();
                 }}
-                style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#334155" }}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #475569", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#f1f5f9", transition: "all 0.2s" }}
+                onMouseEnter={(e) => {
+                  if (!isSaved) {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                    e.currentTarget.style.borderColor = "#94a3b8";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSaved) {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                    e.currentTarget.style.borderColor = "#475569";
+                  }
+                }}
               >
                 {isMobile ? (isSaved ? "♥" : "♡") : (isSaved ? "♥ Saved" : "♡ Save")}
               </button>
-              <button type="button" onClick={handleShare} style={{ background: "none", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
+              <button type="button" onClick={handleShare} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #475569", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: "#f1f5f9", transition: "all 0.2s" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderColor = "#94a3b8"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "#475569"; }}>
                 {isMobile ? "↗" : shareText}
               </button>
               <button
@@ -296,9 +364,9 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   width: "36px",
                   height: "36px",
                   borderRadius: "999px",
-                  border: "1px solid #e2e8f0",
-                  background: "rgba(255,255,255,0.95)",
-                  color: "#0f172a",
+                  border: "1px solid #475569",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#f1f5f9",
                   fontWeight: 800,
                   fontSize: "18px",
                   lineHeight: 1,
@@ -354,7 +422,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   borderRadius: "14px",
                 }}
               >
-                <MediaElement src={activeMedia} alt={property.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <MediaElement src={images[activeMediaIndex]} alt={property.title} firstImage={firstImageUrl} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 {isActiveVideo && (
                   <div style={{ position: "absolute", top: "10px", left: "10px", background: "rgba(15,23,42,0.7)", color: "white", fontSize: "11px", fontWeight: 700, borderRadius: "999px", padding: "5px 9px" }}>
                     VIDEO
@@ -380,16 +448,16 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   <>
                     <button
                       type="button"
-                      onClick={goPrevMedia}
-                      style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700 }}
+                      onClick={(e) => { e.stopPropagation(); goPrevMedia(); }}
+                      style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700, zIndex: 10, cursor: "pointer", pointerEvents: "auto" }}
                       aria-label="Previous media"
                     >
                       {"<"}
                     </button>
                     <button
                       type="button"
-                      onClick={goNextMedia}
-                      style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700 }}
+                      onClick={(e) => { e.stopPropagation(); goNextMedia(); }}
+                      style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "rgba(255,255,255,0.92)", color: "#0f172a", fontWeight: 700, zIndex: 10, cursor: "pointer", pointerEvents: "auto" }}
                       aria-label="Next media"
                     >
                       {">"}
@@ -740,9 +808,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569", marginBottom: "6px" }}>
                       <span>Maintenance (est.)</span><strong style={{ color: "#0f172a" }}>{maintenanceSidebar}</strong>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#475569" }}>
-                      <span>Move-in charges</span><strong style={{ color: "#0f172a" }}>{formatInr(moveInCharges)}</strong>
-                    </div>
+
                   </div>
 
                   {showVisitForm ? (

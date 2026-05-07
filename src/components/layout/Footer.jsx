@@ -7,11 +7,13 @@ import { useInView } from "react-intersection-observer";
 const EASE = [0.22, 1, 0.36, 1];
 
 const FOOTER_LINKS = [
-  { label: "Terms of Service", route: "/terms",    underline: true },
-  { label: "Privacy Policy",   route: "/privacy",  underline: false },
-  { label: "Services",         route: "/services", underline: false },
-  { label: "Support",          route: "/contact",  underline: false },
-  { label: "Contact",          route: "/contact",  underline: false },
+  { label: "Terms of Service", route: "/terms",      underline: true },
+  { label: "Privacy Policy",   route: "/privacy",    underline: false },
+  { label: "Services",         route: "/services",   underline: false },
+  { label: "Guarantee",        route: "/guarantee",  underline: false },
+  { label: "Listings",         route: "/map",        underline: false },
+  { label: "Support",          route: "/contact",    underline: false },
+  { label: "Contact",          route: "/contact",    underline: false },
 ];
 
 export default function Footer() {

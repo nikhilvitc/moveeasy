@@ -237,7 +237,7 @@ export default function MapView() {
       const maxRent = filters.maxRent < 100000 ? filters.maxRent : null;
       
       const options = {
-        limitCount: isMobile ? 40 : 100,
+        limitCount: isMobile ? 250 : 500,
         bhk,
         maxRent
       };
@@ -436,13 +436,13 @@ export default function MapView() {
         return da - db;
       });
     }
-    return rows.slice(0, 45);
+    return rows.slice(0, 500);
   }, [mapListings.length, listings, selectedLocality, placeAnchor, workplaceAnchor, commuteRadiusKm]);
 
   const displayPins = useMemo(() => {
     if (mapListings.length > 0) return mapListings;
     if (relaxedFallbackListings.length > 0) return relaxedFallbackListings;
-    return listings.filter((l) => Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng))).slice(0, 35);
+    return listings.filter((l) => Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng))).slice(0, 500);
   }, [mapListings, relaxedFallbackListings, listings]);
 
   const usingRelaxedPins = mapListings.length === 0 && displayPins.length > 0;
@@ -634,10 +634,10 @@ export default function MapView() {
       background: "#171717",
       color: "#fafafa",
       borderRadius: "8px",
-      padding: "6px 10px",
+      padding: "5px 10px",
       fontSize: "12px",
       fontWeight: 700,
-      minHeight: "30px",
+      minHeight: "28px",
       cursor: "pointer",
     },
   };
@@ -718,91 +718,96 @@ export default function MapView() {
       `}</style>
       <div
         style={{
-          background: "linear-gradient(180deg, #0a0a0a 0%, #171717 100%)",
-          padding: isMobile ? "4px 8px" : "5px 12px",
+          background: "#000000",
+          padding: isMobile ? "6px 12px" : "8px 16px",
           borderBottom: "1px solid #27272a",
           position: "relative",
           zIndex: 1001,
-          isolation: "isolate",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
         }}
-        title="Toolbar: navigation, view layout, search card, filters, and property list. All actions use the same pill shape."
       >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: isMobile ? "flex-start" : "center",
-            marginBottom: isMobile ? "4px" : "2px",
-            flexDirection: isMobile ? "column" : "row",
-            gap: isMobile ? "6px" : 8,
+            alignItems: "center",
+            gap: "12px",
             flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
-            <button type="button" onClick={() => navigate("/")} style={mtToolbar.btn}>
-              Home
-            </button>
-            <button type="button" onClick={() => navigate("/activity")} style={mtToolbar.btnMuted}>
-              Saved
-            </button>
-            {user?.role === "admin" ? (
-              <button type="button" onClick={() => navigate("/admin")} style={mtToolbar.btnAdmin}>
-                Admin
-              </button>
-            ) : null}
-            <div style={{ fontSize: isMobile ? "14px" : "15px", fontWeight: 800, color: "#fafafa", letterSpacing: "-0.03em", paddingLeft: 2 }}>
-              Map <span style={{ color: "#f87171" }}>Listings</span>
+          {/* Left: Logo & Nav */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div 
+              onClick={() => navigate("/")} 
+              style={{ cursor: "pointer", display: "flex", alignItems: "center", marginRight: "8px" }}
+            >
+              <img 
+                src="/logo-moveazy-bar.png" 
+                alt="Moveazy" 
+                style={{ height: isMobile ? "24px" : "32px", width: "auto" }} 
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextSibling.style.display = 'block';
+                }}
+              />
+              <span style={{ display: "none", color: "#fff", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.5px" }}>
+                Mov<span style={{ color: "#e11d48" }}>EAZY!</span>
+              </span>
             </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button type="button" onClick={() => navigate("/")} style={mtToolbar.btn}>
+                Home
+              </button>
+              <button type="button" onClick={() => navigate("/activity")} style={mtToolbar.btnMuted}>
+                Saved
+              </button>
+              {user?.role === "admin" ? (
+                <button type="button" onClick={() => navigate("/admin")} style={mtToolbar.btnAdmin}>
+                  Admin
+                </button>
+              ) : null}
+            </div>
+
+            {!isMobile && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "12px", borderLeft: "1px solid #3f3f46", paddingLeft: "12px" }}>
+                <select
+                  value={desktopMode}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDesktopMode(v);
+                    if (v === "map") {
+                      setShowDesktopListings(false);
+                      setShowDesktopFilters(false);
+                    }
+                  }}
+                  style={mtToolbar.select}
+                >
+                  <option value="split">Split view</option>
+                  <option value="map">Full map</option>
+                </select>
+                <button type="button" onClick={() => setShowMapSearchOverlay((v) => !v)} style={mtToolbar.btnMuted}>
+                  {showMapSearchOverlay ? "Hide search" : "Show search"}
+                </button>
+                <button type="button" onClick={() => setShowDesktopFilters((v) => !v)} style={mtToolbar.btnMuted}>
+                  {showDesktopFilters ? "Hide filters" : "Show filters"}
+                </button>
+                <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={mtToolbar.btnMuted}>
+                  {showDesktopListings ? "Hide list" : "Show list"}
+                </button>
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: "11px", color: "#a3a3a3", fontWeight: 600, lineHeight: 1.4, maxWidth: 520, textAlign: isMobile ? "left" : "right" }}>
+
+          {/* Right: Stats */}
+          <div style={{ fontSize: "12px", color: "#a3a3a3", fontWeight: 600 }}>
             {usingRelaxedPins ? (
-              <span>
-                <span style={{ color: "#fca5a5" }}>No exact matches</span> · showing {displayPins.length} nearby — relax filters
-              </span>
+              <span style={{ color: "#fca5a5" }}>Nearby ({displayPins.length})</span>
             ) : (
-              <span>
-                {mapListings.length} homes
-                {placeAnchor ? <span style={{ fontWeight: 500, color: "#d4d4d4" }}> · within {MAP_NEARBY_KM} km of pin</span> : null}
-                {workplaceAnchor ? (
-                  <span style={{ fontWeight: 500, color: "#d4d4d4" }}>
-                    {" "}
-                    · ≤{commuteRadiusKm} km from workplace · nearest first
-                  </span>
-                ) : null}
-              </span>
+              <span>{mapListings.length} homes</span>
             )}
           </div>
         </div>
-        {!isMobile && (
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", borderTop: "1px solid #27272a", marginTop: 0, paddingTop: 4 }}>
-            <select
-              value={desktopMode}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDesktopMode(v);
-                if (v === "map") {
-                  setShowDesktopListings(false);
-                  setShowDesktopFilters(false);
-                }
-              }}
-              style={mtToolbar.select}
-              title="Split: map + list. Full map: maximum map area."
-            >
-              <option value="split">Split view</option>
-              <option value="map">Full map</option>
-            </select>
-            <button type="button" onClick={() => setShowMapSearchOverlay((v) => !v)} style={mtToolbar.btnMuted} title="Show or hide the search & location card on the map">
-              {showMapSearchOverlay ? "Hide search" : "Show search"}
-            </button>
-            <button type="button" onClick={() => setShowDesktopFilters((v) => !v)} style={mtToolbar.btnMuted} title="Rent, BHK, and advanced filters">
-              {showDesktopFilters ? "Hide filters" : "Show filters"}
-            </button>
-            <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={mtToolbar.btnMuted} title="Property list beside the map">
-              {showDesktopListings ? "Hide list" : "Show list"}
-            </button>
-          </div>
-        )}
       </div>
 
       {isMobile && showMobileFilters ? (

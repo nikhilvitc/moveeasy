@@ -64,8 +64,8 @@ const propertyTypes = ["Apartment", "Gated Societies", "Independent House/Villa"
 const furnishing = ["Semi", "Full", "None"];
 const availability = ["Immediate", "Within 15 days", "Within 30 days", "After 30 days"];
 
-/** Locality names for map filter chips (same order as seed listings). */
-export const AREA_NAMES_SORTED = [...new Set(localities.map((row) => row[0]))].sort((a, b) => a.localeCompare(b));
+/** Locality names for map filter chips (Bangalore only). */
+export const AREA_NAMES_SORTED = [...new Set(localities.filter(row => row[1] === "Bangalore").map((row) => row[0]))].sort((a, b) => a.localeCompare(b));
 
 const listingsData = localities.map(([locality, city, lat, lng, baseRent], index) => {
   const bhk = bhks[index % bhks.length];

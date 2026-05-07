@@ -35,8 +35,8 @@ export default function Navbar() {
     <nav
       className={`sticky top-0 z-50 border-b transition-all duration-300 ${
         scrolled
-          ? "border-red-900/30 bg-zinc-950/98 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
-          : "border-red-900/20 bg-zinc-950/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.28)]"
+          ? "border-red-900/30 bg-[#000000]/98 backdrop-blur-md shadow-[0_2px_12px_rgba(0,0,0,0.35)]"
+          : "border-red-900/20 bg-[#000000]/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.28)]"
       }`}
     >
       <div className="flex items-center justify-between px-2 sm:px-4 md:px-5 py-1 gap-2">
@@ -66,6 +66,17 @@ export default function Navbar() {
           ].map(({ label, path }) => (
             <NavLink key={label} label={label} onClick={() => closeAndGo(path)} />
           ))}
+
+          <motion.button
+            type="button"
+            onClick={() => closeAndGo("/contact")}
+            className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-gradient-to-r from-orange-500 to-red-600 text-white border border-orange-600 hover:from-orange-400 hover:to-red-500 shadow-[0_2px_12px_rgba(249,115,22,0.35)]"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ duration: 0.18 }}
+          >
+            Book a Free Consultation Now
+          </motion.button>
 
           <motion.button
             type="button"
@@ -146,7 +157,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.22 }}
-            className="lg:hidden border-t border-zinc-800 px-4 py-4 bg-zinc-950"
+            className="lg:hidden border-t border-zinc-800 px-4 py-4 bg-[#000000]"
           >
             <div className="grid gap-2 text-sm font-semibold text-zinc-200">
               {[
@@ -159,9 +170,15 @@ export default function Navbar() {
                   {label}
                 </button>
               ))}
-              <button type="button" onClick={() => closeAndGo("/contact")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900 text-red-400 font-bold">
-                Contact / consultation
-              </button>
+              <motion.button
+                type="button"
+                onClick={() => closeAndGo("/contact")}
+                className="rounded-lg px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white text-center font-bold border border-orange-600"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Book a Free Consultation Now
+              </motion.button>
               {user?.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
                   Customer dashboard

@@ -315,10 +315,34 @@ export default function SellerDashboard() {
   };
 
   const handleEdit = (listing) => {
+    const normalizeUrlList = (value) => {
+      const raw = [];
+      if (Array.isArray(value)) raw.push(...value);
+      else if (typeof value === "string" && value.trim()) raw.push(...value.split(/\r?\n|,/));
+      return raw.map((x) => String(x || "").trim()).filter(Boolean);
+    };
+
+    const pickListingMediaUrls = (l) => {
+      const candidates = [l?.images, l?.photos, l?.gallery, l?.media, l?.mediaUrls, l?.imageUrls];
+      const urls = [];
+      candidates.forEach((c) => urls.push(...normalizeUrlList(c)));
+      if (l?.image) urls.unshift(String(l.image).trim());
+      const seen = new Set();
+      const out = [];
+      for (const u of urls) {
+        const k = u.toLowerCase();
+        if (!u || seen.has(k)) continue;
+        seen.add(k);
+        out.push(u);
+      }
+      return out;
+    };
+
+    const mediaUrls = pickListingMediaUrls(listing);
     setForm({
       ...emptyForm(),
       ...listing,
-      imagesText: Array.isArray(listing.images) ? listing.images.join("\n") : (listing.imagesText || ""),
+      imagesText: mediaUrls.length ? mediaUrls.join("\n") : (listing.imagesText || ""),
       amenitiesText: Array.isArray(listing.amenities) ? listing.amenities.join(", ") : (listing.amenitiesText || ""),
       furnishingsText: Array.isArray(listing.furnishings) ? listing.furnishings.join(", ") : (listing.furnishingsText || ""),
       preferredTenantsText: Array.isArray(listing.preferredTenants) ? listing.preferredTenants.join(", ") : (listing.preferredTenantsText || "Family"),
