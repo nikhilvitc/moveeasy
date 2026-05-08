@@ -152,11 +152,14 @@ function InvalidateMapSize({ layoutRevision }) {
     const raf = requestAnimationFrame(nudge);
     const t1 = setTimeout(nudge, 80);
     const t2 = setTimeout(nudge, 280);
+    // Mobile rotate: some browsers don't fire a clean resize for Leaflet.
+    window.addEventListener("orientationchange", nudge);
     window.addEventListener("resize", nudge);
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(t1);
       clearTimeout(t2);
+      window.removeEventListener("orientationchange", nudge);
       window.removeEventListener("resize", nudge);
     };
   }, [map, layoutRevision]);

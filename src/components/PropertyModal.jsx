@@ -60,9 +60,32 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   const [touchStartX, setTouchStartX] = useState(null);
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setShareText("✓ Copied!");
-    setTimeout(() => setShareText("↗ Share"), 2000);
+    const origin = window.location.origin;
+    const url = `${origin}/map?listingId=${encodeURIComponent(String(property?.id || ""))}`;
+    const title = property?.title ? `Moveazy · ${property.title}` : "Moveazy listing";
+
+    const done = () => {
+      setShareText("✓ Copied!");
+      setTimeout(() => setShareText("↗ Share"), 2000);
+    };
+
+    // Prefer native share on mobile (WhatsApp/Telegram etc.)
+    if (navigator.share) {
+      navigator
+        .share({
+          title,
+          text: property?.address ? `${property.address}` : "View this listing on Moveazy",
+          url,
+        })
+        .then(() => done())
+        .catch(() => {
+          // fall back to clipboard
+          navigator.clipboard?.writeText?.(url).finally(done);
+        });
+      return;
+    }
+
+    navigator.clipboard?.writeText?.(url).finally(done);
   };
 
   const scrollRef = useRef(null);
