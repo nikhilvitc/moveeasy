@@ -1,6 +1,7 @@
 // src/components/sections/GuaranteeFAQ.jsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import consultantImg from "../../assets/images/kuldeep.png";
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -81,6 +82,7 @@ function AccordionItem({ item, index, isOpen, onToggle }) {
 }
 
 export default function GuaranteeFAQ() {
+  const navigate = useNavigate();
   const [openIndex, setOpenIndex] = useState(0);
 
   const handleToggle = (i) => {
@@ -139,6 +141,8 @@ export default function GuaranteeFAQ() {
               </div>
 
               <button
+                type="button"
+                onClick={() => navigate("/contact")}
                 className="
                   w-full py-[10px] text-[13px] font-semibold
                   text-white bg-[#E85A4F] rounded-lg
