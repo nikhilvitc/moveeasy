@@ -319,7 +319,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                     e.currentTarget.nextSibling.style.display = 'block';
                   }}
                 />
-                <span style={{ display: "none", color: "#e11d48", fontWeight: 900, fontSize: "18px" }}>Moveazy</span>
+                <span style={{ display: "none", color: "#ff3131", fontWeight: 900, fontSize: "18px" }}>Moveazy</span>
               </div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#cbd5e1", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Overview</span>
@@ -338,7 +338,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   void logSavedListingChange(user, property.id, now, property.title);
                   onSavedChange?.();
                 }}
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #475569", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#e11d48" : "#f1f5f9", transition: "all 0.2s" }}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #475569", borderRadius: "8px", padding: "6px 12px", fontWeight: 600, fontSize: "13px", cursor: "pointer", color: isSaved ? "#ff3131" : "#f1f5f9", transition: "all 0.2s" }}
                 onMouseEnter={(e) => {
                   if (!isSaved) {
                     e.currentTarget.style.background = "rgba(255,255,255,0.1)";
@@ -547,7 +547,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
               {/* Left Column (Details) */}
               <div id="overview" style={{ flex: "1 1 500px", minWidth: 0 }}>
                 {property.badge && (
-                  <div style={{ background: "#fef2f2", color: "#e11d48", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 700, display: "inline-block", marginBottom: "12px" }}>
+                  <div style={{ background: "#fef2f2", color: "#ff3131", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: 700, display: "inline-block", marginBottom: "12px" }}>
                     {property.badge.toUpperCase()}
                   </div>
                 )}
@@ -825,17 +825,17 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                           <textarea rows={2} placeholder="Any questions?" value={visitForm.notes} onChange={(e) => setVisitForm({ ...visitForm, notes: e.target.value })} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0", boxSizing: "border-box", fontSize: "14px" }} />
                           <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                             <button type="button" onClick={() => setShowVisitForm(false)} style={{ flex: 1, padding: "12px", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                            <button type="submit" style={{ flex: 2, padding: "12px", background: "#e11d48", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Confirm</button>
+                            <button type="submit" style={{ flex: 2, padding: "12px", background: "#ff3131", color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Confirm</button>
                           </div>
                         </>
                       )}
                     </form>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#cbd5e1" : "#e11d48", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#cbd5e1" : "#ff3131", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                         Request a tour
                       </button>
-                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#f1f5f9" : "white", color: offMarket ? "#94a3b8" : "#e11d48", border: offMarket ? "1px solid #e2e8f0" : "1px solid #e11d48", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
+                      <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#f1f5f9" : "white", color: offMarket ? "#94a3b8" : "#ff3131", border: offMarket ? "1px solid #e2e8f0" : "1px solid #ff3131", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                         Check availability
                       </button>
                       <a href={`tel:${property.contact}`} style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#f8fafc", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>

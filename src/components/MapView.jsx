@@ -58,10 +58,23 @@ L.Icon.Default.mergeOptions({
 const bhkColors = {
   "1 RK": "#10b981",
   "1 BHK": "#2563eb",
-  "2 BHK": "#f97316",
+  "2 BHK": "#ff3131",
+  "2.5 BHK": "#f97316",
   "3 BHK": "#9333ea",
   "3+ BHK": "#0d9488",
   "Roommate needed": "#ca8a04",
+};
+
+const AREA_ANCHORS = {
+  "HSR Layout": { lat: 12.9141, lng: 77.6411 },
+  "Indiranagar": { lat: 12.9719, lng: 77.6412 },
+  "Koramangala": { lat: 12.9352, lng: 77.6245 },
+  "Whitefield": { lat: 12.9698, lng: 77.75 },
+  "Bellandur": { lat: 12.93, lng: 77.6762 },
+  "Jayanagar": { lat: 12.925, lng: 77.5938 },
+  "Hebbal": { lat: 13.0358, lng: 77.597 },
+  "Sarjapur Road": { lat: 12.8996, lng: 77.6815 },
+  "Mahadevpura": { lat: 12.9516, lng: 77.68 },
 };
 
 function makeBhkIcon(bhk) {
@@ -415,7 +428,22 @@ export default function MapView() {
     if (mapListings.length > 0) return [];
     let rows = listings.filter((l) => Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng)));
     const loc = selectedLocality.trim().toLowerCase();
-    if (loc) {
+    const anchor =
+      !placeAnchor && !workplaceAnchor && selectedLocality && AREA_ANCHORS[selectedLocality]
+        ? AREA_ANCHORS[selectedLocality]
+        : null;
+
+    // If a user taps an area like "HSR Layout", show nearby sector listings even if text doesn't include "HSR Layout".
+    if (anchor) {
+      const radiusKm = 7;
+      rows = rows
+        .filter((l) => haversineKm(anchor.lat, anchor.lng, Number(l.lat), Number(l.lng)) <= radiusKm)
+        .sort((a, b) => {
+          const da = haversineKm(anchor.lat, anchor.lng, Number(a.lat), Number(a.lng));
+          const db = haversineKm(anchor.lat, anchor.lng, Number(b.lat), Number(b.lng));
+          return da - db;
+        });
+    } else if (loc) {
       rows = rows.filter((l) =>
         [l.title, l.address, l.location, l.seller, l.company, l.sellerEmail]
           .filter(Boolean)
@@ -751,7 +779,7 @@ export default function MapView() {
                 }}
               />
               <span style={{ display: "none", color: "#fff", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.5px" }}>
-                Mov<span style={{ color: "#e11d48" }}>EAZY!</span>
+                Mov<span style={{ color: "#ff3131" }}>EAZY!</span>
               </span>
             </div>
 
@@ -892,9 +920,9 @@ export default function MapView() {
                     type="button"
                     onClick={() => toggleNeighborhood(name)}
                     style={{
-                      border: on ? "1px solid #b91c1c" : "1px solid #cbd5e1",
+                      border: on ? "1px solid #ff3131" : "1px solid #cbd5e1",
                       background: on ? "#fff1f2" : "#ffffff",
-                      color: on ? "#9f1239" : "#0f172a",
+                      color: on ? "#ff3131" : "#0f172a",
                       borderRadius: "999px",
                       padding: "6px 11px",
                       fontSize: "13px",
@@ -1839,7 +1867,7 @@ export default function MapView() {
                     cursor: "pointer",
                     fontSize: 18,
                     lineHeight: 1,
-                    color: isListingSaved(user, l.id) ? "#b91c1c" : "#64748b",
+                    color: isListingSaved(user, l.id) ? "#ff3131" : "#64748b",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1855,7 +1883,7 @@ export default function MapView() {
               <div style={{ fontWeight: 600, fontSize: "16px", color: "#1e293b", lineHeight: 1.35 }}>{l.title}</div>
               <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", lineHeight: 1.45 }}>{l.address}</div>
               {(workplaceAnchor || placeAnchor) && Number.isFinite(Number(l.lat)) && Number.isFinite(Number(l.lng)) ? (
-                <div style={{ fontSize: "12px", color: "#b91c1c", fontWeight: 700, marginTop: "6px" }}>
+                <div style={{ fontSize: "12px", color: "#ff3131", fontWeight: 700, marginTop: "6px" }}>
                   ~{haversineKm((workplaceAnchor || placeAnchor).lat, (workplaceAnchor || placeAnchor).lng, Number(l.lat), Number(l.lng)).toFixed(1)} km from{" "}
                   {workplaceAnchor ? "workplace" : "pin"}
                 </div>
@@ -1872,8 +1900,8 @@ export default function MapView() {
                   width: "100%",
                   padding: "10px 12px",
                   borderRadius: "10px",
-                  border: "1px solid #991b1b",
-                  background: "#b91c1c",
+                  border: "1px solid #ff3131",
+                  background: "#ff3131",
                   color: "#fff",
                   fontSize: "13px",
                   fontWeight: 800,
