@@ -1,7 +1,7 @@
 // src/components/sections/GuaranteeFAQ.jsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import consultantImg from "../../assets/images/guarentee-consultant.png";
+import consultantImg from "../../assets/images/kuldeep.png";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -141,8 +141,8 @@ export default function GuaranteeFAQ() {
               <button
                 className="
                   w-full py-[10px] text-[13px] font-semibold
-                  text-white bg-[#EF4444] rounded-lg
-                  hover:bg-[#DC2626] active:scale-[0.975]
+                  text-white bg-[#E85A4F] rounded-lg
+                  hover:bg-[#D64A3F] active:scale-[0.975]
                   transition-all duration-200
                 "
               >

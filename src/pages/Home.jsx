@@ -7,7 +7,6 @@ import HowItWorks from "../components/sections/HowItWorks";
 import Comparison from "../components/sections/Comparison";
 import SmartMatch from "../components/sections/SmartMatch";
 import GuaranteePlan from "../components/sections/GuaranteePlan";
-import Reviews from "../components/sections/Reviews";
 import CityCTA from "../components/sections/CityCTA";
 import Footer from "../components/layout/Footer";
 
@@ -30,7 +29,6 @@ export default function Home() {
           <HowItWorks />
           <Comparison />
           <GuaranteePlan />
-          <Reviews />
           <CityCTA />
         </div>
       </main>

@@ -231,7 +231,7 @@ export default function Hero() {
               transition={{ duration: 0.55, delay: 0.12, ease: EASE }}
               className="mt-3 max-w-xl text-[14px] sm:text-[17px] font-medium leading-relaxed text-[#fecdd3]"
             >
-              5K+ listings refreshed daily · curated for serious renters who want clarity, not chaos.
+              100+ listings refreshed daily · curated for serious renters who want clarity, not chaos.
             </motion.p>
 
             {/* Search box */}
@@ -397,8 +397,8 @@ export default function Hero() {
             </p>
             <div className="relative z-10 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3 lg:justify-start">
               {[
-                { value: "1K+", label: "People moved happily", color: "text-primary-darker" },
-                { value: "56",  label: "Homes closed / month",  color: "text-sky-800" },
+                { value: "100+", label: "People moved happily", color: "text-primary-darker" },
+                { value: "36",  label: "Homes closed / month",  color: "text-sky-800" },
               ].map(({ value, label, color }) => (
                 <motion.div
                   key={label}

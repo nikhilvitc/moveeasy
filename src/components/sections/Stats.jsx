@@ -3,8 +3,8 @@ import { useInView } from "react-intersection-observer";
 import useGsapStaggerReveal from "../../hooks/useGsapStaggerReveal";
 
 const STATS = [
-  { value: 10000, suffix: "+",  label: "Moves Simplified Across Cities", accent: "#e85a4f" },
-  { value: 500,   suffix: "+",  label: "Trusted Broker Partners",         accent: "#f97316" },
+  { value: 1000, suffix: "+",  label: "Moves Simplified Across Bangalore", accent: "#e85a4f" },
+  { value: 200,   suffix: "+",  label: "Trusted Broker Partners",         accent: "#f97316" },
   { value: 90,    suffix: "%+", label: "Users Found a Home Within 7 Days", accent: "#ec4899" },
 ];
 
