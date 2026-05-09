@@ -2,6 +2,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import MovEAZYLogo from "../branding/MovEAZYLogo";
 
 const navBtn =
   "rounded-md px-2.5 py-1.5 text-[12px] font-bold leading-tight border border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-500 transition-colors";
@@ -42,19 +43,12 @@ export default function Navbar() {
       <div className="flex items-center justify-between px-2 sm:px-4 md:px-5 py-1 gap-2">
         <motion.div
           onClick={() => closeAndGo("/")}
-          className="cursor-pointer flex items-center select-none shrink-0 leading-none"
+          className="cursor-pointer flex items-center select-none shrink-0 leading-none py-0.5"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           transition={{ duration: 0.2 }}
         >
-          {/* Wide bar asset (~5:1): height caps bar thickness; width follows aspect ratio */}
-          <img
-            src="/logo-moveazy-bar.png"
-            alt="MovEAZY"
-            className="h-[24px] w-auto sm:h-[26px] md:h-[28px] max-h-[28px] block"
-            decoding="async"
-            fetchPriority="high"
-          />
+          <MovEAZYLogo variant="onDark" size="md" />
         </motion.div>
 
         <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 text-[12px] font-semibold text-zinc-300 flex-wrap justify-end">
@@ -70,7 +64,7 @@ export default function Navbar() {
           <motion.button
             type="button"
             onClick={() => closeAndGo("/contact")}
-            className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-gradient-to-r from-orange-500 to-red-600 text-white border border-orange-600 hover:from-orange-400 hover:to-red-500 shadow-[0_2px_12px_rgba(249,115,22,0.35)]"
+            className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_2px_10px_rgba(220,38,38,0.28)]"
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
@@ -178,7 +172,7 @@ export default function Navbar() {
               <motion.button
                 type="button"
                 onClick={() => closeAndGo("/contact")}
-                className="rounded-lg px-4 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 text-white text-center font-bold border border-orange-600"
+                className="rounded-lg px-4 py-2.5 bg-red-600 text-white text-center font-bold border border-red-700 hover:bg-red-500"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
               >

@@ -8,6 +8,7 @@ import { triggerVisitNotificationEmail } from "../lib/emailService";
 import { findNearbyListings } from "../lib/geo";
 import { isListingSaved, toggleSavedListing } from "../lib/userActivity";
 import { submitListingInterestFull, logSavedListingChange } from "../lib/crmSync";
+import MovEAZYLogo from "./branding/MovEAZYLogo";
 
 function MediaElement({ src, alt, style, firstImage }) {
   if (!src) return null;
@@ -355,20 +356,11 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
             }}
           >
             <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", alignItems: "center", minWidth: 0, flex: "1 1 auto" }}>
-              <div 
+              <div
                 onClick={() => onClose()}
                 style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
               >
-                <img 
-                  src="/logo-moveazy-bar.png" 
-                  alt="Moveazy" 
-                  style={{ height: isMobile ? "22px" : "28px", width: "auto" }} 
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextSibling.style.display = 'block';
-                  }}
-                />
-                <span style={{ display: "none", color: "#ff3131", fontWeight: 900, fontSize: "18px" }}>Moveazy</span>
+                <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "md"} />
               </div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#cbd5e1", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Overview</span>

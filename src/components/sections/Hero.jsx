@@ -162,12 +162,12 @@ export default function Hero() {
             animation: "float-slow 11s ease-in-out infinite 2s",
           }}
         />
-        {/* Orb 3 — orange bottom-center */}
+        {/* Orb 3 — soft rose (avoids orange clash with CTAs) */}
         <motion.div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] rounded-full"
           data-depth="0.12"
           style={{
-            background: "radial-gradient(ellipse, rgba(249,115,22,0.18) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(244,114,182,0.10) 0%, transparent 70%)",
             animation: "float-slow 13s ease-in-out infinite 1s",
           }}
         />
@@ -247,13 +247,13 @@ export default function Hero() {
                   onChange={(e) => setQuickFilters((p) => ({ ...p, locality: e.target.value }))}
                   onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
                   placeholder="Search locality or project"
-                  className="h-11 rounded-xl border border-white/30 bg-white/95 px-3 text-[14px] text-stone-800 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-primary/50 transition-shadow"
+                  className="h-11 rounded-xl border border-white/30 bg-white/95 px-3 text-[14px] text-stone-800 outline-none placeholder:text-stone-400 focus:ring-2 focus:ring-white/70 transition-shadow"
                 />
                 <motion.button
                   type="button"
                   onClick={runSearch}
-                  className="h-11 rounded-xl bg-primary text-[14px] font-semibold text-white shadow-red btn-glow-pulse"
-                  whileHover={{ scale: 1.03, backgroundColor: "#D64A3F" }}
+                  className="h-11 rounded-xl bg-white/95 text-[14px] font-semibold text-stone-900 shadow-[0_8px_24px_rgba(0,0,0,0.22)] ring-1 ring-white/50"
+                  whileHover={{ scale: 1.03, backgroundColor: "#ffffff" }}
                   whileTap={{ scale: 0.97 }}
                 >
                   Search
@@ -356,7 +356,7 @@ export default function Hero() {
               <motion.button
                 type="button"
                 onClick={runSearch}
-                className="inline-flex w-full min-[400px]:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-[14px] font-semibold text-white shadow-red-lg btn-glow-pulse"
+                className="inline-flex w-full min-[400px]:w-auto items-center justify-center gap-2 rounded-full bg-white/95 px-6 py-3 text-[14px] font-semibold text-stone-900 shadow-[0_10px_32px_rgba(0,0,0,0.28)] ring-1 ring-white/55 hover:bg-white"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.97 }}
               >
