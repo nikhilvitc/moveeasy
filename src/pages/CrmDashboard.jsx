@@ -15,6 +15,7 @@ import {
   setCrmTaskCompletedData,
   updateCrmLeadData,
 } from "../lib/firestoreStore";
+import { isConsultantRole, isCrmElevatedRole, isStaffRole } from "../lib/accessControl";
 
 const STATUS_OPTIONS = ["new", "contacted", "not_visited", "visited", "follow_up", "won", "lost", "on_hold"];
 const VISIT_OPTIONS = ["not_visited", "visited"];
@@ -44,8 +45,9 @@ export default function CrmDashboard() {
   const [savingId, setSavingId] = useState(null);
   const [msg, setMsg] = useState("");
 
-  const isAdmin = user?.role === "admin";
-  const isConsultant = user?.role === "consultant";
+  const isElevated = isCrmElevatedRole(user?.role);
+  const isConsultant = isConsultantRole(user?.role);
+  const isFullAdmin = user?.role === "admin";
 
   const [newLead, setNewLead] = useState({
     customerName: "",
@@ -67,9 +69,12 @@ export default function CrmDashboard() {
       const [l, t] = await Promise.all([getCrmLeadsForStaff(user), getCrmTasksForStaff(user)]);
       setLeads(l);
       setTasks(t);
-      if (isConsultant || isAdmin) {
-        const n = isConsultant ? await getConsultantNotificationsData(user.email) : [];
-        setNotifs(n);
+      if (isConsultant) {
+        setNotifs(await getConsultantNotificationsData(user.email));
+      } else if (isElevated) {
+        setNotifs(await getAdminNotificationsData());
+      } else {
+        setNotifs([]);
       }
     } catch (e) {
       setMsg(String(e?.message || e || "Load failed"));
@@ -97,7 +102,7 @@ export default function CrmDashboard() {
 
   const createLead = async (e) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isElevated) return;
     setMsg("");
     try {
       await createCrmLeadData(newLead, user);
@@ -121,7 +126,7 @@ export default function CrmDashboard() {
 
   const addTask = async (e) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isElevated) return;
     if (!taskDraft.leadId || !taskDraft.assigneeEmail) {
       setMsg("Pick a lead and assignee email for the task.");
       return;
@@ -182,7 +187,7 @@ export default function CrmDashboard() {
     }
   };
 
-  if (!user || (!isAdmin && !isConsultant)) {
+  if (!user || !isStaffRole(user?.role)) {
     return (
       <PageShell variant="marketing" overlayOnly className="bg-slate-100">
         <div style={{ padding: 40, textAlign: "center" }}>
@@ -202,7 +207,7 @@ export default function CrmDashboard() {
           Mov<span style={{ color: "#ff3131" }}>EAZY</span> · Staff CRM
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {isAdmin ? (
+          {isFullAdmin ? (
             <button type="button" onClick={() => navigate("/admin")} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #52525b", background: "#262626", color: "#fafafa", fontWeight: 700, fontSize: 12 }}>
               Admin
             </button>
@@ -231,7 +236,7 @@ export default function CrmDashboard() {
           {[
             ["leads", `Leads (${leads.length})`],
             ["tasks", `Follow-ups (${openTasks.length} open)`],
-            ...(isConsultant || isAdmin ? [["alerts", `Alerts (${notifs.filter((n) => !n.read).length} unread)`]] : []),
+            ...(isConsultant || isElevated ? [["alerts", `Alerts (${notifs.filter((n) => !n.read).length} unread)`]] : []),
           ].map(([id, label]) => (
             <button
               key={id}
@@ -252,9 +257,9 @@ export default function CrmDashboard() {
           ))}
         </div>
 
-        {tab === "leads" && isAdmin ? (
+        {tab === "leads" && isElevated ? (
           <form onSubmit={createLead} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 20, display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-            <div style={{ gridColumn: "1 / -1", fontWeight: 800, color: "#0f172a" }}>Add lead (admin)</div>
+            <div style={{ gridColumn: "1 / -1", fontWeight: 800, color: "#0f172a" }}>Add lead (admin / sub-admin)</div>
             <input required placeholder="Customer name" value={newLead.customerName} onChange={(e) => setNewLead((p) => ({ ...p, customerName: e.target.value }))} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
             <input required type="email" placeholder="Customer email" value={newLead.customerEmail} onChange={(e) => setNewLead((p) => ({ ...p, customerEmail: e.target.value }))} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
             <input placeholder="Customer phone" value={newLead.customerPhone} onChange={(e) => setNewLead((p) => ({ ...p, customerPhone: e.target.value }))} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
@@ -297,7 +302,7 @@ export default function CrmDashboard() {
               </thead>
               <tbody>
                 {leads.map((row) => (
-                  <LeadRow key={row.id} row={row} isAdmin={isAdmin} savingId={savingId} onPatch={saveLeadPatch} />
+                  <LeadRow key={row.id} row={row} isElevated={isElevated} savingId={savingId} onPatch={saveLeadPatch} />
                 ))}
               </tbody>
             </table>
@@ -307,9 +312,9 @@ export default function CrmDashboard() {
 
         {tab === "tasks" ? (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-            {isAdmin ? (
+            {isElevated ? (
               <form onSubmit={addTask} style={{ display: "grid", gap: 10, marginBottom: 20, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
-                <div style={{ gridColumn: "1 / -1", fontWeight: 800 }}>Schedule follow-up (admin)</div>
+                <div style={{ gridColumn: "1 / -1", fontWeight: 800 }}>Schedule follow-up (admin / sub-admin)</div>
                 <select required value={taskDraft.leadId} onChange={(e) => setTaskDraft((p) => ({ ...p, leadId: e.target.value }))} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }}>
                   <option value="">Select lead…</option>
                   {leads.map((l) => (
@@ -346,7 +351,7 @@ export default function CrmDashboard() {
           </div>
         ) : null}
 
-        {tab === "alerts" && (isConsultant || isAdmin) ? (
+        {tab === "alerts" && (isConsultant || isElevated) ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {notifs.map((n) => (
               <div key={n.id} style={{ border: n.read ? "1px solid #e2e8f0" : "2px solid #2563eb", borderRadius: 12, padding: 14, background: "#fff" }}>
@@ -377,7 +382,7 @@ function toDatetimeLocalValue(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function LeadRow({ row, isAdmin, savingId, onPatch }) {
+function LeadRow({ row, isElevated, savingId, onPatch }) {
   const [visitStatus, setVisitStatus] = useState(row.visitStatus || "not_visited");
   const [status, setStatus] = useState(row.status || "new");
   const [requirements, setRequirements] = useState(row.requirements || "");
@@ -445,7 +450,7 @@ function LeadRow({ row, isAdmin, savingId, onPatch }) {
               status,
               requirements,
               consultantNotes,
-              adminNotes: isAdmin ? adminNotes : undefined,
+              adminNotes: isElevated ? adminNotes : undefined,
               listingVisitedTitle: listingTitle,
               nextFollowUpAt: nextFollowUp ? new Date(nextFollowUp) : null,
             })
@@ -468,7 +473,7 @@ function LeadRow({ row, isAdmin, savingId, onPatch }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 6 }}>Requirements &amp; notes</div>
         <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} placeholder="Customer requirements (BHK, budget, localities…)" rows={2} style={{ width: "100%", marginBottom: 8, padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }} />
         <textarea value={consultantNotes} onChange={(e) => setConsultantNotes(e.target.value)} placeholder="Consultant follow-up notes" rows={2} style={{ width: "100%", marginBottom: 8, padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }} />
-        {isAdmin ? (
+        {isElevated ? (
           <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} placeholder="Admin-only notes" rows={2} style={{ width: "100%", marginBottom: 8, padding: 8, borderRadius: 8, border: "1px solid #fecaca", fontSize: 13 }} />
         ) : null}
         <input value={listingTitle} onChange={(e) => setListingTitle(e.target.value)} placeholder="Property visited (title)" style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }} />

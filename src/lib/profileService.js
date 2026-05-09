@@ -65,7 +65,7 @@ export async function getProfileForUser(firebaseUser) {
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};
   const emailRoleRow = emailRoleSnap.exists() ? emailRoleSnap.data() : {};
   const roleCandidate = roleRow.role || emailRoleRow.role || profile.role;
-  const role = ["admin", "seller", "customer", "consultant"].includes(roleCandidate) ? roleCandidate : "customer";
+  const role = ["admin", "seller", "customer", "consultant", "sub_admin"].includes(roleCandidate) ? roleCandidate : "customer";
   const name = profile.name || firebaseUser.displayName || email.split("@")[0];
   const phone = profile.phone || firebaseUser.phoneNumber || "";
 
@@ -114,7 +114,7 @@ export async function ensureUserProfileDocuments(firebaseUser) {
 
   const profile = profileSnap.exists() ? profileSnap.data() : {};
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};
-  const roleFromDb = ["admin", "seller", "customer", "consultant"].includes(roleRow.role) ? roleRow.role : null;
+  const roleFromDb = ["admin", "seller", "customer", "consultant", "sub_admin"].includes(roleRow.role) ? roleRow.role : null;
   const role = roleFromDb || "customer";
   const name = profile.name || firebaseUser.displayName || email.split("@")[0];
   const phone = profile.phone || firebaseUser.phoneNumber || "";
@@ -186,6 +186,6 @@ export async function getProfileByEmail(email) {
   const profile = profileDoc.data();
   const roleRow = roleSnap.exists() ? roleSnap.data() : {};
   const r = roleRow.role || "customer";
-  const role = ["admin", "seller", "customer", "consultant"].includes(r) ? r : "customer";
+  const role = ["admin", "seller", "customer", "consultant", "sub_admin"].includes(r) ? r : "customer";
   return { uid: profileDoc.id, email: normalized, name: profile.name || normalized.split("@")[0], ...profile, role };
 }

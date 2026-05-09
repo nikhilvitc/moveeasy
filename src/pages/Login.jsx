@@ -72,7 +72,7 @@ export default function Login() {
       }
       const r = result.role || "customer";
       if      (r === "admin")       navigate("/admin");
-      else if (r === "consultant") navigate("/crm");
+      else if (r === "consultant" || r === "sub_admin") navigate("/crm");
       else if (r === "seller")     navigate("/seller");
       else                         navigate("/");
     } else {
@@ -118,7 +118,7 @@ export default function Login() {
       }
       const r = result.role || "customer";
       if      (r === "admin")       navigate("/admin");
-      else if (r === "consultant") navigate("/crm");
+      else if (r === "consultant" || r === "sub_admin") navigate("/crm");
       else if (r === "seller")     navigate("/seller");
       else                         navigate("/");
     } else {

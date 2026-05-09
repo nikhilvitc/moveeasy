@@ -55,7 +55,7 @@ function AppRoutes() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/support" element={<Navigate to="/contact" replace />} />
-      <Route path="/crm" element={<StaffRoute roles={["admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
+      <Route path="/crm" element={<StaffRoute roles={["admin", "sub_admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
       <Route path="/seller" element={<RoleRoute role="seller"><SellerDashboard /></RoleRoute>} />
       <Route path="/customer" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />

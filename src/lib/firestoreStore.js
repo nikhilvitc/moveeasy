@@ -1,7 +1,23 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { db, storage } from "./firebase";
 import { getProfileByEmail } from "./profileService";
+import { sanitizePublicListing } from "./accessControl";
 import listingsData from "../data/listingsData";
 
 const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
@@ -17,6 +33,7 @@ function normalizeUserRole(value) {
   if (r === "admin") return "admin";
   if (r === "seller") return "seller";
   if (r === "consultant") return "consultant";
+  if (r === "sub_admin") return "sub_admin";
   return "customer";
 }
 
@@ -63,15 +80,15 @@ export async function getListingsData(options = {}) {
 
   const q = query(col, ...constraints);
   const snap = await getDocs(q);
-  const firestoreListings = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
-  
+  const firestoreListings = snap.docs.map((listingDoc) => sanitizePublicListing({ id: listingDoc.id, ...listingDoc.data() }));
+
   if (!ENABLE_SEED_LISTINGS) return firestoreListings;
 
   // Dev/demo only: if we have few results from Firestore, supplement with sample data for the demo feel.
   const combined = [...firestoreListings];
   if (combined.length < limitCount) {
     const remaining = limitCount - combined.length;
-    combined.push(...listingsData.slice(0, remaining));
+    combined.push(...listingsData.slice(0, remaining).map((row) => sanitizePublicListing(row)));
   }
 
   return combined;
@@ -83,13 +100,13 @@ export async function getListingsData(options = {}) {
  * Rows already in Firestore (same `id`) win; others get `_seedFromStatic: true`.
  */
 export function mergeAdminListingsWithSeedData(firestoreRows) {
-  if (!ENABLE_SEED_LISTINGS) return Array.isArray(firestoreRows) ? [...firestoreRows] : [];
+  if (!ENABLE_SEED_LISTINGS) return Array.isArray(firestoreRows) ? firestoreRows.map((r) => sanitizePublicListing(r)) : [];
   const fs = Array.isArray(firestoreRows) ? [...firestoreRows] : [];
   const fsIds = new Set(fs.map((r) => String(r?.id ?? "")));
   const seeds = listingsData
     .filter((r) => r != null && !fsIds.has(String(r.id)))
-    .map((r) => ({ ...r, _seedFromStatic: true }));
-  return [...fs, ...seeds];
+    .map((r) => sanitizePublicListing({ ...r, _seedFromStatic: true }));
+  return [...fs.map((r) => sanitizePublicListing(r)), ...seeds];
 }
 
 /**
@@ -100,7 +117,7 @@ export function mergeAdminListingsWithSeedData(firestoreRows) {
 export async function getAdminListingsData(limitCount = 500) {
   const cap = Math.min(Math.max(Number(limitCount) || 500, 1), 500);
   const snap = await getDocs(query(collection(db, "listings"), limit(cap)));
-  const rows = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  const rows = snap.docs.map((listingDoc) => sanitizePublicListing({ id: listingDoc.id, ...listingDoc.data() }));
   rows.sort((a, b) => {
     const ta = a.updatedAt?.toMillis?.() ?? (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
     const tb = b.updatedAt?.toMillis?.() ?? (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
@@ -143,12 +160,21 @@ export async function upsertListingPrivateData(listingId, privateFields, actor) 
   return payload;
 }
 
+/** Broker / owner numbers (not on public listing docs). Caller must satisfy Firestore rules. */
+export async function getListingPrivateData(listingId) {
+  const id = String(listingId || "");
+  if (!id) return null;
+  const snap = await getDoc(doc(db, "listingPrivate", id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
 /** All of a seller's listings (any marketStatus). Email must match Firestore `sellerEmail` (lowercase). */
 export async function getListingsForSellerEmail(sellerEmail) {
   const em = normalizeAuthEmail(sellerEmail);
   if (!em) return [];
   const snap = await getDocs(query(collection(db, "listings"), where("sellerEmail", "==", em), limit(100)));
-  const rows = snap.docs.map((listingDoc) => ({ id: listingDoc.id, ...listingDoc.data() }));
+  const rows = snap.docs.map((listingDoc) => sanitizePublicListing({ id: listingDoc.id, ...listingDoc.data() }));
   rows.sort((a, b) => {
     const ta = a.updatedAt?.toMillis?.() ?? (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
     const tb = b.updatedAt?.toMillis?.() ?? (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
@@ -163,7 +189,8 @@ export async function upsertListingData(listing, actor) {
   const marketStatus = rawStatus === "withdrawn" || rawStatus === "archived" ? rawStatus : "published";
   const actorEmail = normalizeAuthEmail(actor?.email || listing.ownerEmail || listing.sellerEmail || "");
   const requestedSellerEmail = normalizeAuthEmail(listing.sellerEmail || actor?.email || "");
-  const isActorAdmin = String(actor?.role || "").toLowerCase() === "admin";
+  const role = String(actor?.role || "").toLowerCase();
+  const isActorAdmin = role === "admin" || role === "sub_admin";
   const sellerEmail = isActorAdmin ? (requestedSellerEmail || actorEmail) : actorEmail;
   const latN = Number(listing.lat);
   const lngN = Number(listing.lng);
@@ -181,6 +208,9 @@ export async function upsertListingData(listing, actor) {
     marketStatus,
     updatedAt: serverTimestamp(),
   });
+  // Never persist broker/owner phone on the world-readable `listings` document.
+  delete payload.contact;
+  payload.contact = deleteField();
   await setDoc(doc(db, "listings", id), payload, { merge: true });
   return { ...payload, updatedAt: new Date().toISOString() };
 }
@@ -282,7 +312,15 @@ export async function addUserProfileData(email, name, role, phone = "") {
   const normalized = String(email || "").toLowerCase().trim();
   if (!normalized) return;
   const normalizedRole =
-    role === "admin" ? "admin" : role === "seller" ? "seller" : role === "consultant" ? "consultant" : "customer";
+    role === "admin"
+      ? "admin"
+      : role === "seller"
+        ? "seller"
+        : role === "consultant"
+          ? "consultant"
+          : role === "sub_admin"
+            ? "sub_admin"
+            : "customer";
   const existing = await getProfileByEmail(normalized);
   const uid = existing?.uid || crypto.randomUUID();
   await Promise.all([
@@ -341,7 +379,9 @@ export async function updateUserProfileData(email, updates) {
           ? "seller"
           : updates.role === "consultant"
             ? "consultant"
-            : "customer";
+            : updates.role === "sub_admin"
+              ? "sub_admin"
+              : "customer";
     promises.push(setDoc(doc(db, "userRoles", existing.uid), { role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
     promises.push(setDoc(doc(db, "emailRoles", normalized), { email: normalized, role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
     profileUpdates.role = normalizedRole;
@@ -567,7 +607,7 @@ export async function getActivityEventsForEmail(email) {
 export async function getCrmLeadsForStaff(actor) {
   const em = String(actor?.email || "").toLowerCase().trim();
   const role = normalizeUserRole(actor?.role);
-  if (role === "admin") {
+  if (role === "admin" || role === "sub_admin") {
     const snap = await getDocs(query(collection(db, "crmLeads"), orderBy("updatedAt", "desc"), limit(250)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
@@ -623,7 +663,7 @@ export async function updateCrmLeadData(leadId, patch, actor) {
 export async function getCrmTasksForStaff(actor) {
   const em = String(actor?.email || "").toLowerCase().trim();
   const role = normalizeUserRole(actor?.role);
-  if (role === "admin") {
+  if (role === "admin" || role === "sub_admin") {
     const snap = await getDocs(query(collection(db, "crmTasks"), orderBy("createdAt", "desc"), limit(300)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }

@@ -35,8 +35,13 @@ service cloud.firestore {
       return isSignedIn() && (accountRole() == "consultant" || emailRole() == "consultant");
     }
 
-    function isStaff() {
-      return isAdmin() || isConsultant();
+    function isSubAdmin() {
+      return isSignedIn() && (accountRole() == "sub_admin" || emailRole() == "sub_admin");
+    }
+
+    function ownsListingForPrivate(listingId) {
+      return exists(/databases/$(database)/documents/listings/$(listingId))
+        && get(/databases/$(database)/documents/listings/$(listingId)).data.sellerEmail == authEmail();
     }
 
     // Console-only seed list: doc id must equal the user's auth email (lowercase).
@@ -69,11 +74,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Listing-private fields (never visible to customers).
-    // Store sensitive contact info here (agent/owner numbers, internal notes).
+    // Broker / owner phones — never on public `listings` docs. Staff + listing owner only.
     match /listingPrivate/{listingId} {
-      allow read, write: if isAdmin() || isSeller();
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin() || isConsultant()
+        || (isSeller() && ownsListingForPrivate(listingId));
+      allow create, update: if isAdmin() || isSubAdmin()
+        || (isSeller() && ownsListingForPrivate(listingId));
+      allow delete: if isAdmin() || isSubAdmin();
     }
 
     // Canonical role by email. This keeps role privileges stable even before/without uid-bound role docs.
@@ -159,10 +166,16 @@ service cloud.firestore {
     }
 
     match /notifications/{id} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.targetEmail == authEmail());
+      allow read: if isSignedIn()
+        && (isAdmin()
+          || (isSubAdmin() && resource.data.audience == "admin")
+          || resource.data.targetEmail == authEmail());
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (isAdmin() || resource.data.targetEmail == authEmail());
-      allow delete: if isAdmin();
+      allow update: if isSignedIn()
+        && (isAdmin()
+          || (isSubAdmin() && resource.data.audience == "admin")
+          || resource.data.targetEmail == authEmail());
+      allow delete: if isAdmin() || (isSubAdmin() && resource.data.audience == "admin");
     }
 
     match /activityEvents/{id} {
@@ -176,19 +189,19 @@ service cloud.firestore {
       allow write: if isAdmin() && docId == "public";
     }
 
-    // Staff CRM — customers/sellers have no access. Consultants only see rows assigned to them.
+    // Staff CRM — customers/sellers have no access. Sub-admins see all; consultants only assigned rows.
     match /crmLeads/{id} {
-      allow read: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow create: if isAdmin() || isSubAdmin();
+      allow update: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin() || isSubAdmin();
     }
 
     match /crmTasks/{id} {
-      allow read: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow create: if isAdmin() || isSubAdmin();
+      allow update: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin() || isSubAdmin();
     }
   }
 }

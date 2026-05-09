@@ -42,6 +42,7 @@ import {
   addAssignmentData,
   addNotificationData,
   upsertListingPrivateData,
+  getListingPrivateData,
 } from "../lib/firestoreStore";
 import { notifyCustomerInterestStatusChanged, notifyCustomerListingAssigned } from "../lib/crmSync";
 import { reportClientError } from "../lib/clientLog";
@@ -62,7 +63,6 @@ const DEFAULT_FORM = {
   address: "",
   seller: "",
   sellerEmail: "",
-  contact: "",
   agentPhonePrivate: "",
   ownerPhonePrivate: "",
   image: "",
@@ -143,7 +143,6 @@ function listingToForm(listing) {
     address: listing.address || "",
     seller: listing.seller || "",
     sellerEmail: listing.sellerEmail || "",
-    contact: listing.contact || "",
     image: listing.image || mediaUrls[0] || "",
     imagesText: mediaUrls.length ? mediaUrls.join("\n") : "",
     source: listing.source || "manual",
@@ -219,6 +218,7 @@ export default function AdminDashboard() {
   const [assignCustomerName, setAssignCustomerName] = useState("");
   const [assignCustomerPhone, setAssignCustomerPhone] = useState("");
   const [assignListingId, setAssignListingId] = useState("");
+  const [assignPhonePreview, setAssignPhonePreview] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 900 : false);
   const [sitePublicDraft, setSitePublicDraft] = useState(() => ({
@@ -331,6 +331,7 @@ export default function AdminDashboard() {
     if (r === "admin") return "admin";
     if (r === "seller") return "seller";
     if (r === "consultant") return "consultant";
+    if (r === "sub_admin") return "sub_admin";
     return "customer";
   }
 
@@ -434,8 +435,9 @@ export default function AdminDashboard() {
         const prev = Array.isArray(existing?.images) ? existing.images.filter(Boolean) : [];
         allImages = prev;
       }
+      const { contact: _legacyPublicPhone, ...formRest } = form;
       const payload = {
-        ...form,
+        ...formRest,
         id: listingId,
         title: String(form.title || "").trim() || "Untitled listing",
         price: String(form.price || "").trim() || "Rent on request",
@@ -458,7 +460,7 @@ export default function AdminDashboard() {
         await upsertListingPrivateData(
           saved.id,
           {
-            agentPhone: String(form.agentPhonePrivate || "").trim(),
+            agentPhone: String(form.agentPhonePrivate || _legacyPublicPhone || "").trim(),
             ownerPhone: String(form.ownerPhonePrivate || "").trim(),
           },
           user
@@ -492,9 +494,20 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleEdit = (listing) => {
+  const handleEdit = async (listing) => {
     setEditingId(listing._seedFromStatic ? null : listing.id);
     const nextForm = listingToForm(listing);
+    if (isFirebaseConfigured && listing.id && !listing._seedFromStatic) {
+      try {
+        const priv = await getListingPrivateData(String(listing.id));
+        if (priv) {
+          nextForm.agentPhonePrivate = String(priv.agentPhone || "").trim();
+          nextForm.ownerPhonePrivate = String(priv.ownerPhone || "").trim();
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     setForm(nextForm);
     setPinPosition([nextForm.lat, nextForm.lng]);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -570,18 +583,40 @@ export default function AdminDashboard() {
   const sellersList = useMemo(() => users.filter((u) => canonicalRole(u) === "seller"), [users]);
   const adminsList = useMemo(() => users.filter((u) => canonicalRole(u) === "admin"), [users]);
   const consultantsList = useMemo(() => users.filter((u) => canonicalRole(u) === "consultant"), [users]);
+  const subAdminsList = useMemo(() => users.filter((u) => canonicalRole(u) === "sub_admin"), [users]);
   const displayUsers = useMemo(() => {
     if (userListTab === "customer") return customersList;
     if (userListTab === "seller") return sellersList;
     if (userListTab === "admin") return adminsList;
     if (userListTab === "consultant") return consultantsList;
+    if (userListTab === "sub_admin") return subAdminsList;
     return users;
-  }, [users, userListTab, customersList, sellersList, adminsList, consultantsList]);
+  }, [users, userListTab, customersList, sellersList, adminsList, consultantsList, subAdminsList]);
 
   const assignSelectedListing = useMemo(
     () => listings.find((l) => String(l.id) === String(assignListingId)),
     [listings, assignListingId]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!assignListingId || !isFirebaseConfigured) {
+      setAssignPhonePreview("");
+      return undefined;
+    }
+    (async () => {
+      try {
+        const priv = await getListingPrivateData(String(assignListingId));
+        const line = String(priv?.agentPhone || priv?.ownerPhone || "").trim();
+        if (!cancelled) setAssignPhonePreview(line || "—");
+      } catch {
+        if (!cancelled) setAssignPhonePreview("—");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [assignListingId, isFirebaseConfigured]);
 
   const fillAssignCustomerFromDirectory = () => {
     const em = assignCustomerEmail.trim().toLowerCase();
@@ -619,7 +654,17 @@ export default function AdminDashboard() {
     const customerName = assignCustomerName.trim();
     const customerPhone = assignCustomerPhone.trim();
     const sellerName = String(listing.seller || "").trim();
-    const sellerContactPhone = String(listing.contact || "").trim();
+    let sellerContactPhone = "";
+    if (isFirebaseConfigured) {
+      try {
+        const priv = await getListingPrivateData(String(listing.id));
+        sellerContactPhone = String(priv?.agentPhone || priv?.ownerPhone || "").trim();
+      } catch {
+        sellerContactPhone = "";
+      }
+    } else {
+      sellerContactPhone = String(listing.contact || "").trim();
+    }
     const listingTitle = String(listing.title || "").trim();
     if (isFirebaseConfigured) {
       await addAssignmentData({
@@ -911,6 +956,7 @@ export default function AdminDashboard() {
                 ["Customers", customersList.length],
                 ["Sellers", sellersList.length],
                 ["Consultants", consultantsList.length],
+                ["Sub-admins", subAdminsList.length],
                 ["Admins", adminsList.length],
                 ["Listings", listings.length],
               ].map(([k, v]) => (
@@ -923,6 +969,10 @@ export default function AdminDashboard() {
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 12, lineHeight: 1.6 }}>
               <strong>Leads &amp; ops:</strong> {interestsState.length} listing interests · {assignmentsState.length} assignments ·{" "}
               {visitRequests.length} visit requests · {adminNotifs.filter((n) => !n.read).length} unread admin notifications
+            </div>
+            <div style={{ fontSize: 12, color: "#475569", marginTop: 10, lineHeight: 1.55, maxWidth: 720 }}>
+              <strong>Broker privacy:</strong> Agent and owner numbers are stored in <code style={{ fontSize: 11 }}>listingPrivate</code> only, not on public{" "}
+              <code style={{ fontSize: 11 }}>listings</code> documents, so scraping open Firestore reads cannot harvest phones. Only admins, sub-admins, consultants, and the listing owner can read private phone docs (see Firestore rules). Firebase sign-in already requires a verified email.
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, alignItems: "center" }}>
               <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f766e", color: "#fff", border: "1px solid #0d9488" }}>
@@ -1197,7 +1247,7 @@ export default function AdminDashboard() {
               <div><strong>Title:</strong> {assignSelectedListing.title || "—"}</div>
               <div><strong>Seller / broker:</strong> {assignSelectedListing.seller || "—"}</div>
               <div><strong>Seller email:</strong> {assignSelectedListing.sellerEmail || "—"}</div>
-              <div><strong>Listing phone on file:</strong> {assignSelectedListing.contact?.trim() ? assignSelectedListing.contact : "—"}</div>
+              <div><strong>Broker / owner phone (private):</strong> {assignPhonePreview || "—"}</div>
             </div>
           ) : (
             <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "12px" }}>Pick a listing below to preview seller details from the listing record.</div>
@@ -1292,6 +1342,7 @@ export default function AdminDashboard() {
                 ["all", `All (${users.length})`],
                 ["admin", `Admins (${adminsList.length})`],
                 ["consultant", `Consultants (${consultantsList.length})`],
+                ["sub_admin", `Sub-admins (${subAdminsList.length})`],
                 ["customer", `Customers (${customersList.length})`],
                 ["seller", `Sellers (${sellersList.length})`],
               ].map(([key, label]) => (
@@ -1322,6 +1373,7 @@ export default function AdminDashboard() {
               <option value="customer">Customer</option>
               <option value="seller">Seller / Broker</option>
               <option value="consultant">Consultant (CRM)</option>
+              <option value="sub_admin">Sub-admin (CRM + private phones)</option>
               <option value="admin">Admin</option>
             </select>
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>Add User</button>
@@ -1338,6 +1390,7 @@ export default function AdminDashboard() {
                       <option value="customer">Customer</option>
                       <option value="seller">Seller</option>
                       <option value="consultant">Consultant</option>
+                      <option value="sub_admin">Sub-admin</option>
                       <option value="admin">Admin</option>
                     </select>
                     <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "6px 12px" }}>Save</button>
@@ -1359,7 +1412,9 @@ export default function AdminDashboard() {
                                   ? "#f59e0b"
                                   : canonicalRole(u) === "consultant"
                                     ? "#0d9488"
-                                    : "#3b82f6",
+                                    : canonicalRole(u) === "sub_admin"
+                                      ? "#4f46e5"
+                                      : "#3b82f6",
                             padding: "2px 6px",
                             borderRadius: "4px",
                             marginLeft: "6px",
@@ -1386,7 +1441,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller" || canonicalRole(u) === "consultant") && !String(u.uid || "").startsWith("reserved") ? (
+                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller" || canonicalRole(u) === "consultant" || canonicalRole(u) === "sub_admin") && !String(u.uid || "").startsWith("reserved") ? (
                         <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#ecfdf5", color: "#166534", fontSize: "12px", padding: "6px 12px" }}>
                           History
                         </button>
@@ -1448,9 +1503,11 @@ export default function AdminDashboard() {
             <input placeholder="Address (optional)" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
             <input placeholder="Seller name (optional)" value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
             <input type="text" placeholder="Seller email (optional)" value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
-            <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
-            <input placeholder="Agent number (private)" value={form.agentPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, agentPhonePrivate: e.target.value }))} />
-            <input placeholder="Owner number (private)" value={form.ownerPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, ownerPhonePrivate: e.target.value }))} />
+            <div style={{ gridColumn: isMobile ? "auto" : "span 2", fontSize: 12, color: "#64748b", lineHeight: 1.45, padding: "6px 0" }}>
+              Broker and owner numbers are stored only in <strong>private</strong> fields — they are not written to the public listing document, so they cannot be scraped from Firestore by unauthenticated clients.
+            </div>
+            <input placeholder="Agent / broker number (private)" value={form.agentPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, agentPhonePrivate: e.target.value }))} />
+            <input placeholder="Owner / landlord number (private)" value={form.ownerPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, ownerPhonePrivate: e.target.value }))} />
             <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />
@@ -1561,7 +1618,7 @@ export default function AdminDashboard() {
                   ) : null}
                 </div>
                 <div style={{ fontSize: "12px", color: "#64748b" }}>
-                  {l.bhk} | {l.address} | {l.seller} | {l.contact} | {l.source}
+                  {l.bhk} | {l.address} | {l.seller} | {String(l.contact || "").trim() ? "legacy phone" : "private"} | {l.source}
                   {l.marketStatus && l.marketStatus !== "published" ? (
                     <span style={{ marginLeft: 8, fontWeight: 700, color: "#b45309" }}>· {l.marketStatus}</span>
                   ) : null}

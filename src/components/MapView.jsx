@@ -1109,25 +1109,30 @@ export default function MapView() {
                       </div>
                     ) : null}
                     <div style={{ fontWeight: 800, color: "#15803d", fontSize: "18px", margin: "10px 0 6px" }}>{l.price}</div>
-                    <div style={{ fontSize: "13px", color: "#3f3f46", lineHeight: 1.5, paddingBottom: "4px" }}>{l.seller} | {l.contact}</div>
+                    <div style={{ fontSize: "13px", color: "#3f3f46", lineHeight: 1.5, paddingBottom: "4px" }}>
+                      {l.seller}
+                      {String(l.contact || "").trim() ? ` | ${l.contact}` : " · Broker phone not published on the map"}
+                    </div>
                     <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
-                      <a
-                        href={"tel:" + l.contact}
-                        style={{
-                          flex: 1,
-                          padding: "10px 12px",
-                          background: "#18181b",
-                          color: "#fafafa",
-                          borderRadius: "10px",
-                          textAlign: "center",
-                          textDecoration: "none",
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          border: "1px solid #27272a",
-                        }}
-                      >
-                        Call
-                      </a>
+                      {String(l.contact || "").trim() ? (
+                        <a
+                          href={"tel:" + String(l.contact).replace(/\s/g, "")}
+                          style={{
+                            flex: 1,
+                            padding: "10px 12px",
+                            background: "#18181b",
+                            color: "#fafafa",
+                            borderRadius: "10px",
+                            textAlign: "center",
+                            textDecoration: "none",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            border: "1px solid #27272a",
+                          }}
+                        >
+                          Call
+                        </a>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => setViewingProperty(l)}
@@ -1928,7 +1933,10 @@ export default function MapView() {
                   {workplaceAnchor ? "workplace" : "pin"}
                 </div>
               ) : null}
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginTop: "6px" }}>{l.seller} | {l.contact}</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginTop: "6px" }}>
+                {l.seller}
+                {String(l.contact || "").trim() ? ` | ${l.contact}` : " · Phone not on public map"}
+              </div>
               <button
                 type="button"
                 onClick={(e) => {

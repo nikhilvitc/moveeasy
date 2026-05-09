@@ -17,6 +17,7 @@ import {
   isListingPubliclyVisible,
   updateInterestSellerNotesData,
   upsertListingPrivateData,
+  getListingPrivateData,
 } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 import { reportClientError } from "../lib/clientLog";
@@ -44,7 +45,7 @@ export default function SellerDashboard() {
   const [listings, setListings] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const emptyForm = () => ({
-    title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
+    title: "", price: "", type: "Rent", bhk: "2BHK", address: "", imagesText: "",
     agentPhonePrivate: "", ownerPhonePrivate: "",
     securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
     floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
@@ -239,8 +240,9 @@ export default function SellerDashboard() {
         .split(",")
         .map((x) => x.trim())
         .filter(Boolean);
+      const { contact: _omitContact, ...formRest } = form;
       const newItem = {
-        ...form,
+        ...formRest,
         id,
         title: String(form.title || "").trim() || "Untitled listing",
         price: String(form.price || "").trim() || "Rent on request",
@@ -254,7 +256,6 @@ export default function SellerDashboard() {
         totalListings: 0,
         areas: form.address,
         company: user?.name,
-        contact: form.contact || "N/A",
         monthlyRent: Number(String(form.price).replace(/[^\d]/g, "")) || Number(form.monthlyRent) || 0,
         availability: form.availability || "Immediate",
         propertyType: form.propertyType || "Apartment",
@@ -282,7 +283,7 @@ export default function SellerDashboard() {
         await upsertListingPrivateData(
           saved.id,
           {
-            agentPhone: String(form.agentPhonePrivate || "").trim(),
+            agentPhone: String(form.agentPhonePrivate || _omitContact || "").trim(),
             ownerPhone: String(form.ownerPhonePrivate || "").trim(),
           },
           user
@@ -326,7 +327,7 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleEdit = (listing) => {
+  const handleEdit = async (listing) => {
     const normalizeUrlList = (value) => {
       const raw = [];
       if (Array.isArray(value)) raw.push(...value);
@@ -351,7 +352,7 @@ export default function SellerDashboard() {
     };
 
     const mediaUrls = pickListingMediaUrls(listing);
-    setForm({
+    const baseForm = {
       ...emptyForm(),
       ...listing,
       imagesText: mediaUrls.length ? mediaUrls.join("\n") : (listing.imagesText || ""),
@@ -365,7 +366,19 @@ export default function SellerDashboard() {
       availability: listing.availability || "Immediate",
       sourceUrl: listing.sourceUrl || "",
       areaUnit: listing.areaUnit || "sq ft",
-    });
+    };
+    if (isFirebaseConfigured && listing.id) {
+      try {
+        const priv = await getListingPrivateData(String(listing.id));
+        if (priv) {
+          baseForm.agentPhonePrivate = String(priv.agentPhone || "").trim();
+          baseForm.ownerPhonePrivate = String(priv.ownerPhone || "").trim();
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    setForm(baseForm);
     setPinPosition([listing.lat, listing.lng]);
     setShowAdd(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -674,8 +687,7 @@ export default function SellerDashboard() {
               <input placeholder="Available from (e.g. Immediate, After 30 days)" value={form.availability || ""} onChange={(e) => setForm({ ...form, availability: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Preferred tenants (comma: Family, Bachelors...)" value={form.preferredTenantsText || ""} onChange={(e) => setForm({ ...form, preferredTenantsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Parking (comma: 2 Wheeler, 4 Wheeler)" value={form.parkingText || ""} onChange={(e) => setForm({ ...form, parkingText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
-              <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
-              <input placeholder="Agent number (private)" value={form.agentPhonePrivate || ""} onChange={(e) => setForm({ ...form, agentPhonePrivate: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Your / agent number (private — not on public map)" value={form.agentPhonePrivate || ""} onChange={(e) => setForm({ ...form, agentPhonePrivate: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Owner number (private)" value={form.ownerPhonePrivate || ""} onChange={(e) => setForm({ ...form, ownerPhonePrivate: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Brokerage (optional)" value={form.brokerage || ""} onChange={(e) => setForm({ ...form, brokerage: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Security deposit (optional)" value={form.securityDeposit || ""} onChange={(e) => setForm({ ...form, securityDeposit: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />

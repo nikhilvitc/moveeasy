@@ -104,7 +104,7 @@ function normalizeListing(listing) {
     type: listing.type ?? "Rent",
     bhk: normalizeBhk(listing.bhk ?? "1 BHK"),
     address: listing.address ?? listing.location ?? "Bengaluru",
-    contact: listing.contact ?? "",
+    contact: "",
     seller: listing.seller ?? "Unknown broker",
     sellerEmail: listing.sellerEmail ?? "",
     company: listing.company ?? "",

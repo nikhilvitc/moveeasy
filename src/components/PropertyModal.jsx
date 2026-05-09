@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
-import { addVisitRequestData, isListingPubliclyVisible } from "../lib/firestoreStore";
+import { addVisitRequestData, getListingPrivateData, isListingPubliclyVisible } from "../lib/firestoreStore";
+import { canReadListingPrivatePhones } from "../lib/accessControl";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
 import { findNearbyListings } from "../lib/geo";
@@ -58,6 +59,28 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   const [shareText, setShareText] = useState("↗ Share");
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [resolvedBrokerPhone, setResolvedBrokerPhone] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = property?.id;
+    if (!id || !isFirebaseConfigured || !user || !canReadListingPrivatePhones(user, property)) {
+      setResolvedBrokerPhone("");
+      return undefined;
+    }
+    (async () => {
+      try {
+        const priv = await getListingPrivateData(String(id));
+        const line = String(priv?.agentPhone || priv?.ownerPhone || "").trim();
+        if (!cancelled) setResolvedBrokerPhone(line);
+      } catch {
+        if (!cancelled) setResolvedBrokerPhone("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [property?.id, property, user]);
 
   const handleShare = () => {
     const origin = window.location.origin;
@@ -111,6 +134,9 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   }, [property?.id, property?.lat, property?.lng, listings]);
 
   if (!property) return null;
+
+  const brokerCallLine = String(resolvedBrokerPhone || property.contact || "").trim();
+  const showBrokerDirectLine = Boolean(brokerCallLine && user && canReadListingPrivatePhones(user, property));
 
   const offMarket = !isListingPubliclyVisible(property);
 
@@ -685,8 +711,12 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                       <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.seller || property.company || "Owner"}</div>
                     </div>
                     <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px" }}>
-                      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Contact</div>
-                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{property.contact || "N/A"}</div>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Broker contact</div>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                        {showBrokerDirectLine
+                          ? brokerCallLine
+                          : "Not published on the public map — request a visit or apply and MovEazy coordinates with the broker."}
+                      </div>
                     </div>
                     <div style={{ background: "#f1f5f9", padding: "12px", borderRadius: "8px" }}>
                       <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>Source</div>
@@ -861,12 +891,68 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                       <button type="button" disabled={offMarket} onClick={() => !offMarket && setShowVisitForm(true)} style={{ width: "100%", padding: "14px", background: offMarket ? "#f1f5f9" : "white", color: offMarket ? "#94a3b8" : "#ff3131", border: offMarket ? "1px solid #e2e8f0" : "1px solid #ff3131", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: offMarket ? "not-allowed" : "pointer", transition: "all 0.2s" }}>
                         Check availability
                       </button>
-                      <a href={`tel:${property.contact}`} style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#f8fafc", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
-                        Call Seller: {property.contact}
-                      </a>
-                      <a href={`https://wa.me/${String(property.contact || "").replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", width: "100%", padding: "14px", background: "#ecfdf3", color: "#166534", border: "1px solid #86efac", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", textDecoration: "none", boxSizing: "border-box" }}>
-                        WhatsApp Seller
-                      </a>
+                      {showBrokerDirectLine && brokerCallLine ? (
+                        <>
+                          <a
+                            href={`tel:${brokerCallLine.replace(/\s/g, "")}`}
+                            style={{
+                              display: "block",
+                              textAlign: "center",
+                              width: "100%",
+                              padding: "14px",
+                              background: "#f8fafc",
+                              color: "#0f172a",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "8px",
+                              fontSize: "15px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              textDecoration: "none",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            Call broker: {brokerCallLine}
+                          </a>
+                          <a
+                            href={`https://wa.me/${String(brokerCallLine).replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: "block",
+                              textAlign: "center",
+                              width: "100%",
+                              padding: "14px",
+                              background: "#ecfdf3",
+                              color: "#166534",
+                              border: "1px solid #86efac",
+                              borderRadius: "8px",
+                              fontSize: "15px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              textDecoration: "none",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            WhatsApp broker
+                          </a>
+                        </>
+                      ) : (
+                        <div
+                          style={{
+                            padding: "14px",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#475569",
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            textAlign: "center",
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          Broker numbers are protected. Use <strong>Request a tour</strong> or <strong>Apply</strong> — our team connects you after verification.
+                        </div>
+                      )}
                     </div>
                   )}
 

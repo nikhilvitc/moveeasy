@@ -103,7 +103,7 @@ export default function Navbar() {
                   Seller
                 </motion.button>
               )}
-              {(user.role === "admin" || user.role === "consultant") && (
+              {(user.role === "admin" || user.role === "sub_admin" || user.role === "consultant") && (
                 <motion.button type="button" onClick={() => closeAndGo("/crm")} className={navBtn} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   CRM
                 </motion.button>
@@ -194,7 +194,7 @@ export default function Navbar() {
                   Seller dashboard
                 </button>
               )}
-              {(user?.role === "admin" || user?.role === "consultant") && (
+              {(user?.role === "admin" || user?.role === "sub_admin" || user?.role === "consultant") && (
                 <button type="button" onClick={() => closeAndGo("/crm")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
                   Staff CRM
                 </button>
