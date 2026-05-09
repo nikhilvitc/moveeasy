@@ -17,7 +17,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
-    "e2e:demo-google": "node e2e/examples/google-search-demo.mjs"
+    "e2e:demo-google": "node e2e/examples/google-search-demo.mjs",
+    "scrape:keysplease": "node scripts/scrape-housing-profile.mjs --urls-file scripts/data/keysplease-housing-urls.txt --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

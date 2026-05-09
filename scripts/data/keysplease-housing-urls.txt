@@ -1,0 +1,14 @@
+# KeysPlease Ventures — Housing.com rent listing URLs (one per line).
+# Paste the remaining URLs from your verification report below the sample lines.
+# Lines starting with # are ignored.
+
+https://housing.com/rent/19954569-3700-sqft-4-bhk-villa-on-rent-in-kartik-nagar-bengaluru
+https://housing.com/rent/19537234-4200-sqft-4-bhk-apartment-on-rent-in-c-v-raman-nagar-bengaluru
+https://housing.com/rent/18659260-2200-sqft-3-bhk-apartment-on-rent-in-cooke-town-bengaluru
+https://housing.com/rent/19391460-2200-sqft-3-bhk-apartment-on-rent-in-cooke-town-bengaluru
+https://housing.com/rent/19636443-1800-sqft-3-bhk-independent-house-on-rent-in-ulsoor-bengaluru
+https://housing.com/rent/19885660-1750-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/19693867-4137-sqft-4-bhk-apartment-on-rent-in-frazer-town-bengaluru
+https://housing.com/rent/19391542-1800-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/19693448-1790-sqft-3-bhk-apartment-on-rent-in-ulsoor-bengaluru
+https://housing.com/rent/19496260-2200-sqft-3-bhk-apartment-on-rent-in-indira-nagar-bengaluru

@@ -198,6 +198,15 @@ async function scrapeListingDetail(context, url, brokerName) {
   };
 }
 
+async function readUrlsFromFile(filePath) {
+  const raw = await fs.readFile(path.resolve(process.cwd(), filePath), "utf8");
+  return raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"))
+    .filter((l) => /^https?:\/\//i.test(l));
+}
+
 async function collectListingUrlsFromProfile(page, profileUrl) {
   await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
 
@@ -230,16 +239,18 @@ async function collectListingUrlsFromProfile(page, profileUrl) {
 
 async function main() {
   const profileUrl = getArg("--profile") || process.env.HOUSING_PROFILE_URL;
+  const urlsFile = getArg("--urls-file") || process.env.HOUSING_URLS_FILE;
   const brokerName = getArg("--broker") || "KeysPlease Ventures";
   const outFile = getArg("--out") || "KeysPlease_All_Listings.json";
   const limit = Number(getArg("--limit") || process.env.LISTING_LIMIT || 0) || 0;
 
-  if (!profileUrl) {
+  if (!profileUrl && !urlsFile) {
     // eslint-disable-next-line no-console
     console.error(
-      "Missing --profile.\n" +
-        "Example:\n" +
-        "  node scripts/scrape-housing-profile.mjs --profile \"https://housing.com/...\" --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json\n"
+      "Provide either --profile (Housing broker/profile page) or --urls-file (one listing URL per line).\n" +
+        "Examples:\n" +
+        "  node scripts/scrape-housing-profile.mjs --profile \"https://housing.com/...\" --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json\n" +
+        "  node scripts/scrape-housing-profile.mjs --urls-file scripts/data/keysplease-housing-urls.txt --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json\n"
     );
     process.exit(2);
   }
@@ -251,12 +262,25 @@ async function main() {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   });
 
-  const page = await context.newPage();
-  const listingUrls = await collectListingUrlsFromProfile(page, profileUrl);
+  let listingUrls;
+  if (urlsFile) {
+    listingUrls = await readUrlsFromFile(urlsFile);
+    if (listingUrls.length === 0) {
+      // eslint-disable-next-line no-console
+      console.error(`No URLs found in ${urlsFile} (non-empty lines starting with http/https).`);
+      process.exit(2);
+    }
+  } else {
+    const page = await context.newPage();
+    listingUrls = await collectListingUrlsFromProfile(page, profileUrl);
+    await page.close().catch(() => {});
+  }
+
   const urls = limit > 0 ? listingUrls.slice(0, limit) : listingUrls;
 
+  const sourceLabel = urlsFile ? `file ${urlsFile}` : "profile page";
   // eslint-disable-next-line no-console
-  console.log(`Found ${listingUrls.length} candidate listing URLs on profile. Scraping ${urls.length}...`);
+  console.log(`Found ${listingUrls.length} listing URLs from ${sourceLabel}. Scraping ${urls.length}...`);
 
   const rows = [];
   for (let i = 0; i < urls.length; i += 1) {
