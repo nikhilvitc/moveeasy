@@ -1,0 +1,16 @@
+# Pin @playwright/test to the same major as this image so browser bundles match.
+FROM mcr.microsoft.com/playwright:v1.49.0-jammy
+
+WORKDIR /usr/src/app
+
+# scrape-housing-profile.mjs imports `@playwright/test` (same as repo devDependency).
+RUN npm install @playwright/test@1.49.0 firebase-admin@^12.0.0
+
+COPY scripts/ ./scripts/
+
+# Set environment variables for Playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV HEADED=0
+
+# Start the worker
+CMD [ "node", "scripts/worker.mjs" ]

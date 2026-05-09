@@ -203,5 +203,9 @@ service cloud.firestore {
       allow update: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
       allow delete: if isAdmin() || isSubAdmin();
     }
+
+    match /importJobs/{jobId} {
+      allow read, write: if isAdmin() || isSubAdmin();
+    }
   }
 }

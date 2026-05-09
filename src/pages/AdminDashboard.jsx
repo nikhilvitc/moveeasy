@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../components/layout/PageShell";
+import MovEAZYLogo from "../components/branding/MovEAZYLogo";
 import {
   getAllUsers,
   getListings,
@@ -21,7 +22,9 @@ import {
   pushNotificationLocal,
 } from "../lib/store";
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
-import { isFirebaseConfigured } from "../lib/firebase";
+import { isFirebaseConfigured, db, functions } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { doc, onSnapshot } from "firebase/firestore";
 import {
   addUserProfileData,
   getAllUsersData,
@@ -194,6 +197,9 @@ export default function AdminDashboard() {
   const [feedJson, setFeedJson] = useState("");
   const [importBrokerName, setImportBrokerName] = useState("");
   const [importSourceName, setImportSourceName] = useState("manual-transfer");
+  const [cloudImportProfileUrl, setCloudImportProfileUrl] = useState("");
+  const [cloudImportJobId, setCloudImportJobId] = useState(null);
+  const [cloudImportJobStatus, setCloudImportJobStatus] = useState(null);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("customer");
   const [newUserName, setNewUserName] = useState("");
@@ -319,6 +325,39 @@ export default function AdminDashboard() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    if (!cloudImportJobId || !isFirebaseConfigured) return;
+    const unsub = onSnapshot(doc(db, "importJobs", cloudImportJobId), (snap) => {
+      if (snap.exists()) {
+        setCloudImportJobStatus(snap.data());
+      }
+    });
+    return () => unsub();
+  }, [cloudImportJobId]);
+
+  const handleCloudImport = async (dryRun = false) => {
+    if (!importBrokerName.trim() || !cloudImportProfileUrl.trim()) {
+      alert("Enter broker name and profile URL");
+      return;
+    }
+    setCloudImportJobId(null);
+    setCloudImportJobStatus({ status: "initializing", message: "Calling Cloud Function..." });
+    try {
+      const trigger = httpsCallable(functions, "triggerBrokerImport");
+      const res = await trigger({ 
+        brokerName: importBrokerName.trim(), 
+        profileUrl: cloudImportProfileUrl.trim(),
+        dryRun
+      });
+      if (res.data.ok && res.data.jobId) {
+        setCloudImportJobId(res.data.jobId);
+        setRefreshTick((v) => v + 1);
+      }
+    } catch (e) {
+      setCloudImportJobStatus({ status: "failed", error: e.message || String(e) });
+    }
+  };
 
   const listings = listingsState;
   const users = usersState;
@@ -818,20 +857,11 @@ export default function AdminDashboard() {
     <PageShell variant="marketing" overlayOnly className="bg-slate-100">
       <div style={{ background: "#000000", color: "white", padding: isMobile ? "12px 14px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div 
+          <div
             onClick={() => navigate("/")}
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
           >
-            <img 
-              src="/logo-moveazy-bar.png" 
-              alt="Moveazy" 
-              style={{ height: isMobile ? "24px" : "32px", width: "auto" }} 
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextSibling.style.display = 'block';
-              }}
-            />
-            <span style={{ display: "none", color: "#fff", fontWeight: 800, fontSize: "18px" }}>Admin Dashboard</span>
+            <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "lg"} />
           </div>
           {!isMobile && (
             <div style={{ borderLeft: "1px solid #3f3f46", paddingLeft: "16px" }}>
@@ -1571,35 +1601,73 @@ export default function AdminDashboard() {
 
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "10px" }}>Broker Bulk Import</div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-            <input placeholder="Broker name" value={importBrokerName} onChange={(e) => setImportBrokerName(e.target.value)} />
-            <input placeholder="Source name" value={importSourceName} onChange={(e) => setImportSourceName(e.target.value)} />
+          
+          <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "16px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Cloud Automated Import (Housing.com Profile)</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+              <input placeholder="Broker name" value={importBrokerName} onChange={(e) => setImportBrokerName(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+              <input placeholder="Housing.com Profile URL" value={cloudImportProfileUrl} onChange={(e) => setCloudImportProfileUrl(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+            </div>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={() => handleCloudImport(false)}
+                disabled={!!cloudImportJobId || cloudImportJobStatus?.status === "initializing"}
+                style={{ ...btn, background: "#7c3aed", color: "white" }}
+              >
+                Run Cloud Import
+              </button>
+              <button
+                onClick={() => handleCloudImport(true)}
+                disabled={!!cloudImportJobId || cloudImportJobStatus?.status === "initializing"}
+                style={{ ...btn, background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" }}
+              >
+                Dry Run (Test)
+              </button>
+            </div>
+            
+            {cloudImportJobStatus && (
+              <div style={{ marginTop: "12px", padding: "10px", background: "#fff", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px" }}>
+                <div style={{ fontWeight: 600, color: cloudImportJobStatus.status === "failed" ? "#dc2626" : cloudImportJobStatus.status === "succeeded" ? "#16a34a" : "#0f172a" }}>
+                  Status: {cloudImportJobStatus.status.toUpperCase()}
+                </div>
+                <div style={{ color: "#475569", marginTop: "4px" }}>{cloudImportJobStatus.message}</div>
+                {cloudImportJobStatus.error && <div style={{ color: "#dc2626", marginTop: "4px", fontSize: "12px", fontFamily: "monospace", overflowX: "auto" }}>{cloudImportJobStatus.error}</div>}
+                {cloudImportJobStatus.status === "succeeded" && <div style={{ fontWeight: 600, color: "#16a34a", marginTop: "4px" }}>Listings processed: {cloudImportJobStatus.listingCount}</div>}
+                {(cloudImportJobStatus.status === "succeeded" || cloudImportJobStatus.status === "failed") && (
+                  <button onClick={() => { setCloudImportJobId(null); setCloudImportJobStatus(null); setCloudImportProfileUrl(""); }} style={{ ...btn, marginTop: "8px", background: "#e2e8f0", color: "#334155", fontSize: "11px", padding: "4px 8px" }}>Clear</button>
+                )}
+              </div>
+            )}
           </div>
-          <div style={{ marginBottom: "8px" }}>
-            <label style={{ fontSize: "12px", fontWeight: 600, display: "block", marginBottom: "4px" }}>Or Upload File (CSV, JSON, TSV)</label>
-            <input 
-              type="file" 
-              accept=".csv, .json, .txt, .tsv"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (evt) => setFeedJson(evt.target.result);
-                reader.readAsText(file);
-              }}
-              style={{ padding: "4px", border: "1px solid #e2e8f0", borderRadius: "6px", width: "100%", fontSize: "12px" }}
+
+          <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Legacy JSON/CSV Import</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+              <input placeholder="Source name (e.g. manual)" value={importSourceName} onChange={(e) => setImportSourceName(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "8px" }} />
+              <input 
+                type="file" 
+                accept=".csv, .json, .txt, .tsv"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (evt) => setFeedJson(evt.target.result);
+                  reader.readAsText(file);
+                }}
+                style={{ padding: "4px", border: "1px solid #e2e8f0", borderRadius: "6px", width: "100%", fontSize: "12px" }}
+              />
+            </div>
+            <textarea
+              value={feedJson}
+              onChange={(e) => setFeedJson(e.target.value)}
+              rows={4}
+              style={{ width: "100%", padding: "8px", border: "1px solid #cbd5e1", borderRadius: "8px", marginBottom: "8px" }}
+              placeholder={'JSON example: [{"title":"2 BHK in HSR","brokerName":"Rahul Estates","monthlyRent":28000,"lat":12.91,"lng":77.63}]'}
             />
-          </div>
-          <textarea
-            value={feedJson}
-            onChange={(e) => setFeedJson(e.target.value)}
-            rows={6}
-            style={{ width: "100%", marginBottom: "8px" }}
-            placeholder={'JSON example: [{"title":"2 BHK in HSR","brokerName":"Rahul Estates","monthlyRent":28000,"lat":12.91,"lng":77.63}]\nCSV example header: title,brokerName,monthlyRent,lat,lng,address'}
-          />
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button onClick={handleBrokerImport} style={{ ...btn, background: "#7c3aed", color: "white" }}>Import by Broker Name</button>
-            <button onClick={handleFeedImport} style={{ ...btn, background: "#475569", color: "white" }}>Generic Import (legacy)</button>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button onClick={handleBrokerImport} style={{ ...btn, background: "#0ea5e9", color: "white" }}>Parse Raw JSON with Broker Name</button>
+              <button onClick={handleFeedImport} style={{ ...btn, background: "#475569", color: "white" }}>Generic Import (partner feed)</button>
+            </div>
           </div>
         </div>
 

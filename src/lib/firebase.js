@@ -44,4 +44,7 @@ if (typeof window !== "undefined" && isFirebaseConfigured) {
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+import { getFunctions } from "firebase/functions";
+/** Match Cloud Functions region for `triggerBrokerImport` (v2 default deploy region). */
+export const functions = getFunctions(app, "us-central1");
 export default app;

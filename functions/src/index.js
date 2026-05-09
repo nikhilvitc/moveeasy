@@ -77,3 +77,112 @@ export const sendWelcomeEmail = onRequest(
     res.status(200).json({ ok: true, sent: true });
   },
 );
+
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { getFirestore } from "firebase-admin/firestore";
+import { getApp } from "firebase-admin/app";
+
+const PROJECT_ID = process.env.GCLOUD_PROJECT;
+const LOCATION = "us-central1"; // Adjust if necessary
+const JOB_NAME = "broker-import-job";
+
+export const triggerBrokerImport = onCall({ cors: true, region: "us-central1" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in.");
+  }
+  
+  const { brokerName, profileUrl, dryRun } = request.data;
+  if (!brokerName || !profileUrl) {
+    throw new HttpsError("invalid-argument", "brokerName and profileUrl are required.");
+  }
+
+  const db = getFirestore();
+  const authUid = request.auth.uid;
+  const authEmail = String(request.auth.token.email || "").toLowerCase();
+  
+  const roleSnap = await db.collection("userRoles").doc(authUid).get();
+  const accountRole = roleSnap.exists ? roleSnap.data().role : "customer";
+  
+  const emailSnap = await db.collection("emailRoles").doc(authEmail).get();
+  const emailRole = emailSnap.exists ? emailSnap.data().role : "customer";
+  
+  const isDefaultAdmin = authEmail === "jiyanshudhaka20@gmail.com";
+  
+  const isAdmin = accountRole === "admin" || emailRole === "admin" || isDefaultAdmin;
+  const isSubAdmin = accountRole === "sub_admin" || emailRole === "sub_admin";
+
+  if (!isAdmin && !isSubAdmin) {
+    throw new HttpsError("permission-denied", "Only admins or sub-admins can trigger imports.");
+  }
+
+  const jobId = `job-${Date.now()}`;
+  const jobDoc = db.collection("importJobs").doc(jobId);
+
+  await jobDoc.set({
+    jobId,
+    brokerName,
+    sourceUrl: profileUrl,
+    status: "queued",
+    message: "Job queued, waiting for worker...",
+    error: null,
+    listingCount: 0,
+    dryRun: Boolean(dryRun),
+    startedByEmail: request.auth.token.email,
+    startedAt: new Date().toISOString(),
+    finishedAt: null
+  });
+
+  try {
+    // Get access token for the Cloud Run Jobs API
+    const credential = getApp().options.credential;
+    let token = "";
+    if (credential && credential.getAccessToken) {
+      const tokenObj = await credential.getAccessToken();
+      token = tokenObj.access_token;
+    } else {
+      // Fallback for some default credentials setups
+      const { GoogleAuth } = await import("google-auth-library");
+      const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+      const client = await auth.getClient();
+      const accessToken = await client.getAccessToken();
+      token = accessToken.token;
+    }
+
+    const apiUrl = `https://${LOCATION}-run.googleapis.com/v2/projects/${PROJECT_ID}/locations/${LOCATION}/jobs/${JOB_NAME}:run`;
+    
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        overrides: {
+          containerOverrides: [
+            {
+              env: [
+                { name: "JOB_ID", value: jobId },
+                { name: "BROKER_NAME", value: brokerName },
+                { name: "PROFILE_URL", value: profileUrl },
+                { name: "DRY_RUN", value: dryRun ? "true" : "false" }
+              ]
+            }
+          ]
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Cloud Run Job trigger failed:", errText);
+      await jobDoc.update({ status: "failed", message: "Failed to trigger worker", error: errText, finishedAt: new Date().toISOString() });
+      throw new HttpsError("internal", "Failed to trigger Cloud Run job.");
+    }
+    
+    return { ok: true, jobId };
+  } catch (error) {
+    console.error("Error triggering job:", error);
+    await jobDoc.update({ status: "failed", message: "Error in trigger", error: error.message, finishedAt: new Date().toISOString() });
+    throw new HttpsError("internal", "Failed to trigger Cloud Run job.");
+  }
+});
