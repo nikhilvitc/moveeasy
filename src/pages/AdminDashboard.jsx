@@ -41,6 +41,7 @@ import {
   getActivityEventsForEmail,
   addAssignmentData,
   addNotificationData,
+  upsertListingPrivateData,
 } from "../lib/firestoreStore";
 import { notifyCustomerInterestStatusChanged, notifyCustomerListingAssigned } from "../lib/crmSync";
 import { reportClientError } from "../lib/clientLog";
@@ -62,6 +63,8 @@ const DEFAULT_FORM = {
   seller: "",
   sellerEmail: "",
   contact: "",
+  agentPhonePrivate: "",
+  ownerPhonePrivate: "",
   image: "",
   imagesText: "",
   source: "manual",
@@ -440,6 +443,16 @@ export default function AdminDashboard() {
         updatedAt: new Date().toISOString(),
       };
       const saved = isFirebaseConfigured ? await upsertListingData(payload, user) : upsertListing(payload);
+      if (isFirebaseConfigured) {
+        await upsertListingPrivateData(
+          saved.id,
+          {
+            agentPhone: String(form.agentPhonePrivate || "").trim(),
+            ownerPhone: String(form.ownerPhonePrivate || "").trim(),
+          },
+          user
+        );
+      }
       setListingsState((prev) => {
         const withoutOld = prev.filter((l) => String(l.id) !== String(saved.id));
         return [saved, ...withoutOld];
@@ -1385,6 +1398,8 @@ export default function AdminDashboard() {
             <input placeholder="Seller name (optional)" value={form.seller} onChange={(e) => setForm((p) => ({ ...p, seller: e.target.value }))} />
             <input type="text" placeholder="Seller email (optional)" value={form.sellerEmail} onChange={(e) => setForm((p) => ({ ...p, sellerEmail: e.target.value }))} />
             <input placeholder="Contact phone" value={form.contact} onChange={(e) => setForm((p) => ({ ...p, contact: e.target.value }))} />
+            <input placeholder="Agent number (private)" value={form.agentPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, agentPhonePrivate: e.target.value }))} />
+            <input placeholder="Owner number (private)" value={form.ownerPhonePrivate} onChange={(e) => setForm((p) => ({ ...p, ownerPhonePrivate: e.target.value }))} />
             <input placeholder="Main photo URL" value={form.image} onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))} />
             <input placeholder="Source / portal" value={form.source} onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))} />
             <input placeholder="Source URL" value={form.sourceUrl} onChange={(e) => setForm((p) => ({ ...p, sourceUrl: e.target.value }))} />

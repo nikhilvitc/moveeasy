@@ -16,6 +16,7 @@ import {
   markNotificationReadData,
   isListingPubliclyVisible,
   updateInterestSellerNotesData,
+  upsertListingPrivateData,
 } from "../lib/firestoreStore";
 import { getProfileByEmail } from "../lib/profileService";
 import { reportClientError } from "../lib/clientLog";
@@ -44,6 +45,7 @@ export default function SellerDashboard() {
   const [showAdd, setShowAdd] = useState(false);
   const emptyForm = () => ({
     title: "", price: "", type: "Rent", bhk: "2BHK", address: "", contact: "", imagesText: "",
+    agentPhonePrivate: "", ownerPhonePrivate: "",
     securityDeposit: "", maintenanceCost: "", brokerage: "", builtUpArea: "", bathrooms: "", balcony: "",
     floorNumber: "", totalFloors: "", leaseType: "", ageOfProperty: "", parkingInfo: "", gasPipeline: "",
     gatedCommunity: "", furnishingsText: "", amenitiesText: "",
@@ -276,6 +278,16 @@ export default function SellerDashboard() {
         image: finalImages[0] || "",
       };
       const saved = isFirebaseConfigured ? await upsertListingData(newItem, user) : upsertListing(newItem);
+      if (isFirebaseConfigured) {
+        await upsertListingPrivateData(
+          saved.id,
+          {
+            agentPhone: String(form.agentPhonePrivate || "").trim(),
+            ownerPhone: String(form.ownerPhonePrivate || "").trim(),
+          },
+          user
+        );
+      }
       setListings((prev) => {
         const withoutOld = prev.filter((l) => String(l.id) !== String(saved.id));
         return [saved, ...withoutOld];
@@ -663,6 +675,8 @@ export default function SellerDashboard() {
               <input placeholder="Preferred tenants (comma: Family, Bachelors...)" value={form.preferredTenantsText || ""} onChange={(e) => setForm({ ...form, preferredTenantsText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Parking (comma: 2 Wheeler, 4 Wheeler)" value={form.parkingText || ""} onChange={(e) => setForm({ ...form, parkingText: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px", gridColumn: "span 2" }} />
               <input placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Agent number (private)" value={form.agentPhonePrivate || ""} onChange={(e) => setForm({ ...form, agentPhonePrivate: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
+              <input placeholder="Owner number (private)" value={form.ownerPhonePrivate || ""} onChange={(e) => setForm({ ...form, ownerPhonePrivate: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Brokerage (optional)" value={form.brokerage || ""} onChange={(e) => setForm({ ...form, brokerage: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Security deposit (optional)" value={form.securityDeposit || ""} onChange={(e) => setForm({ ...form, securityDeposit: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />
               <input placeholder="Maintenance (optional)" value={form.maintenanceCost || ""} onChange={(e) => setForm({ ...form, maintenanceCost: e.target.value })} style={{ padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: "6px" }} />

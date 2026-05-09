@@ -112,6 +112,26 @@ function shallowOmitUndefined(obj) {
   return out;
 }
 
+function makePublicListingId(id) {
+  const base = String(id || "").replace(/[^a-z0-9]/gi, "").toUpperCase();
+  if (!base) return `MZ-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  return `MZ-${base.slice(0, 8)}`;
+}
+
+export async function upsertListingPrivateData(listingId, privateFields, actor) {
+  const id = String(listingId || "");
+  if (!id) throw new Error("listingId is required");
+  const actorEmail = normalizeAuthEmail(actor?.email || "");
+  const payload = shallowOmitUndefined({
+    ...privateFields,
+    listingId: id,
+    ownerEmail: actorEmail,
+    updatedAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, "listingPrivate", id), payload, { merge: true });
+  return payload;
+}
+
 /** All of a seller's listings (any marketStatus). Email must match Firestore `sellerEmail` (lowercase). */
 export async function getListingsForSellerEmail(sellerEmail) {
   const em = normalizeAuthEmail(sellerEmail);
@@ -137,9 +157,11 @@ export async function upsertListingData(listing, actor) {
   const latN = Number(listing.lat);
   const lngN = Number(listing.lng);
   const rentN = Number(listing.monthlyRent);
+  const publicListingId = String(listing.publicListingId || listing.publicId || "").trim() || makePublicListingId(id);
   const payload = shallowOmitUndefined({
     ...listing,
     id,
+    publicListingId,
     ownerEmail: actorEmail,
     sellerEmail,
     lat: Number.isFinite(latN) ? latN : 12.9716,

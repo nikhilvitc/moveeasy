@@ -61,6 +61,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Listing-private fields (never visible to customers).
+    // Store sensitive contact info here (agent/owner numbers, internal notes).
+    match /listingPrivate/{listingId} {
+      allow read, write: if isAdmin() || isSeller();
+      allow delete: if isAdmin();
+    }
+
     // Canonical role by email. This keeps role privileges stable even before/without uid-bound role docs.
     match /emailRoles/{email} {
       allow read: if isSignedIn() && (isAdmin() || email == authEmail());
