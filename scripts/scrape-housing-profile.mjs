@@ -284,11 +284,14 @@ async function main() {
   }
 
   const headed = process.argv.includes("--headed") || process.env.HEADED === "1";
-  const browser = await chromium.launch({
+  const chromeChannel = String(process.env.PW_CHROME_CHANNEL || "").trim();
+  /** Trailing spaces in env vars break Playwright (e.g. channel "chrome " is invalid). */
+  const launchOpts = {
     headless: !headed,
-    channel: process.env.PW_CHROME_CHANNEL || undefined,
     args: ["--disable-blink-features=AutomationControlled"],
-  });
+  };
+  if (chromeChannel) launchOpts.channel = chromeChannel;
+  const browser = await chromium.launch(launchOpts);
   const context = await browser.newContext({
     locale: "en-IN",
     viewport: { width: 1365, height: 900 },
