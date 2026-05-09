@@ -20,7 +20,7 @@ import {
   markNotificationReadData,
 } from "../lib/firestoreStore";
 import { triggerVisitNotificationEmail } from "../lib/emailService";
-import { interestStatusToCustomerLabel } from "../lib/crmSync";
+import { interestStatusToCustomerLabel, submitListingInterestFull } from "../lib/crmSync";
 import { reportClientError } from "../lib/clientLog";
 
 export default function CustomerDashboard() {
@@ -115,21 +115,19 @@ export default function CustomerDashboard() {
   }, [user]);
 
   const handleBook = (listing) => {
-    const booking = {
+    if (!user?.email) {
+      alert("Please sign in to book a listing.");
+      return;
+    }
+    // Use the same pipeline as the property modal so sellers/admins get notified.
+    void submitListingInterestFull(user, {
       listingId: listing.id,
       listingTitle: listing.title,
-      customerName: user?.name,
-      customerEmail: user?.email,
       seller: listing.seller,
       contact: listing.contact,
       sellerEmail: listing.sellerEmail || "",
-      date: new Date().toISOString(),
-      status: "Applied",
-    };
-    const updated = [...bookings, booking];
-    setBookings(updated);
-    localStorage.setItem("moveasy_bookings", JSON.stringify(updated));
-    setDashTick((t) => t + 1);
+      source: "customer_portal",
+    }).finally(() => setDashTick((t) => t + 1));
   };
 
   const handleUnapply = (listingId) => {
