@@ -7,6 +7,7 @@ import MapView from "./components/MapView";
 import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import CrmDashboard from "./pages/CrmDashboard";
 import Services from "./pages/Services";
 import Guarantee from "./pages/Guarantee";
 import Contact from "./pages/Contact";
@@ -29,6 +30,15 @@ function RoleRoute({ children, role }) {
   return children;
 }
 
+function StaffRoute({ children, roles }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", fontSize: "18px", color: "#64748b" }}>Loading...</div>;
+  if (!user) return <Navigate to="/login" />;
+  const allowed = Array.isArray(roles) ? roles : [];
+  if (!allowed.includes(user.role)) return <Navigate to="/login" />;
+  return children;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -45,6 +55,7 @@ function AppRoutes() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/support" element={<Navigate to="/contact" replace />} />
+      <Route path="/crm" element={<StaffRoute roles={["admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
       <Route path="/seller" element={<RoleRoute role="seller"><SellerDashboard /></RoleRoute>} />
       <Route path="/customer" element={<RoleRoute role="customer"><CustomerDashboard /></RoleRoute>} />

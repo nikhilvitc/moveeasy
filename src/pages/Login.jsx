@@ -71,9 +71,10 @@ export default function Login() {
         sessionStorage.removeItem("moveasy_onboarding_email_warning");
       }
       const r = result.role || "customer";
-      if      (r === "admin")  navigate("/admin");
-      else if (r === "seller") navigate("/seller");
-      else                     navigate("/");
+      if      (r === "admin")       navigate("/admin");
+      else if (r === "consultant") navigate("/crm");
+      else if (r === "seller")     navigate("/seller");
+      else                         navigate("/");
     } else {
       setError(result.error || "Something went wrong");
       setShowResendVerification(!!result.unverified);
@@ -116,9 +117,10 @@ export default function Login() {
         sessionStorage.removeItem("moveasy_onboarding_email_warning");
       }
       const r = result.role || "customer";
-      if      (r === "admin")  navigate("/admin");
-      else if (r === "seller") navigate("/seller");
-      else                     navigate("/");
+      if      (r === "admin")       navigate("/admin");
+      else if (r === "consultant") navigate("/crm");
+      else if (r === "seller")     navigate("/seller");
+      else                         navigate("/");
     } else {
       setError(result.error || "Google sign-in failed");
     }

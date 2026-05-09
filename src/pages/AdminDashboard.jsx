@@ -330,6 +330,7 @@ export default function AdminDashboard() {
       .trim();
     if (r === "admin") return "admin";
     if (r === "seller") return "seller";
+    if (r === "consultant") return "consultant";
     return "customer";
   }
 
@@ -568,12 +569,14 @@ export default function AdminDashboard() {
   );
   const sellersList = useMemo(() => users.filter((u) => canonicalRole(u) === "seller"), [users]);
   const adminsList = useMemo(() => users.filter((u) => canonicalRole(u) === "admin"), [users]);
+  const consultantsList = useMemo(() => users.filter((u) => canonicalRole(u) === "consultant"), [users]);
   const displayUsers = useMemo(() => {
     if (userListTab === "customer") return customersList;
     if (userListTab === "seller") return sellersList;
     if (userListTab === "admin") return adminsList;
+    if (userListTab === "consultant") return consultantsList;
     return users;
-  }, [users, userListTab, customersList, sellersList, adminsList]);
+  }, [users, userListTab, customersList, sellersList, adminsList, consultantsList]);
 
   const assignSelectedListing = useMemo(
     () => listings.find((l) => String(l.id) === String(assignListingId)),
@@ -822,42 +825,55 @@ export default function AdminDashboard() {
           </div>
         ) : null}
         <div
-          role="tablist"
-          aria-label="Admin sections"
           style={{
             display: "flex",
-            gap: 8,
             flexWrap: "wrap",
+            gap: 10,
+            alignItems: "center",
+            justifyContent: "space-between",
             marginBottom: 16,
             paddingBottom: 12,
             borderBottom: "1px solid #e2e8f0",
           }}
         >
-          {[
-            ["overview", "Overview"],
-            ["site", "Site & contact"],
-            ["operations", "Leads & queue"],
-            ["users", "Users"],
-            ["listings", "Listings"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={adminSection === id}
-              onClick={() => setAdminSection(id)}
-              style={{
-                ...btn,
-                fontSize: isMobile ? "12px" : "13px",
-                padding: isMobile ? "8px 12px" : "10px 16px",
-                background: adminSection === id ? "#0f172a" : "#fff",
-                color: adminSection === id ? "#fff" : "#334155",
-                border: `1px solid ${adminSection === id ? "#0f172a" : "#cbd5e1"}`,
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          <div
+            role="tablist"
+            aria-label="Admin sections"
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              ["overview", "Overview"],
+              ["site", "Site & contact"],
+              ["operations", "Leads & queue"],
+              ["users", "Users"],
+              ["listings", "Listings"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={adminSection === id}
+                onClick={() => setAdminSection(id)}
+                style={{
+                  ...btn,
+                  fontSize: isMobile ? "12px" : "13px",
+                  padding: isMobile ? "8px 12px" : "10px 16px",
+                  background: adminSection === id ? "#0f172a" : "#fff",
+                  color: adminSection === id ? "#fff" : "#334155",
+                  border: `1px solid ${adminSection === id ? "#0f172a" : "#cbd5e1"}`,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f766e", color: "#fff", border: "1px solid #0d9488", fontWeight: 800 }}>
+            Staff CRM
+          </button>
         </div>
         {loadErrors.length > 0 ? (
           <div
@@ -886,7 +902,7 @@ export default function AdminDashboard() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(5, minmax(0, 1fr))",
+                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(130px, 1fr))",
                 gap: 10,
               }}
             >
@@ -894,6 +910,7 @@ export default function AdminDashboard() {
                 ["Users", users.length],
                 ["Customers", customersList.length],
                 ["Sellers", sellersList.length],
+                ["Consultants", consultantsList.length],
                 ["Admins", adminsList.length],
                 ["Listings", listings.length],
               ].map(([k, v]) => (
@@ -908,6 +925,9 @@ export default function AdminDashboard() {
               {visitRequests.length} visit requests · {adminNotifs.filter((n) => !n.read).length} unread admin notifications
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, alignItems: "center" }}>
+              <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f766e", color: "#fff", border: "1px solid #0d9488" }}>
+                Open staff CRM
+              </button>
               <button type="button" onClick={() => setRefreshTick((x) => x + 1)} style={{ ...btn, background: "#2563eb", color: "#fff" }}>
                 Refresh all data
               </button>
@@ -1271,6 +1291,7 @@ export default function AdminDashboard() {
               {[
                 ["all", `All (${users.length})`],
                 ["admin", `Admins (${adminsList.length})`],
+                ["consultant", `Consultants (${consultantsList.length})`],
                 ["customer", `Customers (${customersList.length})`],
                 ["seller", `Sellers (${sellersList.length})`],
               ].map(([key, label]) => (
@@ -1300,6 +1321,7 @@ export default function AdminDashboard() {
             <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}>
               <option value="customer">Customer</option>
               <option value="seller">Seller / Broker</option>
+              <option value="consultant">Consultant (CRM)</option>
               <option value="admin">Admin</option>
             </select>
             <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>Add User</button>
@@ -1315,6 +1337,7 @@ export default function AdminDashboard() {
                     <select value={editUserForm.role} onChange={(e) => setEditUserForm(p => ({...p, role: e.target.value}))} style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
                       <option value="customer">Customer</option>
                       <option value="seller">Seller</option>
+                      <option value="consultant">Consultant</option>
                       <option value="admin">Admin</option>
                     </select>
                     <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "6px 12px" }}>Save</button>
@@ -1329,7 +1352,14 @@ export default function AdminDashboard() {
                           style={{
                             fontSize: "11px",
                             color: "white",
-                            background: canonicalRole(u) === "admin" ? "#7c3aed" : canonicalRole(u) === "seller" ? "#f59e0b" : "#3b82f6",
+                            background:
+                              canonicalRole(u) === "admin"
+                                ? "#7c3aed"
+                                : canonicalRole(u) === "seller"
+                                  ? "#f59e0b"
+                                  : canonicalRole(u) === "consultant"
+                                    ? "#0d9488"
+                                    : "#3b82f6",
                             padding: "2px 6px",
                             borderRadius: "4px",
                             marginLeft: "6px",
@@ -1356,7 +1386,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller") && !String(u.uid || "").startsWith("reserved") ? (
+                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller" || canonicalRole(u) === "consultant") && !String(u.uid || "").startsWith("reserved") ? (
                         <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#ecfdf5", color: "#166534", fontSize: "12px", padding: "6px 12px" }}>
                           History
                         </button>

@@ -16,6 +16,7 @@ function normalizeUserRole(value) {
     .trim();
   if (r === "admin") return "admin";
   if (r === "seller") return "seller";
+  if (r === "consultant") return "consultant";
   return "customer";
 }
 
@@ -280,7 +281,8 @@ export async function getAllUsersData() {
 export async function addUserProfileData(email, name, role, phone = "") {
   const normalized = String(email || "").toLowerCase().trim();
   if (!normalized) return;
-  const normalizedRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "customer";
+  const normalizedRole =
+    role === "admin" ? "admin" : role === "seller" ? "seller" : role === "consultant" ? "consultant" : "customer";
   const existing = await getProfileByEmail(normalized);
   const uid = existing?.uid || crypto.randomUUID();
   await Promise.all([
@@ -332,7 +334,14 @@ export async function updateUserProfileData(email, updates) {
   const promises = [setDoc(doc(db, "userProfiles", existing.uid), profileUpdates, { merge: true })];
 
   if (updates.role !== undefined) {
-    const normalizedRole = updates.role === "admin" ? "admin" : updates.role === "seller" ? "seller" : "customer";
+    const normalizedRole =
+      updates.role === "admin"
+        ? "admin"
+        : updates.role === "seller"
+          ? "seller"
+          : updates.role === "consultant"
+            ? "consultant"
+            : "customer";
     promises.push(setDoc(doc(db, "userRoles", existing.uid), { role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
     promises.push(setDoc(doc(db, "emailRoles", normalized), { email: normalized, role: normalizedRole, updatedAt: serverTimestamp() }, { merge: true }));
     profileUpdates.role = normalizedRole;
@@ -549,6 +558,112 @@ export async function getActivityEventsForEmail(email) {
   if (!n) return [];
   const snap = await getDocs(query(collection(db, "activityEvents"), where("actorEmail", "==", n), limit(200)));
   const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
+  return rows;
+}
+
+/** --- Staff CRM (admin + consultant / sub-admin only) --- */
+
+export async function getCrmLeadsForStaff(actor) {
+  const em = String(actor?.email || "").toLowerCase().trim();
+  const role = normalizeUserRole(actor?.role);
+  if (role === "admin") {
+    const snap = await getDocs(query(collection(db, "crmLeads"), orderBy("updatedAt", "desc"), limit(250)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+  if (role === "consultant" && em) {
+    const snap = await getDocs(query(collection(db, "crmLeads"), where("assigneeEmail", "==", em), limit(250)));
+    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.updatedAt?.toMillis?.() ?? 0) - (a.updatedAt?.toMillis?.() ?? 0));
+    return rows;
+  }
+  return [];
+}
+
+export async function createCrmLeadData(payload, actor) {
+  const assignee = String(payload.assigneeEmail || "").toLowerCase().trim();
+  const row = {
+    customerName: String(payload.customerName || "").trim(),
+    customerEmail: String(payload.customerEmail || "").toLowerCase().trim(),
+    customerPhone: String(payload.customerPhone || "").trim(),
+    assigneeEmail: assignee,
+    assigneeName: String(payload.assigneeName || "").trim(),
+    status: String(payload.status || "new").slice(0, 64),
+    visitStatus: String(payload.visitStatus || "not_visited").slice(0, 32),
+    listingVisitedId: String(payload.listingVisitedId || "").trim(),
+    listingVisitedTitle: String(payload.listingVisitedTitle || "").slice(0, 400),
+    requirements: String(payload.requirements || "").slice(0, 8000),
+    adminNotes: String(payload.adminNotes || "").slice(0, 8000),
+    consultantNotes: String(payload.consultantNotes || "").slice(0, 8000),
+    lastContactAt: payload.lastContactAt || null,
+    nextFollowUpAt: payload.nextFollowUpAt
+      ? payload.nextFollowUpAt instanceof Date
+        ? payload.nextFollowUpAt
+        : new Date(payload.nextFollowUpAt)
+      : null,
+    createdByEmail: String(actor?.email || "").toLowerCase().trim(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const refDoc = await addDoc(collection(db, "crmLeads"), row);
+  return { id: refDoc.id, ...row };
+}
+
+export async function updateCrmLeadData(leadId, patch, actor) {
+  const id = String(leadId || "");
+  if (!id) throw new Error("leadId required");
+  const payload = shallowOmitUndefined({
+    ...patch,
+    updatedAt: serverTimestamp(),
+    lastUpdatedByEmail: String(actor?.email || "").toLowerCase().trim(),
+  });
+  await updateDoc(doc(db, "crmLeads", id), payload);
+}
+
+export async function getCrmTasksForStaff(actor) {
+  const em = String(actor?.email || "").toLowerCase().trim();
+  const role = normalizeUserRole(actor?.role);
+  if (role === "admin") {
+    const snap = await getDocs(query(collection(db, "crmTasks"), orderBy("createdAt", "desc"), limit(300)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+  if (role === "consultant" && em) {
+    const snap = await getDocs(query(collection(db, "crmTasks"), where("assigneeEmail", "==", em), limit(300)));
+    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    rows.sort((a, b) => (b.dueAt?.toMillis?.() ?? 0) - (a.dueAt?.toMillis?.() ?? 0));
+    return rows;
+  }
+  return [];
+}
+
+export async function addCrmTaskData({ leadId, title, dueAt, assigneeEmail }, actor) {
+  const row = {
+    leadId: String(leadId || ""),
+    title: String(title || "Follow up").slice(0, 200),
+    dueAt: dueAt || null,
+    assigneeEmail: String(assigneeEmail || "").toLowerCase().trim(),
+    completed: false,
+    createdByEmail: String(actor?.email || "").toLowerCase().trim(),
+    createdAt: serverTimestamp(),
+  };
+  const refDoc = await addDoc(collection(db, "crmTasks"), row);
+  return { id: refDoc.id, ...row };
+}
+
+export async function setCrmTaskCompletedData(taskId, completed, actor) {
+  await updateDoc(doc(db, "crmTasks", String(taskId)), {
+    completed: Boolean(completed),
+    completedAt: completed ? serverTimestamp() : null,
+    completedByEmail: completed ? String(actor?.email || "").toLowerCase().trim() : null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getConsultantNotificationsData(email) {
+  const n = String(email || "").toLowerCase().trim();
+  if (!n) return [];
+  const snap = await getDocs(query(collection(db, "notifications"), where("targetEmail", "==", n), limit(150)));
+  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.audience === "consultant");
   rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
   return rows;
 }

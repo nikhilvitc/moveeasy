@@ -31,6 +31,14 @@ service cloud.firestore {
       return isSignedIn() && (accountRole() == "seller" || emailRole() == "seller");
     }
 
+    function isConsultant() {
+      return isSignedIn() && (accountRole() == "consultant" || emailRole() == "consultant");
+    }
+
+    function isStaff() {
+      return isAdmin() || isConsultant();
+    }
+
     // Console-only seed list: doc id must equal the user's auth email (lowercase).
     function isBootstrapListedAdmin() {
       return isSignedIn()
@@ -166,6 +174,21 @@ service cloud.firestore {
     match /siteSettings/{docId} {
       allow read: if true;
       allow write: if isAdmin() && docId == "public";
+    }
+
+    // Staff CRM — customers/sellers have no access. Consultants only see rows assigned to them.
+    match /crmLeads/{id} {
+      allow read: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin();
+    }
+
+    match /crmTasks/{id} {
+      allow read: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin();
     }
   }
 }
