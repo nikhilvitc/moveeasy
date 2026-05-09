@@ -1,5 +1,4 @@
 # KeysPlease Ventures — Housing.com rent listing URLs (one per line).
-# Paste the remaining URLs from your verification report below the sample lines.
 # Lines starting with # are ignored.
 
 https://housing.com/rent/19954569-3700-sqft-4-bhk-villa-on-rent-in-kartik-nagar-bengaluru
@@ -12,3 +11,29 @@ https://housing.com/rent/19693867-4137-sqft-4-bhk-apartment-on-rent-in-frazer-to
 https://housing.com/rent/19391542-1800-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
 https://housing.com/rent/19693448-1790-sqft-3-bhk-apartment-on-rent-in-ulsoor-bengaluru
 https://housing.com/rent/19496260-2200-sqft-3-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/20016334-2500-sqft-3.5-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/20022046-4339-sqft-4-bhk-apartment-on-rent-in-rustam-bagh-layout-bengaluru
+https://housing.com/rent/20022180-2300-sqft-3-bhk-apartment-on-rent-in-mahadevapura-bengaluru
+https://housing.com/rent/20027934-1800-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/20132138-1200-sqft-2-bhk-apartment-on-rent-in-ulsoor-bengaluru
+https://housing.com/rent/20132185-1600-sqft-3-bhk-apartment-on-rent-in-v.-kallahalli-bengaluru
+https://housing.com/rent/20132264-350-sqft-1-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/20134567-2500-sqft-3-bhk-apartment-on-rent-in-vasanth-nagar-bengaluru
+https://housing.com/rent/20143909-2226-sqft-4-bhk-villa-on-rent-in-sarjapur-bengaluru
+https://housing.com/rent/20153298-1200-sqft-2-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/20079780-2000-sqft-3-bhk-apartment-on-rent-in-lavelle-road-bengaluru
+https://housing.com/rent/20107991-1110-sqft-3-bhk-apartment-on-rent-in-cooke-town-bengaluru
+https://housing.com/rent/20132241-3000-sqft-3-bhk-apartment-on-rent-in-kodihalli-bengaluru
+https://housing.com/rent/20142920-1000-sqft-2-bhk-apartment-on-rent-in-c-v-raman-nagar-bengaluru
+https://housing.com/rent/20013717-1800-sqft-3-bhk-apartment-on-rent-in-ulsoor-bengaluru
+https://housing.com/rent/20013791-1800-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/20024272-2000-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/20024644-1250-sqft-2.5-bhk-apartment-on-rent-in-vasanth-nagar-bengaluru
+https://housing.com/rent/19954551-2500-sqft-3-bhk-apartment-on-rent-in-vasanth-nagar-bengaluru
+https://housing.com/rent/19369996-2000-sqft-3-bhk-apartment-on-rent-in-richmond-town-bengaluru
+https://housing.com/rent/19496206-2300-sqft-3-bhk-apartment-on-rent-in-mahadevapura-bengaluru
+https://housing.com/rent/19496645-4500-sqft-4-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/20154147-1650-sqft-3-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/19916753-2100-sqft-3-bhk-apartment-on-rent-in-indira-nagar-bengaluru
+https://housing.com/rent/18355347-7500-sqft-4-bhk-villa-on-rent-in-kodalagurki-bengaluru-v2
+https://housing.com/rent/18531744-4300-sqft-3.5-bhk-apartment-on-rent-in-lavelle-road-bengaluru-v2
