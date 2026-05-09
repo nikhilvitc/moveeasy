@@ -9,6 +9,16 @@ const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
 
+/** Canonical role for UI filters (userRoles / profiles may store mixed casing). */
+function normalizeUserRole(value) {
+  const r = String(value ?? "")
+    .toLowerCase()
+    .trim();
+  if (r === "admin") return "admin";
+  if (r === "seller") return "seller";
+  return "customer";
+}
+
 const ENABLE_SEED_LISTINGS =
   import.meta.env.DEV || String(import.meta.env.VITE_ENABLE_SEED_LISTINGS || "") === "1";
 
@@ -241,21 +251,22 @@ export async function addAssignmentData({
 
 export async function getAllUsersData() {
   const [profilesSnap, rolesSnap] = await Promise.all([getDocs(collection(db, "userProfiles")), getDocs(collection(db, "userRoles"))]);
-  const roles = new Map(rolesSnap.docs.map((roleDoc) => [roleDoc.id, roleDoc.data().role || "customer"]));
+  const rolesByUid = new Map(rolesSnap.docs.map((roleDoc) => [roleDoc.id, normalizeUserRole(roleDoc.data()?.role)]));
   const adminEmailSet = new Set(ADMIN_EMAILS.map((e) => e.toLowerCase().trim()));
   const fromProfiles = profilesSnap.docs
     .map((profileDoc) => {
       const profile = profileDoc.data();
-      const email = String(profile.email || "").toLowerCase().trim();
+      const uid = profileDoc.id;
+      const roleFromUserRolesDoc = rolesByUid.has(uid) ? rolesByUid.get(uid) : normalizeUserRole(profile.role);
       return {
-        uid: profileDoc.id,
+        ...profile,
+        uid,
         email: profile.email,
         name: profile.name || String(profile.email || "user").split("@")[0],
-        role: roles.get(profileDoc.id) || "customer",
         phone: profile.phone || "",
         sellerBadgeStatus: profile.sellerBadgeStatus ?? null,
         sellerBadgeApplication: profile.sellerBadgeApplication || null,
-        ...profile,
+        role: roleFromUserRolesDoc,
       };
     })
     .filter((row) => !adminEmailSet.has(String(row.email || "").toLowerCase().trim()));

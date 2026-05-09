@@ -323,6 +323,16 @@ export default function AdminDashboard() {
   const listings = listingsState;
   const users = usersState;
 
+  /** Normalize role for filters / badges (Firestore profile.role must not override userRoles). */
+  function canonicalRole(u) {
+    const r = String(u?.role ?? "")
+      .toLowerCase()
+      .trim();
+    if (r === "admin") return "admin";
+    if (r === "seller") return "seller";
+    return "customer";
+  }
+
   const sellerReqs = sellerReqsState;
   const pendingSellerBadgeApps = useMemo(() => {
     if (typeof getPendingSellerBadgeApplications === 'function') {
@@ -541,7 +551,7 @@ export default function AdminDashboard() {
 
   const handleEditUser = (u) => {
     setEditingUserEmail(u.email);
-    setEditUserForm({ name: u.name || "", role: u.role || "customer", phone: u.phone || "" });
+    setEditUserForm({ name: u.name || "", role: canonicalRole(u), phone: u.phone || "" });
   };
 
   const handleUpdateUser = async (e) => {
@@ -553,11 +563,11 @@ export default function AdminDashboard() {
   };
 
   const customersList = useMemo(
-    () => users.filter((u) => u.role === "customer" && !String(u.uid || "").startsWith("reserved")),
+    () => users.filter((u) => canonicalRole(u) === "customer" && !String(u.uid || "").startsWith("reserved")),
     [users]
   );
-  const sellersList = useMemo(() => users.filter((u) => u.role === "seller"), [users]);
-  const adminsList = useMemo(() => users.filter((u) => u.role === "admin"), [users]);
+  const sellersList = useMemo(() => users.filter((u) => canonicalRole(u) === "seller"), [users]);
+  const adminsList = useMemo(() => users.filter((u) => canonicalRole(u) === "admin"), [users]);
   const displayUsers = useMemo(() => {
     if (userListTab === "customer") return customersList;
     if (userListTab === "seller") return sellersList;
@@ -1315,8 +1325,19 @@ export default function AdminDashboard() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600 }}>
                         {u.name}{" "}
-                        <span style={{ fontSize: "11px", color: "white", background: u.role === "admin" ? "#7c3aed" : u.role === "seller" ? "#f59e0b" : "#3b82f6", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px" }}>{u.role}</span>
-                        {u.sellerBadgeStatus && u.role === "seller" ? (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "white",
+                            background: canonicalRole(u) === "admin" ? "#7c3aed" : canonicalRole(u) === "seller" ? "#f59e0b" : "#3b82f6",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            marginLeft: "6px",
+                          }}
+                        >
+                          {canonicalRole(u)}
+                        </span>
+                        {u.sellerBadgeStatus && canonicalRole(u) === "seller" ? (
                           <span style={{ fontSize: "10px", marginLeft: "6px", color: "#64748b" }}>badge: {u.sellerBadgeStatus}</span>
                         ) : null}
                       </div>
@@ -1335,7 +1356,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {(u.role === "customer" || u.role === "seller") && !String(u.uid || "").startsWith("reserved") ? (
+                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller") && !String(u.uid || "").startsWith("reserved") ? (
                         <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#ecfdf5", color: "#166534", fontSize: "12px", padding: "6px 12px" }}>
                           History
                         </button>
