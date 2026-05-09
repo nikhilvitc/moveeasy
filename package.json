@@ -18,7 +18,8 @@
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
     "e2e:demo-google": "node e2e/examples/google-search-demo.mjs",
-    "scrape:keysplease": "node scripts/scrape-housing-profile.mjs --urls-file scripts/data/keysplease-housing-urls.txt --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json"
+    "scrape:keysplease": "node scripts/scrape-housing-profile.mjs --urls-file scripts/data/keysplease-housing-urls.txt --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json",
+    "scrape:keysplease:headed": "node scripts/scrape-housing-profile.mjs --urls-file scripts/data/keysplease-housing-urls.txt --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json --headed"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

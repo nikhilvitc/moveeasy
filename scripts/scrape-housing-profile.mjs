@@ -17,6 +17,27 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Firestore import requires real coordinates; never treat null as 0. */
+function hasValidLatLng(lat, lng) {
+  if (lat == null || lng == null) return false;
+  const la = Number(lat);
+  const lo = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return false;
+  if (la < -90 || la > 90 || lo < -180 || lo > 180) return false;
+  // Reject (0,0) — means missing data, not Gulf of Guinea
+  if (Math.abs(la) < 1e-5 && Math.abs(lo) < 1e-5) return false;
+  return true;
+}
+
+function looksLikeBotBlock(title, pageText) {
+  const t = normalizeText(title).toLowerCase();
+  const body = normalizeText(pageText).toLowerCase();
+  if (t.includes("security alert") || t.includes("access denied") || t.includes("just a moment")) return true;
+  if (body.includes("security alert") && body.length < 1200) return true;
+  if (body.includes("checking your browser") || body.includes("verify you are human")) return true;
+  return false;
+}
+
 function uniqStrings(items) {
   const out = [];
   const seen = new Set();
@@ -123,10 +144,10 @@ function extractMediaUrlsFromObject(obj) {
 
 async function scrapeListingDetail(context, url, brokerName) {
   const page = await context.newPage();
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(url, { waitUntil: "load", timeout: 120000 });
 
-  // Sometimes portals lazy-load; wait a moment for JS hydration/network.
-  await page.waitForTimeout(1200);
+  // Let client bundles + map widgets hydrate (bot walls often resolve to a thin shell early).
+  await page.waitForTimeout(2800);
 
   const ld = await extractFromLdJson(page);
   const nextData = await page.evaluate(() => window.__NEXT_DATA__).catch(() => null);
@@ -146,6 +167,13 @@ async function scrapeListingDetail(context, url, brokerName) {
 
   // Heuristics for rent/price/BHK/address
   const pageText = normalizeText(await page.locator("body").innerText().catch(() => ""));
+
+  if (looksLikeBotBlock(title, pageText)) {
+    await page.close().catch(() => {});
+    const err = new Error(`Blocked or empty listing page (title: "${title.slice(0, 80)}")`);
+    err.code = "BOT_BLOCK";
+    throw err;
+  }
   const rentMatch = pageText.match(/₹\s?[\d,]+\s?\/\s?month/i) || pageText.match(/₹\s?[\d,]+/i);
   const bhkMatch = pageText.match(/\b(\d(\.\d)?)\s*BHK\b/i) || pageText.match(/\bStudio\b/i);
 
@@ -255,11 +283,20 @@ async function main() {
     process.exit(2);
   }
 
-  const browser = await chromium.launch({ headless: true });
+  const headed = process.argv.includes("--headed") || process.env.HEADED === "1";
+  const browser = await chromium.launch({
+    headless: !headed,
+    channel: process.env.PW_CHROME_CHANNEL || undefined,
+    args: ["--disable-blink-features=AutomationControlled"],
+  });
   const context = await browser.newContext({
     locale: "en-IN",
+    viewport: { width: 1365, height: 900 },
     userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined });
   });
 
   let listingUrls;
@@ -294,23 +331,32 @@ async function main() {
       // eslint-disable-next-line no-console
       console.warn(`Failed to scrape ${url}: ${String(err?.message || err)}`);
     }
+    // Light pacing — reduces automated-request fingerprinting
+    await new Promise((r) => setTimeout(r, 800 + Math.floor(Math.random() * 1200)));
   }
 
   await browser.close();
 
-  // Filter to the schema minimum (title + lat/lng required by normalizePartnerListings)
-  const normalized = rows.filter((r) => r?.title && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng)));
+  // Filter to the schema minimum (title + real lat/lng required by normalizePartnerListings)
+  const normalized = rows.filter(
+    (r) =>
+      r?.title &&
+      !/security alert|access denied/i.test(String(r.title)) &&
+      hasValidLatLng(r.lat, r.lng)
+  );
 
   const outPath = path.resolve(process.cwd(), outFile);
   await fs.writeFile(outPath, JSON.stringify(normalized, null, 2), "utf8");
   // eslint-disable-next-line no-console
-  console.log(`Wrote ${normalized.length} listings to ${outPath}`);
+  console.log(`Wrote ${normalized.length} listings to ${outPath} (${rows.length} raw rows, ${rows.length - normalized.length} dropped)`);
   if (normalized.length === 0) {
     // eslint-disable-next-line no-console
     console.log(
-      "If this is 0, Housing.com likely blocked automation or the profile page structure differs.\n" +
-        "Run headed mode (temporarily) to debug:\n" +
-        "  node scripts/scrape-housing-profile.mjs --profile \"...\" --broker \"KeysPlease Ventures\" --out KeysPlease_All_Listings.json\n"
+      "No rows passed validation. Housing.com may be blocking headless Chrome.\n" +
+        "Try on your PC with a real Chrome channel:\n" +
+        "  set HEADED=1\n" +
+        "  set PW_CHROME_CHANNEL=chrome\n" +
+        "  npm run scrape:keysplease\n"
     );
   }
 }
