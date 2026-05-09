@@ -20,6 +20,7 @@ import {
 } from "../lib/userActivity";
 import { logSavedListingChange } from "../lib/crmSync";
 import { reportClientWarn } from "../lib/clientLog";
+import MovEAZYLogo from "./branding/MovEAZYLogo";
 
 const MAP_NEARBY_KM = 12;
 /** Default max distance (km) from workplace / geocoded pin; user-adjustable in search panel. */
@@ -299,6 +300,9 @@ export default function MapView() {
     const propertyType = qs.get("propertyType");
     const minRent = Number(qs.get("minRent") || 0);
     const maxRent = Number(qs.get("maxRent") || 0);
+    const availabilityParam = (qs.get("availability") || "").trim();
+    const availabilityFromUrl =
+      availabilityParam && FILTER_OPTIONS.availability.includes(availabilityParam) ? [availabilityParam] : [];
     setSelectedLocality(locality);
     setMapSearchInput(locality);
     const locNorm = locality.trim();
@@ -310,6 +314,7 @@ export default function MapView() {
       minRent: minRent > 0 ? minRent : base.minRent,
       maxRent: maxRent > 0 ? maxRent : base.maxRent,
       neighborhoods: neighborhoodFromUrl,
+      availability: availabilityFromUrl,
     });
   }, [location.search]);
 
@@ -778,22 +783,11 @@ export default function MapView() {
         >
           {/* Left: Logo & Nav */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div 
-              onClick={() => navigate("/")} 
+            <div
+              onClick={() => navigate("/")}
               style={{ cursor: "pointer", display: "flex", alignItems: "center", marginRight: "8px" }}
             >
-              <img 
-                src="/logo-moveazy-bar.png" 
-                alt="Moveazy" 
-                style={{ height: isMobile ? "24px" : "32px", width: "auto" }} 
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextSibling.style.display = 'block';
-                }}
-              />
-              <span style={{ display: "none", color: "#fff", fontWeight: 900, fontSize: "18px", letterSpacing: "-0.5px" }}>
-                Mov<span style={{ color: "#ff3131" }}>EAZY!</span>
-              </span>
+              <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "lg"} />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

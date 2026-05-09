@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { ChevronLeft, ChevronRight, MapPin, Search, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { getListings } from "../../lib/store";
+import { getListings, FILTER_OPTIONS } from "../../lib/store";
 import { isFirebaseConfigured } from "../../lib/firebase";
 import { getListingsData, isListingPubliclyVisible } from "../../lib/firestoreStore";
 import PropertyModal from "../PropertyModal";
@@ -38,6 +38,30 @@ function listingImageUrl(listing) {
     if (first) return first;
   }
   return "";
+}
+
+/**
+ * `/map` href from Smart Match selections — aligned with MapView URL parsing:
+ * `locality`, `minRent`, `maxRent`, `availability`, optional `openFilters=1`.
+ */
+export function buildSmartMatchMapHref(selections, { openFilters = false } = {}) {
+  const params = new URLSearchParams();
+  const area = String(selections?.area || "").trim();
+  if (area && area !== "Flexible") {
+    params.set("locality", area);
+  }
+  const b = selections?.budget;
+  if (b && Number.isFinite(Number(b.min)) && Number.isFinite(Number(b.max))) {
+    params.set("minRent", String(b.min));
+    params.set("maxRent", String(b.max));
+  }
+  const timeline = String(selections?.timeline || "").trim();
+  if (timeline && timeline !== "Flexible" && FILTER_OPTIONS.availability.includes(timeline)) {
+    params.set("availability", timeline);
+  }
+  if (openFilters) params.set("openFilters", "1");
+  const qs = params.toString();
+  return qs ? `/map?${qs}` : openFilters ? "/map?openFilters=1" : "/map";
 }
 
 function isBangaloreListing(listing) {
@@ -328,23 +352,42 @@ export default function SmartMatch() {
                       ) : (
                         <div className="w-full py-12 text-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
                           <p className="text-slate-400 font-medium mb-4">No perfect matches for these specific filters.</p>
-                          <button 
-                            onClick={() => navigate("/map")}
-                            className="bg-slate-900 text-white px-6 py-2 rounded-xl text-sm font-bold"
-                          >
-                            Explore All Bangalore Listings
-                          </button>
+                          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => navigate(buildSmartMatchMapHref(selections))}
+                              className="bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-rose-700"
+                            >
+                              Search map with these choices
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate("/map")}
+                              className="bg-slate-900 text-white px-6 py-2 rounded-xl text-sm font-bold"
+                            >
+                              Explore all listings
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-8 text-center">
-                    <button 
-                      onClick={() => navigate("/map?locality=" + (selections.area === "Flexible" ? "" : selections.area))}
-                      className="text-rose-600 font-bold hover:underline"
+                  <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(buildSmartMatchMapHref(selections))}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-700"
                     >
-                      View results on full map →
+                      Open matches on map
+                      <ArrowRight size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate(buildSmartMatchMapHref(selections, { openFilters: true }))}
+                      className="text-sm font-bold text-slate-600 underline decoration-rose-300 decoration-2 underline-offset-4 hover:text-rose-700"
+                    >
+                      Same search, show filter panel
                     </button>
                   </div>
                 </motion.div>
