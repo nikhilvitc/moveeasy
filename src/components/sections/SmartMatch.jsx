@@ -4,10 +4,9 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { ChevronLeft, ChevronRight, MapPin, Search, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
-import logoSvg from "../../assets/logo/moveasy.svg";
 import { getListings } from "../../lib/store";
 import { isFirebaseConfigured } from "../../lib/firebase";
 import { getListingsData, isListingPubliclyVisible } from "../../lib/firestoreStore";
@@ -29,6 +28,18 @@ function localityFromListing(listing) {
   return String(listing.address || "").split(",")[0].trim() || "Bengaluru";
 }
 
+/** Prefer primary image; many Firestore rows only populate `images[]`. */
+function listingImageUrl(listing) {
+  const primary = String(listing?.image || "").trim();
+  if (primary) return primary;
+  const imgs = listing?.images;
+  if (Array.isArray(imgs)) {
+    const first = imgs.map((x) => String(x || "").trim()).find(Boolean);
+    if (first) return first;
+  }
+  return "";
+}
+
 function isBangaloreListing(listing) {
   const t = `${listing.address || ""} ${listing.location || ""}`.toLowerCase();
   if (t.includes("bangalore") || t.includes("bengaluru")) return true;
@@ -42,16 +53,18 @@ function isBangaloreListing(listing) {
 
 function PropertyCard({ listing, delay, onClick }) {
   const { ref, inView } = useInView({ threshold: 0.12, triggerOnce: true });
+  const [imgFailed, setImgFailed] = useState(false);
   const loc = localityFromListing(listing);
   const bhkCompact = String(listing.bhk || "").replace(/\s+/g, "");
-  
+  const imgSrc = listingImageUrl(listing);
+
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0, y: 20 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, delay, ease: EASE }}
-      className="snap-start flex-shrink-0 w-[260px] sm:w-[288px]"
+      className="snap-start flex-shrink-0 w-[260px] sm:w-[288px] md:w-full min-w-0"
     >
       <Tilt3D intensity={5} scale={1.02} className="h-full rounded-2xl">
         <button
@@ -66,8 +79,20 @@ function PropertyCard({ listing, delay, onClick }) {
             transition-all duration-300
           "
         >
-          <div className="relative w-full h-[180px] overflow-hidden">
-            <img src={listing.image} alt="" className="w-full h-full object-cover" loading="lazy" />
+          <div className="relative w-full h-[180px] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+            {imgSrc && !imgFailed ? (
+              <img
+                src={imgSrc}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={() => setImgFailed(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-500 text-sm font-semibold px-4 text-center">
+                Photo coming soon
+              </div>
+            )}
             <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[11px] font-bold text-rose-600 shadow-sm border border-rose-100">
               {listing.availability || "Available"}
             </div>
@@ -281,15 +306,15 @@ export default function SmartMatch() {
                         <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-bold">{selections.area}</span>
                         <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">{selections.budget?.label}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => scrollBy(-300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronLeft size={20} /></button>
-                        <button onClick={() => scrollBy(300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronRight size={20} /></button>
+                      <div className="flex gap-2 md:hidden">
+                        <button type="button" onClick={() => scrollBy(-300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronLeft size={20} /></button>
+                        <button type="button" onClick={() => scrollBy(300)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-white transition-colors"><ChevronRight size={20} /></button>
                       </div>
                     </div>
 
-                    <div 
+                    <div
                       ref={scrollRef}
-                      className="flex gap-4 overflow-x-auto scroll-smooth pb-4 scrollbar-hide snap-x"
+                      className="flex md:grid md:grid-cols-2 gap-4 overflow-x-auto md:overflow-x-visible scroll-smooth pb-4 scrollbar-hide snap-x md:snap-none"
                     >
                       {filteredMatches.length > 0 ? (
                         filteredMatches.map((l, i) => (

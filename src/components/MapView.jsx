@@ -48,6 +48,16 @@ function MediaElement({ src, alt, style }) {
   return <img src={src} alt={alt} loading="lazy" style={style} />;
 }
 
+function listingCoverSrc(listing) {
+  const primary = String(listing?.image || "").trim();
+  if (primary) return primary;
+  if (Array.isArray(listing?.images)) {
+    const first = listing.images.map((x) => String(x || "").trim()).find(Boolean);
+    if (first) return first;
+  }
+  return "";
+}
+
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -823,9 +833,11 @@ export default function MapView() {
                 <button type="button" onClick={() => setShowDesktopFilters((v) => !v)} style={mtToolbar.btnMuted}>
                   {showDesktopFilters ? "Hide filters" : "Show filters"}
                 </button>
-                <button type="button" onClick={() => setShowDesktopListings((v) => !v)} style={mtToolbar.btnMuted}>
-                  {showDesktopListings ? "Hide list" : "Show list"}
-                </button>
+                {!showDesktopListings ? (
+                  <button type="button" onClick={() => setShowDesktopListings(true)} style={mtToolbar.btnMuted}>
+                    Show list
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
@@ -1787,7 +1799,8 @@ export default function MapView() {
         {(isMobile || (desktopMode === "split" && showDesktopListings)) && (
         <div
           style={{
-            width: isMobile ? "100%" : "clamp(320px, 28vw, 480px)",
+            width: isMobile ? "100%" : "min(44vw, 720px)",
+            minWidth: isMobile ? undefined : 360,
             overflowY: "auto",
             background: "#ffffff",
             borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
@@ -1817,6 +1830,29 @@ export default function MapView() {
           <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", lineHeight: 1.45 }}>
             Tap a card to move the map to that home. Open <strong>Details</strong> for photos and full info. With a workplace set, a blue route line shows the driving path (when routing is available).
           </div>
+          {!isMobile && desktopMode === "split" ? (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setShowDesktopListings(false)}
+                style={{
+                  ...mtToolbar.btnMuted,
+                  fontSize: "12px",
+                  padding: "8px 14px",
+                  fontWeight: 700,
+                }}
+              >
+                Hide list
+              </button>
+            </div>
+          ) : null}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+              gap: isMobile ? "12px" : "14px",
+            }}
+          >
           {displayPins.map((l) => (
             <div
               key={l.id}
@@ -1835,18 +1871,19 @@ export default function MapView() {
               style={{
                 background: "white",
                 borderRadius: "12px",
-                padding: "14px",
-                marginBottom: "12px",
+                padding: isMobile ? "14px" : "12px",
+                marginBottom: 0,
                 cursor: "pointer",
                 border: selected?.id === l.id ? "2px solid #3b82f6" : "1px solid #e2e8f0",
                 transition: "all 0.2s",
+                minWidth: 0,
               }}
             >
               <div style={{ position: "relative", marginBottom: "10px" }}>
-                {l.image ? (
-                  <MediaElement src={l.image} alt={l.title} style={{ width: "100%", height: "148px", objectFit: "cover", borderRadius: "10px", display: "block" }} />
+                {listingCoverSrc(l) ? (
+                  <MediaElement src={listingCoverSrc(l)} alt={l.title} style={{ width: "100%", height: isMobile ? "148px" : "120px", objectFit: "cover", borderRadius: "10px", display: "block" }} />
                 ) : (
-                  <div style={{ width: "100%", height: "148px", borderRadius: "10px", background: "#e2e8f0" }} aria-hidden />
+                  <div style={{ width: "100%", height: isMobile ? "148px" : "120px", borderRadius: "10px", background: "#e2e8f0" }} aria-hidden />
                 )}
                 <button
                   type="button"
@@ -1916,6 +1953,7 @@ export default function MapView() {
               </button>
             </div>
           ))}
+          </div>
         </div>
         )}
       </div>
