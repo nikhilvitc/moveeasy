@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import userMaleIcon from "../../assets/icons/user-male.png";
+import realEstateAgentIcon from "../../assets/icons/real-estate-agent.png";
 import Tilt3D from "../ui/Tilt3D";
 import useGsapStaggerReveal from "../../hooks/useGsapStaggerReveal";
 
@@ -12,7 +13,7 @@ const FEATURES = [
     glow: "rgba(232,90,79,0.40)",
   },
   {
-    icon: userMaleIcon,
+    icon: realEstateAgentIcon,
     title: "Broker-Matched, Not Listing-Based",
     desc: "Skip outdated platforms. We connect you directly with trusted brokers who have real-time, high-quality properties.",
     gradient: "from-[#f97316] to-[#ec4899]",
@@ -119,7 +120,7 @@ export default function Features() {
         <div className="flex justify-center mt-14 sm:mt-16 lg:mt-20" data-gsap-reveal>
           <button
             type="button"
-            onClick={() => navigate("/map")}
+            onClick={() => navigate("/contact")}
             className="px-9 py-4 text-[15px] sm:text-[16px] font-semibold text-white bg-primary rounded-xl btn-glow-pulse"
           >
             Book a Free Consultation Now

@@ -28,10 +28,13 @@ function localityFromListing(listing) {
   return String(listing.address || "").split(",")[0].trim() || "Bengaluru";
 }
 
-/** Prefer primary image; many Firestore rows only populate `images[]`. */
+/** Prefer primary image; many Firestore rows only populate `images[]` or alternate keys. */
 function listingImageUrl(listing) {
-  const primary = String(listing?.image || "").trim();
-  if (primary) return primary;
+  const keys = ["image", "coverImage", "thumbnail", "photo", "photoUrl", "mainImage", "heroImage"];
+  for (const k of keys) {
+    const u = String(listing?.[k] || "").trim();
+    if (u) return u;
+  }
   const imgs = listing?.images;
   if (Array.isArray(imgs)) {
     const first = imgs.map((x) => String(x || "").trim()).find(Boolean);
@@ -373,15 +376,25 @@ export default function SmartMatch() {
                     </div>
                   </div>
 
-                  <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => navigate(buildSmartMatchMapHref(selections))}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-700"
-                    >
-                      Open matches on map
-                      <ArrowRight size={18} />
-                    </button>
+                  <div className="mt-8 flex flex-col items-center justify-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/contact")}
+                        className="inline-flex items-center gap-2 rounded-2xl border-2 border-rose-600 bg-white px-6 py-3 text-sm font-bold text-rose-600 shadow-sm transition-colors hover:bg-rose-50"
+                      >
+                        Talk to a consultant
+                        <ArrowRight size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(buildSmartMatchMapHref(selections))}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-700"
+                      >
+                        Open matches on map
+                        <ArrowRight size={18} />
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => navigate(buildSmartMatchMapHref(selections, { openFilters: true }))}
