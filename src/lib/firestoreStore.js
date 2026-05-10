@@ -620,6 +620,18 @@ export async function getCrmLeadsForStaff(actor) {
   return [];
 }
 
+function sanitizeCrmExtraFields(input) {
+  const obj = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  /** @type {Record<string, string>} */
+  const out = {};
+  let n = 0;
+  for (const [k, v] of Object.entries(obj)) {
+    if (n++ > 120) break;
+    out[String(k).slice(0, 120)] = String(v ?? "").slice(0, 4000);
+  }
+  return out;
+}
+
 export async function createCrmLeadData(payload, actor) {
   const assignee = String(payload.assigneeEmail || "").toLowerCase().trim();
   const row = {
@@ -650,6 +662,9 @@ export async function createCrmLeadData(payload, actor) {
     externalRef: String(payload.externalRef || "").trim().slice(0, 200),
     alternatePhone: String(payload.alternatePhone || "").trim().slice(0, 40),
     customerCompany: String(payload.customerCompany || "").trim().slice(0, 200),
+    extraFields: sanitizeCrmExtraFields(payload.extraFields),
+    importSheetName: String(payload.importSheetName || "").trim().slice(0, 120),
+    importSourceFile: String(payload.importSourceFile || "").trim().slice(0, 200),
     createdByEmail: String(actor?.email || "").toLowerCase().trim(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -661,8 +676,10 @@ export async function createCrmLeadData(payload, actor) {
 export async function updateCrmLeadData(leadId, patch, actor) {
   const id = String(leadId || "");
   if (!id) throw new Error("leadId required");
+  const patchIn = { ...patch };
+  if (patchIn.extraFields != null) patchIn.extraFields = sanitizeCrmExtraFields(patchIn.extraFields);
   const payload = shallowOmitUndefined({
-    ...patch,
+    ...patchIn,
     updatedAt: serverTimestamp(),
     lastUpdatedByEmail: String(actor?.email || "").toLowerCase().trim(),
   });

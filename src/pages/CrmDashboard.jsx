@@ -17,6 +17,7 @@ import {
   updateCrmLeadData,
 } from "../lib/firestoreStore";
 import { isConsultantRole, isCrmElevatedRole, isStaffRole, normalizeStaffRole } from "../lib/accessControl";
+import { mapHeadersRowToCrmLead, parsePastedGrid } from "../lib/crmSheetMapping";
 
 const STATUS_OPTIONS = ["new", "contacted", "not_visited", "visited", "follow_up", "won", "lost", "on_hold"];
 const VISIT_OPTIONS = ["not_visited", "visited"];
@@ -72,6 +73,11 @@ export default function CrmDashboard() {
 
   const [taskDraft, setTaskDraft] = useState({ leadId: "", title: "", dueAt: "", assigneeEmail: "" });
   const [staffAssignees, setStaffAssignees] = useState([]);
+  const [importPaste, setImportPaste] = useState("");
+  const [importSheetMeta, setImportSheetMeta] = useState("All Leads");
+  const [importFileMeta, setImportFileMeta] = useState("Master Data - movEAZY.xlsx");
+  const [importAssigneeEmail, setImportAssigneeEmail] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const load = async () => {
     if (!isFirebaseConfigured || !user) return;
@@ -120,6 +126,51 @@ export default function CrmDashboard() {
       setMsg(String(e?.message || e));
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const runSheetImport = async () => {
+    if (!isFullAdmin || importing) return;
+    const em = importAssigneeEmail.trim().toLowerCase();
+    if (!em) {
+      setMsg("Choose a default assignee for imported leads.");
+      return;
+    }
+    const grid = parsePastedGrid(importPaste);
+    if (grid.length < 2) {
+      setMsg("Paste a header row plus at least one data row (tab-separated from Excel).");
+      return;
+    }
+    const headers = grid[0];
+    const assigneeRow = staffAssignees.find((s) => String(s.email || "").toLowerCase().trim() === em);
+    setImporting(true);
+    setMsg("");
+    let n = 0;
+    try {
+      for (let r = 1; r < grid.length; r++) {
+        const mapped = mapHeadersRowToCrmLead(headers, grid[r], {
+          sheetName: importSheetMeta,
+          sourceFile: importFileMeta,
+        });
+        if (!mapped.customerName && !mapped.customerPhone) continue;
+        await createCrmLeadData(
+          {
+            ...mapped,
+            assigneeEmail: em,
+            assigneeName: assigneeRow?.name || mapped.assigneeName || "",
+            customerEmail: mapped.customerEmail || "",
+          },
+          user
+        );
+        n += 1;
+      }
+      setMsg(`Imported ${n} lead(s).`);
+      setImportPaste("");
+      setTick((x) => x + 1);
+    } catch (err) {
+      setMsg(String(err?.message || err));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -346,6 +397,52 @@ export default function CrmDashboard() {
           </form>
         ) : null}
 
+        {tab === "leads" && isFullAdmin ? (
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Bulk import (Excel copy → paste)</div>
+            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 10, lineHeight: 1.45 }}>
+              Copy rows from <strong>Kuldeep Ops</strong> or <strong>Master Data</strong> (include the header row). Headers are mapped in code; unknown columns go to{" "}
+              <code style={{ fontSize: 12 }}>extraFields</code>. Each imported row needs a staff assignee.
+            </p>
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", marginBottom: 10 }}>
+              <input placeholder="Sheet name (e.g. All Leads)" value={importSheetMeta} onChange={(e) => setImportSheetMeta(e.target.value)} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
+              <input placeholder="Source file label" value={importFileMeta} onChange={(e) => setImportFileMeta(e.target.value)} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
+              {staffAssignees.length ? (
+                <select
+                  required
+                  value={importAssigneeEmail}
+                  onChange={(e) => setImportAssigneeEmail(e.target.value.toLowerCase().trim())}
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }}
+                >
+                  <option value="">Default assignee…</option>
+                  {staffAssignees.map((s) => (
+                    <option key={s.uid} value={String(s.email || "").toLowerCase()}>
+                      {(s.name || s.email) + ` (${normalizeStaffRole(s.role)})`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input type="email" placeholder="Default assignee email" value={importAssigneeEmail} onChange={(e) => setImportAssigneeEmail(e.target.value)} style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1" }} />
+              )}
+            </div>
+            <textarea
+              value={importPaste}
+              onChange={(e) => setImportPaste(e.target.value)}
+              placeholder="Paste TSV from Excel (header row + data)…"
+              rows={8}
+              style={{ width: "100%", fontFamily: "monospace", fontSize: 12, padding: 10, borderRadius: 8, border: "1px solid #cbd5e1", marginBottom: 10 }}
+            />
+            <button
+              type="button"
+              disabled={importing}
+              onClick={runSheetImport}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 800, border: "none", cursor: importing ? "wait" : "pointer" }}
+            >
+              {importing ? "Importing…" : "Import pasted rows"}
+            </button>
+          </div>
+        ) : null}
+
         {tab === "leads" ? (
           <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -460,6 +557,15 @@ export default function CrmDashboard() {
   );
 }
 
+function stringifyExtraFields(obj) {
+  try {
+    const o = obj && typeof obj === "object" && !Array.isArray(obj) ? obj : {};
+    return JSON.stringify(o, null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
 function toDatetimeLocalValue(ts) {
   let d = null;
   if (ts?.toDate) d = ts.toDate();
@@ -487,6 +593,7 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
   const [externalRef, setExternalRef] = useState(row.externalRef || "");
   const [alternatePhone, setAlternatePhone] = useState(row.alternatePhone || "");
   const [customerCompany, setCustomerCompany] = useState(row.customerCompany || "");
+  const [extraFieldsJson, setExtraFieldsJson] = useState(() => stringifyExtraFields(row.extraFields));
 
   useEffect(() => {
     setVisitStatus(row.visitStatus || "not_visited");
@@ -506,6 +613,7 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
     setExternalRef(row.externalRef || "");
     setAlternatePhone(row.alternatePhone || "");
     setCustomerCompany(row.customerCompany || "");
+    setExtraFieldsJson(stringifyExtraFields(row.extraFields));
   }, [row]);
 
   const wa = digitsForWa(row.customerPhone);
@@ -588,7 +696,8 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
           onClick={() => {
             const bm = budgetMin.trim() === "" ? null : Number(budgetMin);
             const bx = budgetMax.trim() === "" ? null : Number(budgetMax);
-            onPatch(row.id, {
+            /** @type {Record<string, unknown>} */
+            const patch = {
               visitStatus,
               status,
               requirements,
@@ -607,7 +716,16 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
               ...(isFullAdmin && assigneeEmail
                 ? { assigneeEmail: assigneeEmail.toLowerCase().trim(), assigneeName: assigneeName.trim() }
                 : {}),
-            });
+            };
+            if (isElevated) {
+              try {
+                const parsed = JSON.parse(extraFieldsJson);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) patch.extraFields = parsed;
+              } catch {
+                /* keep previous extraFields */
+              }
+            }
+            onPatch(row.id, patch);
           }}
           style={{ width: "100%", padding: "8px 10px", borderRadius: 8, background: "#1e3a8a", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer", marginBottom: 6 }}
         >
@@ -646,6 +764,22 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
           <input value={customerCompany} onChange={(e) => setCustomerCompany(e.target.value)} placeholder="Company" style={{ padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }} />
         </div>
         <textarea value={preferredAreas} onChange={(e) => setPreferredAreas(e.target.value)} placeholder="Preferred areas (comma-separated or free text)" rows={2} style={{ width: "100%", marginTop: 8, padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13 }} />
+      </td>
+    </tr>
+    <tr style={{ background: "#faf5ff", borderTop: "1px solid #e9d5ff" }}>
+      <td colSpan={6} style={{ padding: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#5b21b6", marginBottom: 6 }}>extraFields (imported / legacy columns)</div>
+        {isElevated ? (
+          <textarea
+            value={extraFieldsJson}
+            onChange={(e) => setExtraFieldsJson(e.target.value)}
+            rows={6}
+            spellCheck={false}
+            style={{ width: "100%", fontFamily: "monospace", fontSize: 12, padding: 8, borderRadius: 8, border: "1px solid #c4b5fd", background: "#fff" }}
+          />
+        ) : (
+          <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#475569" }}>{extraFieldsJson}</pre>
+        )}
       </td>
     </tr>
     </Fragment>
