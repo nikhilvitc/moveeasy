@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MovEazy — Architecture &amp; Workflow</title>
+  <style>
+    :root { --text: #1e293b; --muted: #64748b; --border: #e2e8f0; --accent: #1e3a8a; }
+    * { box-sizing: border-box; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.55; color: var(--text); max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem 4rem; font-size: 11pt; }
+    h1 { font-size: 1.65rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.35rem; margin-top: 0; }
+    h2 { font-size: 1.2rem; color: var(--accent); margin-top: 1.75rem; page-break-after: avoid; }
+    h3 { font-size: 1.05rem; margin-top: 1.25rem; page-break-after: avoid; }
+    p, li { margin: 0.5rem 0; }
+    ul { padding-left: 1.25rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 10pt; page-break-inside: avoid; }
+    th, td { border: 1px solid var(--border); padding: 0.45rem 0.55rem; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; font-weight: 600; }
+    code, pre { font-family: ui-monospace, Consolas, monospace; font-size: 9.5pt; background: #f1f5f9; padding: 0.12em 0.35em; border-radius: 4px; }
+    pre { padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; }
+    .meta { color: var(--muted); font-size: 10pt; margin-bottom: 1.5rem; }
+    .note { background: #fef9c3; border-left: 4px solid #ca8a04; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 10pt; }
+    @media print {
+      body { padding: 0; max-width: none; font-size: 10pt; }
+      h2 { page-break-before: auto; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>MovEazy — Architecture, Workflow &amp; Operations Guide</h1>
+<p class="meta"><strong>Document version:</strong> 1.0 · <strong>February 2026</strong> · Repository: MOVEASY-WEBSITE (React SPA + Firebase)</p>
+
+<h2>1. Executive summary</h2>
+<p>MovEazy is a <strong>single-page application (SPA)</strong> served as static files. The browser runs the UI; <strong>Firebase</strong> provides authentication, Firestore (document database), file storage, optional Cloud Functions, and hosting. There is <strong>no traditional Node/Express API</strong> in the main user path—data access is <strong>direct from the client to Firestore</strong> under <strong>security rules</strong>, which enforce who can read or write what.</p>
+
+<h2>2. Technology map</h2>
+<table>
+  <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td>Language (UI)</td><td>JavaScript (ES modules) + JSX</td><td>React components and client logic</td></tr>
+    <tr><td>UI framework</td><td>React 19</td><td>Components, state, effects</td></tr>
+    <tr><td>Routing</td><td>React Router v7</td><td>Public pages; role routes for admin, seller, customer, staff CRM</td></tr>
+    <tr><td>Build</td><td>Vite 8</td><td>Dev server, HMR, production bundle to <code>dist/</code></td></tr>
+    <tr><td>Styling</td><td>Tailwind CSS 3 + inline styles (CRM)</td><td>Layout and marketing</td></tr>
+    <tr><td>Maps</td><td>Leaflet + React-Leaflet</td><td>Interactive listing map</td></tr>
+    <tr><td>Animation</td><td>GSAP, Framer Motion</td><td>Marketing motion</td></tr>
+    <tr><td>Auth &amp; data</td><td>Firebase JS SDK v12</td><td><code>auth</code>, <code>firestore</code>, <code>storage</code>, <code>functions</code></td></tr>
+    <tr><td>Errors (client)</td><td>Sentry</td><td>Optional client error capture</td></tr>
+    <tr><td>Backend (optional)</td><td>Cloud Functions (Node 20)</td><td>Triggers, Admin SDK—separate deploy from hosting</td></tr>
+    <tr><td>Infrastructure</td><td>Firebase Hosting</td><td>Static hosting; SPA fallback to <code>index.html</code></td></tr>
+    <tr><td>Authorization</td><td><code>firestore.rules</code>, <code>storage.rules</code></td><td>Server-side enforcement for data access</td></tr>
+    <tr><td>CI</td><td>GitHub Actions</td><td>Build / test / deploy</td></tr>
+    <tr><td>Tests</td><td>Vitest, Playwright</td><td>Unit and e2e</td></tr>
+  </tbody>
+</table>
+
+<h2>3. End-to-end workflow</h2>
+
+<h3>3.1 First visit → marketing</h3>
+<ol>
+  <li>User opens the hosted site; <strong>Firebase Hosting</strong> serves <code>index.html</code> and assets.</li>
+  <li>React starts from <code>src/main.jsx</code>; <code>App.jsx</code> routes to <code>/</code>, <code>/services</code>, <code>/map</code>, etc.</li>
+  <li>Most marketing and map discovery does not require login.</li>
+</ol>
+
+<h3>3.2 Sign-up / sign-in</h3>
+<ol>
+  <li><strong>AuthContext</strong> listens to Firebase Auth (<code>onAuthStateChanged</code>).</li>
+  <li>Email/password and Google sign-in (per app code).</li>
+  <li>Profiles and roles in Firestore (<code>userProfiles</code>, <code>userRoles</code>, etc.).</li>
+  <li>Admin allowlist via env <code>VITE_ADMIN_EMAILS</code> may supplement Firestore roles.</li>
+</ol>
+
+<h3>3.3 Role-based areas</h3>
+<ul>
+  <li><code>/customer</code>, <code>/seller</code>, <code>/admin</code>: UI gated by role; Firestore rules must match.</li>
+  <li><code>/crm</code>: Staff (<code>admin</code>, <code>sub_admin</code>, <code>consultant</code>) — leads, tasks, notifications.</li>
+</ul>
+
+<h3>3.4 Map &amp; listings</h3>
+<p><code>/map</code> uses Leaflet; listings load from Firestore. Public vs private fields (e.g. broker phone) depend on <strong>rules</strong> and client sanitization helpers.</p>
+
+<h3>3.5 Staff CRM</h3>
+<ul>
+  <li>Data: <code>crmLeads</code>, <code>crmTasks</code>, <code>notifications</code> via <code>firestoreStore.js</code>.</li>
+  <li>Sub-admins/consultants: scoped to <code>assigneeEmail</code>; admins see all.</li>
+  <li>Optional TSV paste import; <code>extraFields</code> for legacy sheet columns.</li>
+</ul>
+
+<h3>3.6 Deploy</h3>
+<p><code>npm run build</code> → <code>dist/</code>. <code>firebase deploy --only hosting</code> (and often <code>firestore:rules</code>). Functions deploy separately.</p>
+
+<h2>4. Security model (short)</h2>
+<ul>
+  <li><strong>Authentication:</strong> Firebase Auth.</li>
+  <li><strong>Authorization:</strong> Firestore &amp; Storage <strong>rules</strong> — primary enforcement.</li>
+  <li><strong>App Check:</strong> Optional reCAPTCHA v3 to reduce API abuse.</li>
+  <li>React role checks improve UX only; they do not replace rules.</li>
+</ul>
+
+<h2>5. Observability &amp; quality</h2>
+<ul>
+  <li>Sentry and client logging helpers where configured.</li>
+  <li>Vitest / Playwright for regression; ESLint for style—full-repo lint may include legacy issues.</li>
+</ul>
+
+<h2>6. Skills for this stack (2026)</h2>
+<p><strong>Core:</strong> Modern JavaScript + React; Firebase Auth + Firestore + rules; Git + CI.</p>
+<p><strong>Strongly recommended:</strong> SPA threat modeling; performance basics; e2e smoke tests for auth and money paths.</p>
+
+<h2>7. “Vibe coding” and common failure modes</h2>
+<div class="note">
+  <p><strong>Context:</strong> AI-assisted “vibe coding” often ships UI fast but under-invests in security, errors, and ops. For this Firebase SPA, the highest-risk gaps are:</p>
+</div>
+<table>
+  <thead><tr><th>Area</th><th>Risk</th><th>Mitigation</th></tr></thead>
+  <tbody>
+    <tr><td>Authorization</td><td>UI hides actions but rules stay permissive</td><td>Rules review per collection; test as each role</td></tr>
+    <tr><td>Authentication</td><td>Session / verification edge cases</td><td>Test Google vs password; document flows</td></tr>
+    <tr><td>Data layer</td><td>Silent <code>permission-denied</code></td><td>User-visible errors + logging</td></tr>
+    <tr><td>Error logging</td><td>Empty catch blocks</td><td>Sentry or structured client logs</td></tr>
+    <tr><td>Cloud Functions</td><td>Hosting OK, callables broken</td><td>Separate health checks; monitor logs</td></tr>
+    <tr><td>Environment</td><td>Missing <code>VITE_*</code> at build</td><td>Checklist + staging deploy</td></tr>
+    <tr><td>Indexes</td><td>New queries fail until indexes exist</td><td>Use Firestore console links from errors</td></tr>
+  </tbody>
+</table>
+<p><strong>Bottom line:</strong> Production-grade work requires <strong>verification</strong>—treat the client as untrusted, align rules with product, and test failure paths.</p>
+
+<h2>8. Reference paths in repo</h2>
+<ul>
+  <li><code>firebase.json</code> — hosting, Firestore, storage, functions</li>
+  <li><code>firestore.rules</code> — data authorization</li>
+  <li><code>src/App.jsx</code> — routes</li>
+  <li><code>src/lib/firebase.js</code> — Firebase init, App Check</li>
+  <li><code>src/lib/firestoreStore.js</code> — data access helpers</li>
+  <li><code>docs/DEPLOYMENT.md</code> — deployment notes</li>
+  <li><code>docs/crm-all-header-rows.txt</code> — CRM sheet headers</li>
+</ul>
+
+<p class="meta" style="margin-top:2rem;"><em>Source markdown: <code>docs/MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md</code> · To save as PDF: open this HTML in a browser → Print → Save as PDF.</em></p>
+
+</body>
+</html>
