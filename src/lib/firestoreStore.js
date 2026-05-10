@@ -607,11 +607,11 @@ export async function getActivityEventsForEmail(email) {
 export async function getCrmLeadsForStaff(actor) {
   const em = String(actor?.email || "").toLowerCase().trim();
   const role = normalizeUserRole(actor?.role);
-  if (role === "admin" || role === "sub_admin") {
+  if (role === "admin") {
     const snap = await getDocs(query(collection(db, "crmLeads"), orderBy("updatedAt", "desc"), limit(250)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
-  if (role === "consultant" && em) {
+  if ((role === "sub_admin" || role === "consultant") && em) {
     const snap = await getDocs(query(collection(db, "crmLeads"), where("assigneeEmail", "==", em), limit(250)));
     const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     rows.sort((a, b) => (b.updatedAt?.toMillis?.() ?? 0) - (a.updatedAt?.toMillis?.() ?? 0));
@@ -641,6 +641,15 @@ export async function createCrmLeadData(payload, actor) {
         ? payload.nextFollowUpAt
         : new Date(payload.nextFollowUpAt)
       : null,
+    /** Extra fields for Base44 / sheet imports — keep flat for simple rules & admin UI. */
+    budgetMin: Number(payload.budgetMin) > 0 ? Number(payload.budgetMin) : null,
+    budgetMax: Number(payload.budgetMax) > 0 ? Number(payload.budgetMax) : null,
+    preferredAreas: String(payload.preferredAreas || "").trim().slice(0, 2000),
+    moveTimeline: String(payload.moveTimeline || "").trim().slice(0, 200),
+    sourceChannel: String(payload.sourceChannel || "").trim().slice(0, 120),
+    externalRef: String(payload.externalRef || "").trim().slice(0, 200),
+    alternatePhone: String(payload.alternatePhone || "").trim().slice(0, 40),
+    customerCompany: String(payload.customerCompany || "").trim().slice(0, 200),
     createdByEmail: String(actor?.email || "").toLowerCase().trim(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -663,11 +672,11 @@ export async function updateCrmLeadData(leadId, patch, actor) {
 export async function getCrmTasksForStaff(actor) {
   const em = String(actor?.email || "").toLowerCase().trim();
   const role = normalizeUserRole(actor?.role);
-  if (role === "admin" || role === "sub_admin") {
+  if (role === "admin") {
     const snap = await getDocs(query(collection(db, "crmTasks"), orderBy("createdAt", "desc"), limit(300)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
-  if (role === "consultant" && em) {
+  if ((role === "sub_admin" || role === "consultant") && em) {
     const snap = await getDocs(query(collection(db, "crmTasks"), where("assigneeEmail", "==", em), limit(300)));
     const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     rows.sort((a, b) => (b.dueAt?.toMillis?.() ?? 0) - (a.dueAt?.toMillis?.() ?? 0));

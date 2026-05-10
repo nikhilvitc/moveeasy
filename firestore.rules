@@ -189,19 +189,29 @@ service cloud.firestore {
       allow write: if isAdmin() && docId == "public";
     }
 
-    // Staff CRM — customers/sellers have no access. Sub-admins see all; consultants only assigned rows.
+    // Staff CRM — customers/sellers have no access. Admins see all; sub-admins & consultants only rows where they are assignee.
     match /crmLeads/{id} {
-      allow read: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow read: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail())
+        || (isConsultant() && resource.data.assigneeEmail == authEmail());
       allow create: if isAdmin() || isSubAdmin();
-      allow update: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow delete: if isAdmin() || isSubAdmin();
+      allow update: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail())
+        || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail());
     }
 
     match /crmTasks/{id} {
-      allow read: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow read: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail())
+        || (isConsultant() && resource.data.assigneeEmail == authEmail());
       allow create: if isAdmin() || isSubAdmin();
-      allow update: if isAdmin() || isSubAdmin() || (isConsultant() && resource.data.assigneeEmail == authEmail());
-      allow delete: if isAdmin() || isSubAdmin();
+      allow update: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail())
+        || (isConsultant() && resource.data.assigneeEmail == authEmail());
+      allow delete: if isAdmin()
+        || (isSubAdmin() && resource.data.assigneeEmail == authEmail());
     }
 
     match /importJobs/{jobId} {

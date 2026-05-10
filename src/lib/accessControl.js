@@ -11,7 +11,7 @@ export function isStaffRole(role) {
   return STAFF_ROLES.includes(normalizeStaffRole(role));
 }
 
-/** Full CRM directory + create leads/tasks (not assignee-limited). */
+/** May create leads/tasks; sub-admins only see leads/tasks where they are assignee (same as consultants). */
 export function isCrmElevatedRole(role) {
   const r = normalizeStaffRole(role);
   return r === "admin" || r === "sub_admin";
