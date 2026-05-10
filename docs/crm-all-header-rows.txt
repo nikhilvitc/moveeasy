@@ -1,0 +1,43 @@
+## kuldeep-ops — sheet "Kuldeep"
+Name	Contact number 	Location 	Office location 	Office Location	Budget 	Move in date	Question 1	Question 2	Question 3	1st Calling Date	Properties Send	Follow Up 1	Visit Schedule Date	Post Visit Followup	Properties Send 2	Follow Up 2	Visit Schedule Date 2	Post Visit Followup 2	Properties Send 3	Follow Up 3	Visit Schedule Date 3	Post Visit Followup 3	Properties Send 4	Follow Up 4	Visit Schedule Date 4	Post Visit Followup 4
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-kuldeep-ops__kuldeep.tsv)
+
+## kuldeep-ops — sheet "Editable sheet"
+ 	Contact number 	Location 	Office location 	Budget 	Flat Type	Move in date	Question 1	Question 2	Question 3	1st Calling Date	Properties Send	Follow Up 1	Visit Schedule Date	Post Visit Followup	Properties Send	Follow Up 2	Visit Schedule Date	Post Visit Followup	Properties Send	Follow Up 3	Visit Schedule Date	Post Visit Followup	Properties Send	Follow Up 4	Visit Schedule Date	Post Visit Followup
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-kuldeep-ops__editable-sheet.tsv)
+
+## master-moveazy — sheet "Master data"
+Sheets Copy 			Area 	Ops Leader 		Dead lead 
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__master-data.tsv)
+
+## master-moveazy — sheet "All Leads"
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns	 	Status	Owner	Unique ID	Time Stamp	 	Ops POC			rent/room								
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__all-leads.tsv)
+
+## master-moveazy — sheet "Payout"
+Name	11	12	13	14	15	16	17				Marketing	Current *10
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__payout.tsv)
+
+## master-moveazy — sheet "Detail24-Bellandur "
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns		Status	Owner	Unique ID	Time Stamp
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__detail24-bellandur.tsv)
+
+## master-moveazy — sheet "Without location "
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns		Status	Owner	Unique ID	Time Stamp
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__without-location.tsv)
+
+## master-moveazy — sheet "Detail21-HSR layout "
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns		Status	Owner	Unique ID	Time Stamp
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__detail21-hsr-layout.tsv)
+
+## master-moveazy — sheet "Detail19-Koromangala "
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns		Status	Owner	Unique ID	Time Stamp
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__detail19-koromangala.tsv)
+
+## master-moveazy — sheet "Detail17-HSR layout "
+Name	Contact number 	Location 	Office location 	Budget 	Flate type 	Move in date	Assigned Interns		Status	Owner	Unique ID	Time Stamp		Visit Schedule   
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__detail17-hsr-layout.tsv)
+
+## master-moveazy — sheet "College data"
+Name 	Contact Number 	Email 	Company Placed 	Location 	College name 
+(saved: D:\Cursor\zillow\moveazy-git\docs\crm-headers-master-moveazy__college-data.tsv)
