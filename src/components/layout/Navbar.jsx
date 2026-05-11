@@ -55,6 +55,7 @@ export default function Navbar() {
           {[
             { label: "Services", path: "/services" },
             { label: "Guarantee", path: "/guarantee" },
+            { label: "Flat plan", path: "/plan" },
             { label: "Listings", path: "/map" },
             { label: "Saved", path: "/activity" },
           ].map(({ label, path }) => (
@@ -162,6 +163,7 @@ export default function Navbar() {
               {[
                 { label: "Services", path: "/services" },
                 { label: "Guarantee", path: "/guarantee" },
+                { label: "Flat plan", path: "/plan" },
                 { label: "Listings / Map", path: "/map" },
                 { label: "Saved & activity", path: "/activity" },
               ].map(({ label, path }) => (

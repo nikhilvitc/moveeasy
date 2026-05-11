@@ -15,6 +15,7 @@ import MyActivity from "./pages/MyActivity";
 import Checkout from "./pages/Checkout";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import MoveazyPlanPage from "./pages/MoveazyPlanPage";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 function OnboardingEmailWarning() {
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/plan" element={<MoveazyPlanPage />} />
       <Route path="/support" element={<Navigate to="/contact" replace />} />
       <Route path="/crm" element={<StaffRoute roles={["admin", "sub_admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
