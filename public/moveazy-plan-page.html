@@ -1163,21 +1163,110 @@
   .flat-search-field input:focus {
     outline: none;
     border-color: var(--coral);
-    box-shadow: 0 0 0 3px rgba(232,90,79,0.15);
+    box-shadow: 0 0 0 3px rgba(255, 49, 49, 0.18);
+  }
+  .flat-search-field-wrap {
+    position: relative;
+    flex: 1 1 220px;
+    min-width: 200px;
+  }
+  .fs-suggest {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid #e7e5e4;
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 60;
+    display: none;
+  }
+  .fs-suggest.is-open {
+    display: block;
+  }
+  .fs-suggest button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 11px 14px;
+    border: none;
+    border-bottom: 1px solid #f4f4f5;
+    background: transparent;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .fs-suggest button:last-child {
+    border-bottom: none;
+  }
+  .fs-suggest button:hover,
+  .fs-suggest button:focus {
+    background: #fff5f5;
+    color: var(--coral);
+    outline: none;
+  }
+  .flat-area-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    align-items: center;
+  }
+  .flat-area-chips-label {
+    width: 100%;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .flat-area-chip {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #e7e5e4;
+    background: #fafaf9;
+    color: var(--ink-mid);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.12s;
+  }
+  .flat-area-chip:hover {
+    border-color: var(--coral);
+    color: var(--coral);
+    background: #fff5f5;
+    transform: translateY(-1px);
+  }
+  .flat-area-chip.is-active {
+    border-color: var(--coral);
+    background: var(--coral);
+    color: #fff;
   }
   .btn-zillow-find {
-    background: #006aff;
+    background: #dc2626;
     color: #fff;
-    border: none;
+    border: 1px solid #b91c1c;
     border-radius: 8px;
     padding: 12px 28px;
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    transition: filter 0.15s;
+    transition: background 0.15s, filter 0.15s, transform 0.12s;
+    box-shadow: 0 2px 10px rgba(220, 38, 38, 0.22);
   }
-  .btn-zillow-find:hover { filter: brightness(1.08); }
+  .btn-zillow-find:hover {
+    background: #ef4444;
+    filter: none;
+    transform: translateY(-1px);
+  }
   .flat-search-disclaimer {
     font-size: 11px;
     color: #888;
@@ -1237,7 +1326,7 @@
   .flat-agent-stats { font-size: 12px; color: var(--muted); line-height: 1.45; }
   .flat-agent-rating {
     font-size: 13px;
-    color: #006aff;
+    color: var(--coral);
     font-weight: 700;
     margin-bottom: 4px;
   }
@@ -1245,10 +1334,11 @@
     display: flex;
     gap: 8px;
     justify-content: center;
+    align-items: center;
     margin-top: 28px;
     flex-wrap: wrap;
   }
-  .flat-search-pager a, .flat-search-pager span {
+  .flat-search-pager button {
     min-width: 36px;
     height: 36px;
     display: inline-flex;
@@ -1257,16 +1347,42 @@
     border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
-    text-decoration: none;
-    color: #006aff;
-    border: 1px solid #ccc;
+    font-family: inherit;
+    color: var(--coral);
+    border: 1px solid #d6d3d1;
     background: #fff;
     cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .flat-search-pager span.current {
-    background: #006aff;
+  .flat-search-pager button:hover:not(:disabled) {
+    background: #fff5f5;
+    border-color: var(--coral);
+  }
+  .flat-search-pager button.current {
+    background: var(--coral);
     color: #fff;
-    border-color: #006aff;
+    border-color: var(--coral);
+  }
+  .flat-search-pager button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .flat-search-pager .fs-pager-meta {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    min-width: auto;
+    padding: 0 4px;
+    cursor: default;
+  }
+  .fs-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--muted);
+    font-size: 15px;
   }
 
   /* ── FOOTER ── */
@@ -1430,41 +1546,43 @@
   </div>
 </section>
 
-<!-- FLAT SEARCH — Zillow-style area expert directory (reference layout) -->
+<!-- FLAT SEARCH — demo directory with suggestions, quick chips, working pager -->
 <section class="flat-search-section reveal" id="flat-search">
   <div class="flat-search-inner">
     <div class="flat-search-bar">
       <h2 class="flat-search-title">Area experts in Bangalore</h2>
-      <p class="flat-search-sub">Search by neighbourhood or name — same pattern as professional directories (e.g. <a href="https://www.zillow.com/professionals/real-estate-agent-reviews/chicago-il/?page=3" target="_blank" rel="noopener noreferrer" style="color:#006aff;">Zillow agent search</a>). Moveazy assigns verified on-ground guides; results below are sample cards.</p>
+      <p class="flat-search-sub">Search by neighbourhood or name — same pattern as professional directories (e.g. <a href="https://www.zillow.com/professionals/real-estate-agent-reviews/chicago-il/?page=3" target="_blank" rel="noopener noreferrer" style="color:var(--coral);">Zillow agent search</a>). Moveazy assigns verified on-ground guides; results below are sample cards.</p>
       <div class="flat-search-form">
-        <div class="flat-search-field">
+        <div class="flat-search-field flat-search-field-wrap">
           <label for="fs-area">Area</label>
-          <input id="fs-area" type="text" placeholder="HSR Layout, Koramangala…" autocomplete="off" />
+          <input id="fs-area" type="text" placeholder="Type a neighbourhood…" autocomplete="off" />
+          <div id="fs-suggest" class="fs-suggest" role="listbox" aria-label="Area suggestions"></div>
         </div>
-        <div class="flat-search-field">
+        <div class="flat-search-field flat-search-field-wrap">
           <label for="fs-name">Expert name</label>
           <input id="fs-name" type="text" placeholder="Optional" autocomplete="off" />
+          <div id="fs-name-suggest" class="fs-suggest" role="listbox" aria-label="Name suggestions"></div>
         </div>
-        <button type="button" class="btn-zillow-find" onclick="document.getElementById('flat-search-results').scrollIntoView({behavior:'smooth'})">Find experts</button>
+        <button type="button" class="btn-zillow-find" id="fs-find-btn">Find experts</button>
+      </div>
+      <div class="flat-area-chips" role="group" aria-label="Popular Bangalore areas">
+        <span class="flat-area-chips-label">Quick picks — tap an area</span>
+        <button type="button" class="flat-area-chip" data-area="HSR Layout">HSR Layout</button>
+        <button type="button" class="flat-area-chip" data-area="Koramangala">Koramangala</button>
+        <button type="button" class="flat-area-chip" data-area="Whitefield">Whitefield</button>
+        <button type="button" class="flat-area-chip" data-area="Indiranagar">Indiranagar</button>
+        <button type="button" class="flat-area-chip" data-area="Bellandur">Bellandur</button>
+        <button type="button" class="flat-area-chip" data-area="Marathahalli">Marathahalli</button>
+        <button type="button" class="flat-area-chip" data-area="Electronic City">Electronic City</button>
+        <button type="button" class="flat-area-chip" data-area="Jayanagar">Jayanagar</button>
+        <button type="button" class="flat-area-chip" data-area="Hebbal">Hebbal</button>
       </div>
       <p class="flat-search-disclaimer">UI inspired by public real-estate pro listings; Moveazy is not affiliated with Zillow. Live matching uses Moveazy signup &amp; assignment flow.</p>
     </div>
     <div class="flat-search-results" id="flat-search-results">
-      <div class="flat-search-count">6 area experts found (demo)</div>
-      <div class="flat-agent-grid">
-        <article class="flat-agent-card"><div class="flat-agent-photo">R</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (48)</div><div class="flat-agent-name">Rajan Kumar</div><div class="flat-agent-brokerage">Moveazy · HSR &amp; Koramangala</div><div class="flat-agent-stats">₹12k–₹45k focus · 24 visits last 90 days</div></div></article>
-        <article class="flat-agent-card"><div class="flat-agent-photo">P</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (36)</div><div class="flat-agent-name">Priya Nair</div><div class="flat-agent-brokerage">Moveazy · Bellandur &amp; Marathahalli</div><div class="flat-agent-stats">₹15k–₹50k focus · 31 visits last 90 days</div></div></article>
-        <article class="flat-agent-card"><div class="flat-agent-photo">A</div><div class="flat-agent-meta"><div class="flat-agent-rating">4.9 ★ (22)</div><div class="flat-agent-name">Arun Dev</div><div class="flat-agent-brokerage">Moveazy · Whitefield</div><div class="flat-agent-stats">₹18k–₹60k focus · 18 visits last 90 days</div></div></article>
-        <article class="flat-agent-card"><div class="flat-agent-photo">S</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (41)</div><div class="flat-agent-name">Sneha Rao</div><div class="flat-agent-brokerage">Moveazy · Indiranagar</div><div class="flat-agent-stats">₹20k–₹55k focus · 27 visits last 90 days</div></div></article>
-        <article class="flat-agent-card"><div class="flat-agent-photo">K</div><div class="flat-agent-meta"><div class="flat-agent-rating">4.9 ★ (19)</div><div class="flat-agent-name">Karthik Iyer</div><div class="flat-agent-brokerage">Moveazy · Jayanagar</div><div class="flat-agent-stats">₹10k–₹35k focus · 14 visits last 90 days</div></div></article>
-        <article class="flat-agent-card"><div class="flat-agent-photo">M</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (52)</div><div class="flat-agent-name">Meera Shah</div><div class="flat-agent-brokerage">Moveazy · Hebbal &amp; Manyata</div><div class="flat-agent-stats">₹14k–₹48k focus · 33 visits last 90 days</div></div></article>
-      </div>
-      <div class="flat-search-pager">
-        <span class="current">1</span>
-        <a href="#" onclick="return false;">2</a>
-        <a href="#" onclick="return false;">3</a>
-        <span style="border:none;background:transparent;color:#666;">Page 1 of 3</span>
-      </div>
+      <div class="flat-search-count" id="fs-count">18 area experts found (demo)</div>
+      <div class="flat-agent-grid" id="flat-agent-grid"></div>
+      <div class="flat-search-pager" id="flat-search-pager"></div>
     </div>
   </div>
 </section>
@@ -1717,6 +1835,237 @@
     document.querySelectorAll('.plan-nav-links a[href]').forEach((a) => {
       a.addEventListener('click', () => { cb.checked = false; });
     });
+  })();
+
+  /** Flat search: neighbourhood suggestions, quick chips, paginated demo results */
+  (function () {
+    var PAGE_SIZE = 6;
+    var NBH = [
+      'HSR Layout', 'Koramangala', 'Indiranagar', 'Whitefield', 'Marathahalli', 'Bellandur',
+      'Electronic City', 'Sarjapur Road', 'Jayanagar', 'JP Nagar', 'MG Road', 'Ulsoor',
+      'Hebbal', 'Manyata', 'Yelahanka', 'RT Nagar', 'Domlur', 'Banashankari', 'Brookefield',
+      'KR Puram', 'Bannerghatta Road', 'Cunningham Road', 'Hennur', 'Thanisandra', 'Kalyan Nagar',
+      'Btm Layout', 'Basavanagudi', 'Richmond Town', 'Frazer Town', 'Mahadevapura'
+    ];
+    var EXPERTS = [
+      { l: 'R', n: 'Rajan Kumar', r: 5.0, c: 48, a: 'Moveazy · HSR & Koramangala', s: '₹12k–₹45k focus · 24 visits last 90 days', k: 'hsr layout koramangala' },
+      { l: 'P', n: 'Priya Nair', r: 5.0, c: 36, a: 'Moveazy · Bellandur & Marathahalli', s: '₹15k–₹50k focus · 31 visits last 90 days', k: 'bellandur marathahalli' },
+      { l: 'A', n: 'Arun Dev', r: 4.9, c: 22, a: 'Moveazy · Whitefield', s: '₹18k–₹60k focus · 18 visits last 90 days', k: 'whitefield' },
+      { l: 'S', n: 'Sneha Rao', r: 5.0, c: 41, a: 'Moveazy · Indiranagar', s: '₹20k–₹55k focus · 27 visits last 90 days', k: 'indiranagar' },
+      { l: 'K', n: 'Karthik Iyer', r: 4.9, c: 19, a: 'Moveazy · Jayanagar', s: '₹10k–₹35k focus · 14 visits last 90 days', k: 'jayanagar' },
+      { l: 'M', n: 'Meera Shah', r: 5.0, c: 52, a: 'Moveazy · Hebbal & Manyata', s: '₹14k–₹48k focus · 33 visits last 90 days', k: 'hebbal manyata' },
+      { l: 'V', n: 'Vikram Srinivas', r: 5.0, c: 29, a: 'Moveazy · Electronic City', s: '₹16k–₹42k focus · 21 visits last 90 days', k: 'electronic city' },
+      { l: 'D', n: 'Deepa Menon', r: 4.9, c: 33, a: 'Moveazy · Sarjapur Road', s: '₹14k–₹48k focus · 26 visits last 90 days', k: 'sarjapur road sarjapur' },
+      { l: 'N', n: 'Nikhil Reddy', r: 5.0, c: 27, a: 'Moveazy · JP Nagar', s: '₹11k–₹38k focus · 19 visits last 90 days', k: 'jp nagar' },
+      { l: 'U', n: 'Ananya Krishnan', r: 4.8, c: 18, a: 'Moveazy · MG Road & Ulsoor', s: '₹22k–₹58k focus · 16 visits last 90 days', k: 'mg road ulsoor' },
+      { l: 'B', n: 'Rohit Patil', r: 4.9, c: 24, a: 'Moveazy · Banashankari', s: '₹9k–₹32k focus · 22 visits last 90 days', k: 'banashankari' },
+      { l: 'L', n: 'Lakshmi Thota', r: 5.0, c: 31, a: 'Moveazy · Yelahanka', s: '₹13k–₹40k focus · 20 visits last 90 days', k: 'yelahanka' },
+      { l: 'S', n: 'Suresh Nambiar', r: 4.9, c: 21, a: 'Moveazy · KR Puram', s: '₹12k–₹36k focus · 17 visits last 90 days', k: 'kr puram' },
+      { l: 'K', n: 'Kavitha Loganathan', r: 5.0, c: 38, a: 'Moveazy · Bannerghatta Road', s: '₹15k–₹44k focus · 29 visits last 90 days', k: 'bannerghatta road bannerghatta' },
+      { l: 'G', n: 'Manoj George', r: 4.8, c: 16, a: 'Moveazy · Cunningham Road', s: '₹25k–₹62k focus · 12 visits last 90 days', k: 'cunningham road' },
+      { l: 'P', n: 'Pooja Varma', r: 5.0, c: 44, a: 'Moveazy · Brookefield', s: '₹17k–₹50k focus · 25 visits last 90 days', k: 'brookefield' },
+      { l: 'A', n: 'Aditya Walia', r: 4.9, c: 20, a: 'Moveazy · RT Nagar', s: '₹10k–₹34k focus · 15 visits last 90 days', k: 'rt nagar' },
+      { l: 'H', n: 'Sanjay Hegde', r: 5.0, c: 35, a: 'Moveazy · Domlur', s: '₹18k–₹52k focus · 23 visits last 90 days', k: 'domlur' }
+    ];
+
+    var areaEl = document.getElementById('fs-area');
+    var nameEl = document.getElementById('fs-name');
+    var suggestEl = document.getElementById('fs-suggest');
+    var nameSuggestEl = document.getElementById('fs-name-suggest');
+    var gridEl = document.getElementById('flat-agent-grid');
+    var countEl = document.getElementById('fs-count');
+    var pagerEl = document.getElementById('flat-search-pager');
+    var findBtn = document.getElementById('fs-find-btn');
+    if (!areaEl || !nameEl || !gridEl || !pagerEl || !countEl || !findBtn) return;
+
+    var filtered = EXPERTS.slice();
+    var currentPage = 1;
+
+    function closeSuggest() {
+      suggestEl.classList.remove('is-open');
+      suggestEl.innerHTML = '';
+      nameSuggestEl.classList.remove('is-open');
+      nameSuggestEl.innerHTML = '';
+    }
+
+    function pickNeighborhood(val) {
+      areaEl.value = val;
+      closeSuggest();
+      syncChipsActive();
+      applyFilter(true);
+    }
+
+    function updateAreaSuggest() {
+      var v = (areaEl.value || '').trim().toLowerCase();
+      if (v.length < 1) {
+        suggestEl.classList.remove('is-open');
+        suggestEl.innerHTML = '';
+        return;
+      }
+      var hits = NBH.filter(function (n) { return n.toLowerCase().indexOf(v) !== -1; }).slice(0, 10);
+      if (!hits.length) {
+        suggestEl.classList.remove('is-open');
+        suggestEl.innerHTML = '';
+        return;
+      }
+      suggestEl.innerHTML = hits
+        .map(function (n) {
+          return '<button type="button" role="option">' + n.replace(/</g, '&lt;') + '</button>';
+        })
+        .join('');
+      suggestEl.querySelectorAll('button').forEach(function (btn) {
+        btn.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          pickNeighborhood(btn.textContent);
+        });
+      });
+      suggestEl.classList.add('is-open');
+    }
+
+    function updateNameSuggest() {
+      var v = (nameEl.value || '').trim().toLowerCase();
+      if (v.length < 1) {
+        nameSuggestEl.classList.remove('is-open');
+        nameSuggestEl.innerHTML = '';
+        return;
+      }
+      var hits = EXPERTS.filter(function (e) { return e.n.toLowerCase().indexOf(v) !== -1; })
+        .map(function (e) { return e.n; })
+        .filter(function (n, i, arr) { return arr.indexOf(n) === i; })
+        .slice(0, 8);
+      if (!hits.length) {
+        nameSuggestEl.classList.remove('is-open');
+        nameSuggestEl.innerHTML = '';
+        return;
+      }
+      nameSuggestEl.innerHTML = hits
+        .map(function (n) {
+          return '<button type="button" role="option">' + n.replace(/</g, '&lt;') + '</button>';
+        })
+        .join('');
+      nameSuggestEl.querySelectorAll('button').forEach(function (btn) {
+        btn.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          nameEl.value = btn.textContent;
+          closeSuggest();
+          applyFilter(true);
+        });
+      });
+      nameSuggestEl.classList.add('is-open');
+    }
+
+    function areaMatches(e, q) {
+      if (!q) return true;
+      var hay = (e.k + ' ' + e.a.toLowerCase()).replace(/\s+/g, ' ');
+      if (hay.indexOf(q) !== -1) return true;
+      var parts = q.split(/\s+/).filter(Boolean);
+      return parts.every(function (p) { return hay.indexOf(p) !== -1; });
+    }
+
+    function applyFilter(scrollToResults) {
+      var q = (areaEl.value || '').trim().toLowerCase();
+      var n = (nameEl.value || '').trim().toLowerCase();
+      filtered = EXPERTS.filter(function (e) {
+        var okA = areaMatches(e, q);
+        var okN = !n || e.n.toLowerCase().indexOf(n) !== -1;
+        return okA && okN;
+      });
+      currentPage = 1;
+      render();
+      if (scrollToResults) {
+        document.getElementById('flat-search-results').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function cardHtml(e) {
+      return (
+        '<article class="flat-agent-card"><div class="flat-agent-photo">' +
+        e.l +
+        '</div><div class="flat-agent-meta"><div class="flat-agent-rating">' +
+        e.r.toFixed(1) +
+        ' ★ (' +
+        e.c +
+        ')</div><div class="flat-agent-name">' +
+        e.n.replace(/</g, '&lt;') +
+        '</div><div class="flat-agent-brokerage">' +
+        e.a.replace(/</g, '&lt;') +
+        '</div><div class="flat-agent-stats">' +
+        e.s.replace(/</g, '&lt;') +
+        '</div></div></article>'
+      );
+    }
+
+    function render() {
+      var total = filtered.length;
+      countEl.textContent = total + ' area experts found (demo)';
+      var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      var start = (currentPage - 1) * PAGE_SIZE;
+      var slice = filtered.slice(start, start + PAGE_SIZE);
+      if (!slice.length) {
+        gridEl.innerHTML = '<p class="fs-empty">No sample matches — try another area, pick a quick chip, or clear filters.</p>';
+      } else {
+        gridEl.innerHTML = slice.map(cardHtml).join('');
+      }
+      pagerEl.innerHTML = '';
+      for (var i = 1; i <= totalPages; i++) {
+        (function (pageNum) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = String(pageNum);
+          if (pageNum === currentPage) btn.className = 'current';
+          btn.addEventListener('click', function () {
+            currentPage = pageNum;
+            render();
+            document.getElementById('flat-search-results').scrollIntoView({ behavior: 'smooth' });
+          });
+          pagerEl.appendChild(btn);
+        })(i);
+      }
+      var meta = document.createElement('span');
+      meta.className = 'fs-pager-meta';
+      meta.textContent = 'Page ' + currentPage + ' of ' + totalPages;
+      pagerEl.appendChild(meta);
+    }
+
+    function syncChipsActive() {
+      var v = (areaEl.value || '').trim().toLowerCase();
+      document.querySelectorAll('.flat-area-chip').forEach(function (chip) {
+        var a = (chip.getAttribute('data-area') || '').toLowerCase();
+        chip.classList.toggle('is-active', v === a);
+      });
+    }
+
+    areaEl.addEventListener('input', function () {
+      updateAreaSuggest();
+      syncChipsActive();
+    });
+    areaEl.addEventListener('focus', function () {
+      updateAreaSuggest();
+    });
+    nameEl.addEventListener('input', updateNameSuggest);
+    nameEl.addEventListener('focus', updateNameSuggest);
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.flat-search-field-wrap')) closeSuggest();
+    });
+
+    findBtn.addEventListener('click', function () {
+      closeSuggest();
+      applyFilter(true);
+    });
+
+    document.querySelectorAll('.flat-area-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var a = chip.getAttribute('data-area') || chip.textContent;
+        areaEl.value = a;
+        closeSuggest();
+        syncChipsActive();
+        applyFilter(true);
+      });
+    });
+
+    applyFilter(false);
   })();
 </script>
 </body>
