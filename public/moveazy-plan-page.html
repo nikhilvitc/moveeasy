@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Moveazy — Your Flat-Finding Plan</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --coral: #E85A4F;
+    --coral-dark: #c93d32;
+    --coral-light: #FFF0EE;
+    --ink: #0F0E0D;
+    --ink-mid: #2a2826;
+    --sand: #F7F4F0;
+    --sand-dark: #EDE9E3;
+    --muted: #9E9589;
+    --white: #FFFFFF;
+    --chaos-yellow: #F5C518;
+    --chaos-green: #2EC4B6;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--sand);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 40px;
+    background: rgba(247,244,240,0.88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-logo span { color: var(--coral); }
+
+  .nav-cta {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 100px;
+    padding: 10px 22px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.15s;
+  }
+
+  .nav-cta:hover { background: var(--coral-dark); transform: translateY(-1px); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    padding: 120px 40px 80px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .hero-left {}
+
+  .hero-chaos-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid #E8E3DC;
+    border-radius: 100px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .chaos-dot {
+    width: 8px; height: 8px;
+    background: var(--chaos-yellow);
+    border-radius: 50%;
+  }
+
+  .hero-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(42px, 5.5vw, 68px);
+    font-weight: 800;
+    line-height: 1.05;
+    color: var(--ink);
+    margin-bottom: 10px;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .hero-headline em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    color: var(--coral);
+    font-weight: 400;
+  }
+
+  .hero-sub-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(22px, 3vw, 36px);
+    font-weight: 700;
+    color: var(--ink-mid);
+    margin-bottom: 22px;
+    line-height: 1.2;
+    animation: fadeUp 0.5s 0.15s ease both;
+  }
+
+  .hero-body {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 420px;
+    margin-bottom: 36px;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  .hero-cta-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    animation: fadeUp 0.5s 0.25s ease both;
+  }
+
+  .btn-primary {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 16px 32px;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.18s, transform 0.15s, box-shadow 0.15s;
+    text-decoration: none;
+  }
+
+  .btn-primary:hover {
+    background: var(--coral-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(232,90,79,0.3);
+  }
+
+  .btn-ghost {
+    color: var(--muted);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.2s;
+  }
+
+  .btn-ghost:hover { color: var(--ink); }
+
+  /* hero right — chaos card stack */
+  .hero-right {
+    position: relative;
+    min-height: 380px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .chaos-card {
+    position: absolute;
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px 22px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.09);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .chaos-card-main {
+    width: 100%;
+    top: 0; left: 0;
+    background: var(--ink);
+    color: #fff;
+    padding: 32px;
+    border-radius: 24px;
+  }
+
+  .chaos-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #fff;
+    opacity: 0.5;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .chaos-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .chaos-item:last-child { border-bottom: none; }
+
+  .chaos-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .chaos-icon.red { background: rgba(232,90,79,0.15); }
+  .chaos-icon.yellow { background: rgba(245,197,24,0.15); }
+  .chaos-icon.green { background: rgba(46,196,182,0.12); }
+
+  .chaos-item-text { flex: 1; }
+  .chaos-item-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 2px;
+  }
+  .chaos-item-sub { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+  .chaos-item-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  .status-bad { background: rgba(232,90,79,0.18); color: #F4907F; }
+  .status-warn { background: rgba(245,197,24,0.15); color: #D4A800; }
+  .status-ok { background: rgba(46,196,182,0.15); color: #2EC4B6; }
+
+  /* floating small cards */
+  .float-card {
+    position: absolute;
+    background: #fff;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.10);
+    animation: float 4s ease-in-out infinite;
+  }
+
+  .float-card-1 {
+    bottom: 20px;
+    left: -20px;
+    width: 190px;
+    animation-delay: 0s;
+  }
+
+  .float-card-2 {
+    top: 90px;
+    right: -30px;
+    width: 170px;
+    animation-delay: 1.5s;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .float-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .float-big {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .float-big span { color: var(--coral); }
+  .float-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .float-msg {
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .float-agent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .agent-avatar {
+    width: 28px; height: 28px;
+    background: var(--coral);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .agent-name { font-size: 11px; font-weight: 600; color: var(--ink); }
+  .agent-role { font-size: 10px; color: var(--muted); }
+
+  /* ── THE CHAOS SECTION ── */
+  .chaos-section {
+    background: var(--ink);
+    padding: 100px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chaos-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .chaos-section-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .section-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .eyebrow-dark {
+    background: rgba(232,90,79,0.15);
+    border: 1px solid rgba(232,90,79,0.3);
+    color: #F4907F;
+  }
+
+  .eyebrow-light {
+    background: var(--coral-light);
+    border: 1px solid #FBCFC8;
+    color: #C04535;
+  }
+
+  .chaos-section-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    max-width: 600px;
+  }
+
+  .chaos-section-headline em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--chaos-yellow);
+  }
+
+  .chaos-section-sub {
+    font-size: 16px;
+    color: rgba(255,255,255,0.45);
+    max-width: 480px;
+    line-height: 1.65;
+    margin-bottom: 60px;
+  }
+
+  .chaos-problems {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+    max-width: 720px;
+  }
+
+  .problem-item {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    padding: 28px 26px;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .problem-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--coral), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .problem-item:hover { background: rgba(255,255,255,0.07); }
+  .problem-item:hover::before { opacity: 1; }
+
+  .problem-item:first-child { border-radius: 16px 0 0 16px; }
+  .problem-item:nth-child(2) { border-radius: 0 16px 16px 0; }
+
+  .problem-emoji { font-size: 28px; margin-bottom: 14px; }
+
+  .problem-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .problem-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.6;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .how-section {
+    padding: 110px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .how-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 60px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .section-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(30px, 3.5vw, 46px);
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+
+  .section-headline em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--coral);
+  }
+
+  .section-note {
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 260px;
+    line-height: 1.6;
+    text-align: right;
+  }
+
+  .steps-timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: relative;
+    gap: 0;
+  }
+
+  .steps-timeline::before {
+    content: '';
+    position: absolute;
+    top: 44px;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    background: linear-gradient(90deg, var(--sand-dark), var(--coral) 50%, var(--sand-dark));
+    z-index: 0;
+  }
+
+  .step-item {
+    padding: 0 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-node {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--sand-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 24px;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+
+  .step-item:hover .step-node {
+    border-color: var(--coral);
+    box-shadow: 0 8px 32px rgba(232,90,79,0.18);
+  }
+
+  .step-num-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 22px; height: 22px;
+    background: var(--coral);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .step-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  /* ── WHAT'S INCLUDED ── */
+  .included-section {
+    background: #fff;
+    padding: 100px 40px;
+  }
+
+  .included-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .included-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+    margin-top: 60px;
+  }
+
+  .included-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .included-item {
+    display: flex;
+    gap: 16px;
+    padding: 20px 20px;
+    border-radius: 14px;
+    transition: background 0.18s;
+    cursor: default;
+    align-items: flex-start;
+  }
+
+  .included-item:hover { background: var(--sand); }
+
+  .included-check {
+    width: 32px; height: 32px;
+    background: var(--coral-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--coral);
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .included-text {}
+  .included-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .included-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* pricing card */
+  .pricing-sticky {
+    position: sticky;
+    top: 100px;
+  }
+
+  .pricing-card {
+    background: var(--ink);
+    border-radius: 24px;
+    padding: 36px 32px;
+    color: #fff;
+  }
+
+  .pricing-plan-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 20px;
+  }
+
+  .pricing-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .pricing-currency {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    opacity: 0.7;
+  }
+
+  .pricing-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 56px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .pricing-context {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  .pricing-context strong {
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+  }
+
+  .pricing-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    margin: 24px 0;
+  }
+
+  .pricing-features {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .pricing-feature {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+  }
+
+  .feat-dot {
+    width: 18px; height: 18px;
+    background: rgba(232,90,79,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--coral);
+    flex-shrink: 0;
+    font-weight: 800;
+  }
+
+  .btn-cta-full {
+    width: 100%;
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.18s, transform 0.15s, box-shadow 0.15s;
+    margin-bottom: 14px;
+  }
+
+  .btn-cta-full:hover {
+    background: var(--coral-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(232,90,79,0.35);
+  }
+
+  .pricing-fine {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* ── TESTIMONIALS / TRUST ── */
+  .trust-section {
+    padding: 100px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .trust-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 52px;
+  }
+
+  .trust-card {
+    background: #fff;
+    border: 1px solid var(--sand-dark);
+    border-radius: 20px;
+    padding: 28px 24px;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .trust-card:hover {
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
+  }
+
+  .trust-stars {
+    color: var(--chaos-yellow);
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+
+  .trust-quote {
+    font-size: 14px;
+    color: var(--ink-mid);
+    line-height: 1.65;
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  .trust-author {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .trust-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .trust-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--ink); }
+  .trust-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* ── CTA FINALE ── */
+  .finale-section {
+    padding: 0 40px 100px;
+  }
+
+  .finale-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--ink);
+    border-radius: 32px;
+    padding: 80px 60px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .finale-inner::before {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(232,90,79,0.15) 0%, transparent 70%);
+    right: -100px; top: -100px;
+    pointer-events: none;
+  }
+
+  .finale-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--coral);
+    margin-bottom: 16px;
+    opacity: 0.9;
+  }
+
+  .finale-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 3.5vw, 44px);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .finale-headline em {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--chaos-yellow);
+  }
+
+  .finale-body {
+    font-size: 15px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.65;
+    max-width: 400px;
+  }
+
+  .finale-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .btn-finale {
+    background: var(--coral);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 18px 36px;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: background 0.18s, transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-finale:hover {
+    background: var(--coral-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(232,90,79,0.4);
+  }
+
+  .finale-price-note {
+    font-size: 13px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* ── FLAT SEARCH (Zillow-style pro directory — layout reference only) ── */
+  .flat-search-section {
+    background: #e8e8e8;
+    padding: 0 0 80px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .flat-search-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
+  }
+  .flat-search-bar {
+    background: #fff;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    padding: 20px 24px 24px;
+    margin-bottom: 8px;
+  }
+  .flat-search-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(22px, 2.5vw, 28px);
+    font-weight: 800;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .flat-search-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  .flat-search-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .flat-search-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .flat-search-field input {
+    min-width: 200px;
+    padding: 12px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  .flat-search-field input:focus {
+    outline: none;
+    border-color: var(--coral);
+    box-shadow: 0 0 0 3px rgba(232,90,79,0.15);
+  }
+  .btn-zillow-find {
+    background: #006aff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s;
+  }
+  .btn-zillow-find:hover { filter: brightness(1.08); }
+  .flat-search-disclaimer {
+    font-size: 11px;
+    color: #888;
+    margin-top: 14px;
+    line-height: 1.4;
+  }
+  .flat-search-results {
+    padding-top: 20px;
+  }
+  .flat-search-count {
+    font-size: 14px;
+    color: var(--ink-mid);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .flat-agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .flat-agent-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border: 1px solid #ddd;
+    transition: box-shadow 0.2s;
+  }
+  .flat-agent-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  }
+  .flat-agent-photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--coral-light), #e8e8e8);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--coral);
+  }
+  .flat-agent-meta { flex: 1; min-width: 0; }
+  .flat-agent-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .flat-agent-brokerage { font-size: 12px; color: #555; margin-bottom: 6px; }
+  .flat-agent-stats { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .flat-agent-rating {
+    font-size: 13px;
+    color: #006aff;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .flat-search-pager {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .flat-search-pager a, .flat-search-pager span {
+    min-width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    color: #006aff;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+  }
+  .flat-search-pager span.current {
+    background: #006aff;
+    color: #fff;
+    border-color: #006aff;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 32px 40px;
+    border-top: 1px solid var(--sand-dark);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+
+  .footer-logo span { color: var(--coral); }
+
+  .footer-note { font-size: 13px; color: var(--muted); }
+
+  /* animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* scroll reveals */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">move<span>azy</span></a>
+  <button class="nav-cta" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Get started — ₹1,999</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-chaos-label">
+      <span class="chaos-dot"></span>
+      Moving to Bangalore this May?
+    </div>
+    <h1 class="hero-headline">Finding a flat<br>is <em>absolute</em><br>chaos.</h1>
+    <h2 class="hero-sub-headline">We fix that.<br>For ₹1,999.</h2>
+    <p class="hero-body">
+      Brokers who ghost you. Listings that don't exist. Areas you've never heard of. 
+      Moveazy is your on-ground guide — we find, filter, and schedule everything so you don't have to.
+    </p>
+    <div class="hero-cta-group">
+      <button class="btn-primary" type="button" onclick="document.getElementById('flat-search').scrollIntoView({behavior:'smooth'})">
+        Start my flat search →
+      </button>
+      <button class="btn-ghost" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">
+        See how it works ↓
+      </button>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="chaos-card chaos-card-main">
+      <div class="chaos-title">Without Moveazy</div>
+      <div class="chaos-item">
+        <div class="chaos-icon red">😤</div>
+        <div class="chaos-item-text">
+          <div class="chaos-item-label">Called 7 brokers</div>
+          <div class="chaos-item-sub">3 didn't pick up. 2 showed wrong area.</div>
+        </div>
+        <span class="chaos-item-status status-bad">Wasted</span>
+      </div>
+      <div class="chaos-item">
+        <div class="chaos-icon yellow">😰</div>
+        <div class="chaos-item-text">
+          <div class="chaos-item-label">Visited 4 flats</div>
+          <div class="chaos-item-sub">None matched the photos online.</div>
+        </div>
+        <span class="chaos-item-status status-warn">Exhausting</span>
+      </div>
+      <div class="chaos-item">
+        <div class="chaos-icon green">✅</div>
+        <div class="chaos-item-text">
+          <div class="chaos-item-label">With Moveazy — ₹1,999</div>
+          <div class="chaos-item-sub">Flat found. Visit done. Move in.</div>
+        </div>
+        <span class="chaos-item-status status-ok">Sorted</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FLAT SEARCH — Zillow-style area expert directory (reference layout) -->
+<section class="flat-search-section reveal" id="flat-search">
+  <div class="flat-search-inner">
+    <div class="flat-search-bar">
+      <h2 class="flat-search-title">Area experts in Bangalore</h2>
+      <p class="flat-search-sub">Search by neighbourhood or name — same pattern as professional directories (e.g. <a href="https://www.zillow.com/professionals/real-estate-agent-reviews/chicago-il/?page=3" target="_blank" rel="noopener noreferrer" style="color:#006aff;">Zillow agent search</a>). Moveazy assigns verified on-ground guides; results below are sample cards.</p>
+      <div class="flat-search-form">
+        <div class="flat-search-field">
+          <label for="fs-area">Area</label>
+          <input id="fs-area" type="text" placeholder="HSR Layout, Koramangala…" autocomplete="off" />
+        </div>
+        <div class="flat-search-field">
+          <label for="fs-name">Expert name</label>
+          <input id="fs-name" type="text" placeholder="Optional" autocomplete="off" />
+        </div>
+        <button type="button" class="btn-zillow-find" onclick="document.getElementById('flat-search-results').scrollIntoView({behavior:'smooth'})">Find experts</button>
+      </div>
+      <p class="flat-search-disclaimer">UI inspired by public real-estate pro listings; Moveazy is not affiliated with Zillow. Live matching uses Moveazy signup &amp; assignment flow.</p>
+    </div>
+    <div class="flat-search-results" id="flat-search-results">
+      <div class="flat-search-count">6 area experts found (demo)</div>
+      <div class="flat-agent-grid">
+        <article class="flat-agent-card"><div class="flat-agent-photo">R</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (48)</div><div class="flat-agent-name">Rajan Kumar</div><div class="flat-agent-brokerage">Moveazy · HSR &amp; Koramangala</div><div class="flat-agent-stats">₹12k–₹45k focus · 24 visits last 90 days</div></div></article>
+        <article class="flat-agent-card"><div class="flat-agent-photo">P</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (36)</div><div class="flat-agent-name">Priya Nair</div><div class="flat-agent-brokerage">Moveazy · Bellandur &amp; Marathahalli</div><div class="flat-agent-stats">₹15k–₹50k focus · 31 visits last 90 days</div></div></article>
+        <article class="flat-agent-card"><div class="flat-agent-photo">A</div><div class="flat-agent-meta"><div class="flat-agent-rating">4.9 ★ (22)</div><div class="flat-agent-name">Arun Dev</div><div class="flat-agent-brokerage">Moveazy · Whitefield</div><div class="flat-agent-stats">₹18k–₹60k focus · 18 visits last 90 days</div></div></article>
+        <article class="flat-agent-card"><div class="flat-agent-photo">S</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (41)</div><div class="flat-agent-name">Sneha Rao</div><div class="flat-agent-brokerage">Moveazy · Indiranagar</div><div class="flat-agent-stats">₹20k–₹55k focus · 27 visits last 90 days</div></div></article>
+        <article class="flat-agent-card"><div class="flat-agent-photo">K</div><div class="flat-agent-meta"><div class="flat-agent-rating">4.9 ★ (19)</div><div class="flat-agent-name">Karthik Iyer</div><div class="flat-agent-brokerage">Moveazy · Jayanagar</div><div class="flat-agent-stats">₹10k–₹35k focus · 14 visits last 90 days</div></div></article>
+        <article class="flat-agent-card"><div class="flat-agent-photo">M</div><div class="flat-agent-meta"><div class="flat-agent-rating">5.0 ★ (52)</div><div class="flat-agent-name">Meera Shah</div><div class="flat-agent-brokerage">Moveazy · Hebbal &amp; Manyata</div><div class="flat-agent-stats">₹14k–₹48k focus · 33 visits last 90 days</div></div></article>
+      </div>
+      <div class="flat-search-pager">
+        <span class="current">1</span>
+        <a href="#" onclick="return false;">2</a>
+        <a href="#" onclick="return false;">3</a>
+        <span style="border:none;background:transparent;color:#666;">Page 1 of 3</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHAOS SECTION -->
+<section class="chaos-section">
+  <div class="chaos-section-inner">
+    <div class="section-eyebrow eyebrow-dark reveal">The harsh reality</div>
+    <h2 class="chaos-section-headline reveal reveal-delay-1">
+      Moving to a new city is<br><em>harder than it looks.</em>
+    </h2>
+    <p class="chaos-section-sub reveal reveal-delay-2">
+      Freshers moving to Bangalore hit the same friction points again and again.
+      We've seen it — and we built Moveazy to fix the worst of it.
+    </p>
+
+    <div class="chaos-problems">
+      <div class="problem-item reveal">
+        <div class="problem-emoji">📵</div>
+        <div class="problem-title">Brokers who ghost</div>
+        <div class="problem-desc">You call, they pick up once, show you something random, then vanish. No follow-up. No accountability.</div>
+      </div>
+      <div class="problem-item reveal reveal-delay-1">
+        <div class="problem-emoji">🗺️</div>
+        <div class="problem-title">You don't know the areas</div>
+        <div class="problem-desc">Koramangala? Marathahalli? HSR? Whitefield? If you're new, these are just words. Bad advice costs months.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how">
+  <div class="how-header">
+    <div>
+      <div class="section-eyebrow eyebrow-light reveal" style="display:inline-flex;">How it works</div>
+      <h2 class="section-headline reveal reveal-delay-1">We do the hard part.<br><em>You just move in.</em></h2>
+    </div>
+    <p class="section-note reveal reveal-delay-2">Four simple steps. One flat. Zero broker drama.</p>
+  </div>
+
+  <div class="steps-timeline">
+    <div class="step-item reveal">
+      <div class="step-node">
+        🗺️
+        <div class="step-num-badge">1</div>
+      </div>
+      <div class="step-title">Tell us your needs</div>
+      <div class="step-desc">Budget, area preference, flat type, and move-in date.</div>
+    </div>
+    <div class="step-item reveal reveal-delay-1">
+      <div class="step-node">
+        🤝
+        <div class="step-num-badge">2</div>
+      </div>
+      <div class="step-title">Meet your area agent</div>
+      <div class="step-desc">We assign you a verified local agent who knows that exact area.</div>
+    </div>
+    <div class="step-item reveal reveal-delay-2">
+      <div class="step-node">
+        🏠
+        <div class="step-num-badge">3</div>
+      </div>
+      <div class="step-title">Get handpicked options</div>
+    </div>
+    <div class="step-item reveal reveal-delay-3">
+      <div class="step-node">
+        📅
+        <div class="step-num-badge">4</div>
+      </div>
+      <div class="step-title">Visits booked, flat locked</div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT'S INCLUDED -->
+<section class="included-section" id="pricing">
+  <div class="included-inner">
+    <div class="section-eyebrow eyebrow-light reveal" style="display:inline-flex;">The plan</div>
+    <h2 class="section-headline reveal reveal-delay-1">Everything you get<br><em>for ₹1,999.</em></h2>
+
+    <div class="included-grid">
+      <div class="included-list">
+        <div class="included-item reveal">
+          <div class="included-check">✓</div>
+          <div class="included-text">
+            <div class="included-title">City orientation call</div>
+            <div class="included-desc">A 30-min call where we understand your lifestyle, office location, and must-haves — and guide you on the best areas to target in Bangalore.</div>
+          </div>
+        </div>
+        <div class="included-item reveal reveal-delay-1">
+          <div class="included-check">✓</div>
+          <div class="included-text">
+            <div class="included-title">Dedicated local area agent</div>
+            <div class="included-desc">A verified on-ground expert assigned specifically to your preferred area. Not a call centre — a real person who knows your neighbourhood.</div>
+          </div>
+        </div>
+        <div class="included-item reveal reveal-delay-2">
+          <div class="included-check">✓</div>
+          <div class="included-text">
+            <div class="included-title">Handpicked property shortlist</div>
+            <div class="included-desc">3–5 verified, real options that match your budget and needs. No fake listings. No bait-and-switch. What you see is what you visit.</div>
+          </div>
+        </div>
+        <div class="included-item reveal reveal-delay-3">
+          <div class="included-check">✓</div>
+          <div class="included-text">
+            <div class="included-title">Scheduled property visits</div>
+            <div class="included-desc">We coordinate with landlords and your agent to set up visits at your convenience. You don't make a single cold call.</div>
+          </div>
+        </div>
+        <div class="included-item reveal reveal-delay-4">
+          <div class="included-check">✓</div>
+          <div class="included-text">
+            <div class="included-title">Move-in guidance & support</div>
+            <div class="included-desc">Once you pick a flat, we help you understand the lease, deposit terms, and what to watch out for before signing anything.</div>
+          </div>
+        </div>
+        <div class="included-item reveal" style="border: 1.5px solid #FBCFC8; background: #FFF8F7; border-radius: 14px;">
+          <div class="included-check" style="background: var(--coral); color: #fff;">💬</div>
+          <div class="included-text">
+            <div class="included-title" style="color: var(--coral);">Direct chat with your area expert</div>
+            <div class="included-desc">Get connected directly with your assigned area expert on WhatsApp. Ask anything — locality safety, commute time, nearby amenities, typical rent ranges. Real answers from someone who lives and works there.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRICING CARD -->
+      <div class="pricing-sticky reveal reveal-delay-2">
+        <div class="pricing-card">
+          <div class="pricing-plan-name">Moveazy Flat-Finding Plan</div>
+          <div class="pricing-amount">
+            <span class="pricing-currency">₹</span>
+            <span class="pricing-number">1,999</span>
+          </div>
+          <div class="pricing-context">
+            One-time fee. No commission. No hidden charges.<br>
+            <strong>A broker charges ₹15,000–₹30,000 for the same job.</strong>
+          </div>
+
+          <div class="pricing-divider"></div>
+
+          <div class="pricing-features">
+            <div class="pricing-feature"><div class="feat-dot">✓</div>City orientation call</div>
+            <div class="pricing-feature"><div class="feat-dot">✓</div>Dedicated local agent</div>
+            <div class="pricing-feature"><div class="feat-dot">✓</div>3–5 verified shortlisted options</div>
+            <div class="pricing-feature"><div class="feat-dot">✓</div>All visits scheduled for you</div>
+            <div class="pricing-feature"><div class="feat-dot">✓</div>Lease & deposit guidance</div>
+            <div class="pricing-feature" style="background: rgba(232,90,79,0.08); border-radius: 8px; padding: 8px 10px; margin-top: 4px;">
+              <div class="feat-dot" style="background: var(--coral); color: #fff;">💬</div>
+              <span style="color: #fff; font-weight: 500;">Direct WhatsApp with area expert</span>
+            </div>
+          </div>
+
+          <button class="btn-cta-full">
+            Get started for ₹1,999 →
+          </button>
+          <div class="pricing-fine">🔒 Secure payment &nbsp;·&nbsp; No hidden fees</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="trust-section">
+  <div class="section-eyebrow eyebrow-light reveal" style="display:inline-flex;">What movers say</div>
+  <h2 class="section-headline reveal reveal-delay-1" style="margin-top:12px;">Real freshers.<br><em>Real flats found.</em></h2>
+
+  <div class="trust-grid">
+    <div class="trust-card reveal">
+      <div class="trust-stars">★★★★★</div>
+      <p class="trust-quote">"I was panicking about finding a place before my job started. Moveazy gave me an agent the same day. Within 4 days I had visited 3 places and locked a flat in Koramangala. I couldn't have done this alone."</p>
+      <div class="trust-author">
+        <div class="trust-avatar" style="background:#E85A4F;">A</div>
+        <div>
+          <div class="trust-name">Arjun S.</div>
+          <div class="trust-meta">SRM Chennai → Koramangala, Bangalore</div>
+        </div>
+      </div>
+    </div>
+    <div class="trust-card reveal reveal-delay-1">
+      <div class="trust-stars">★★★★★</div>
+      <p class="trust-quote">"Literally every broker I called before this tried to charge me a full month's commission. Moveazy charged ₹1,999 and my agent found me a better place. Don't even bother with brokers."</p>
+      <div class="trust-author">
+        <div class="trust-avatar" style="background:#2EC4B6;">R</div>
+        <div>
+          <div class="trust-name">Riya M.</div>
+          <div class="trust-meta">VIT Vellore → HSR Layout, Bangalore</div>
+        </div>
+      </div>
+    </div>
+    <div class="trust-card reveal reveal-delay-2">
+      <div class="trust-stars">★★★★★</div>
+      <p class="trust-quote">"I didn't know anything about Bangalore areas. My agent explained each neighbourhood and why it suited my budget. Ended up in Marathahalli — close to my office, great flat, no drama."</p>
+      <div class="trust-author">
+        <div class="trust-avatar" style="background:#F4A261;">K</div>
+        <div>
+          <div class="trust-name">Karthik V.</div>
+          <div class="trust-meta">NIT Trichy → Marathahalli, Bangalore</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINALE CTA -->
+<section class="finale-section">
+  <div class="finale-inner">
+    <div>
+      <div class="finale-eyebrow">You're moving in May. Let's get this done.</div>
+      <h2 class="finale-headline">Stop stressing.<br>Start <em>settling in.</em></h2>
+      <p class="finale-body">Thousands of freshers move to Bangalore every May. The ones who find good flats fast? They didn't do it alone. Let Moveazy be your unfair advantage.</p>
+    </div>
+    <div class="finale-cta">
+      <button class="btn-finale">
+        Get my flat — ₹1,999 →
+      </button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">move<span>azy</span></div>
+  <div class="footer-note">© 2026 Moveazy · Bengaluru, India · moveazy.in</div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.12 });
+
+  reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
