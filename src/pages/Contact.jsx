@@ -1,7 +1,7 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import PageShell from "../components/layout/PageShell";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 import Tilt3D from "../components/ui/Tilt3D";
@@ -9,14 +9,21 @@ import Tilt3D from "../components/ui/Tilt3D";
 const EASE = [0.22, 1, 0.36, 1];
 
 const WHY_ITEMS = [
-  { icon: "🏠", title: "Verified Listings Only", desc: "Every property is personally inspected by our team." },
   {
-    icon: "🛡️",
-    title: "Brokerage & connections",
-    desc: "We charge one month's rent as brokerage.",
-    bullets: ["Provide brokers connections"],
+    icon: "🎯",
+    title: "Built around your brief",
+    desc: "Budget, commute radius, flat type, PG vs whole flat, and move-in week — we translate that into a tight shortlist, not random WhatsApp forwards.",
   },
-  { icon: "⚡", title: "48-Hour Move-In", desc: "From first call to keys-in-hand in under 2 days." },
+  {
+    icon: "⚡",
+    title: "Exclusive & fast-moving stock",
+    desc: "Paid match clients get earlier nudge on landlord-approved deals and off-market options when owners want a quick close.",
+  },
+  {
+    icon: "📌",
+    title: "Priority when you move",
+    desc: "When you are ready to visit or block a unit, your request is queued ahead of cold inquiries so you waste fewer weekends.",
+  },
 ];
 
 export default function Contact() {
@@ -102,7 +109,7 @@ export default function Contact() {
               className="font-semibold text-sm tracking-widest uppercase mb-4"
               style={{ color: "#ff8a7a" }}
             >
-              Talk to our team
+              Paid · personalized match
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -110,19 +117,46 @@ export default function Contact() {
               transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight"
             >
-              Book a Free{" "}
-              <span className="gradient-text">Consultation</span>
+              Your shortlist,{" "}
+              <span className="gradient-text">built for you</span>
+              <span className="block sm:inline sm:ml-3 text-3xl sm:text-4xl lg:text-5xl mt-2 sm:mt-0 font-extrabold text-white/95">
+                — ₹199
+              </span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.16, ease: EASE }}
-              className="mt-5 text-lg max-w-xl mx-auto"
+              className="mt-5 text-lg max-w-2xl mx-auto"
               style={{ color: "rgba(255,255,255,0.60)" }}
             >
-              Get expert advice on your Bangalore move. Our IITK-trained consultants
-              will help you find the perfect home — transparent brokerage (one month&apos;s rent) and broker connections, with a sharp eye on scams.
+              We no longer offer open-ended free consults. Instead, for <strong className="text-white/90">₹199</strong> you unlock a{" "}
+              <strong className="text-white/90">personalized property recommendation pack</strong>: a consultant reviews your requirements, curates matching homes
+              (including sharper picks as inventory moves), flags exclusive or fast-closing deals, and <strong className="text-white/90">prioritizes</strong> your visits
+              and callbacks when you are ready to move in.
             </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.24, ease: EASE }}
+              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <Link
+                to="/checkout?sku=personalized-match"
+                className="inline-flex px-10 py-4 rounded-full font-bold text-base text-white btn-glow-pulse text-center"
+                style={{ background: "linear-gradient(135deg, #e85a4f, #f97316)" }}
+              >
+                Pay ₹199 — start my match
+              </Link>
+              <a
+                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B9199%20for%20Moveazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
+              >
+                WhatsApp the team
+              </a>
+            </motion.div>
           </div>
         </section>
 
@@ -212,7 +246,7 @@ export default function Contact() {
                         </motion.a>
                         <motion.a
                           href={`https://wa.me/${c.phoneRaw}?text=${encodeURIComponent(
-                            "Hi, I'd like to book a free consultation about finding a home in Bangalore through MovEazy."
+                            "Hi — I'm interested in Moveazy's ₹199 personalized property match (curated shortlist + priority). Please confirm next steps."
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"

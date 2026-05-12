@@ -56,6 +56,7 @@ export default function Navbar() {
             { label: "Services", path: "/services" },
             { label: "Guarantee", path: "/guarantee" },
             { label: "Flat plan", path: "/plan" },
+            { label: "Agents", path: "/agents" },
             { label: "Listings", path: "/map" },
             { label: "Saved", path: "/activity" },
           ].map(({ label, path }) => (
@@ -70,7 +71,7 @@ export default function Navbar() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
           >
-            Book a Free Consultation Now
+            Personalized match · ₹199
           </motion.button>
 
           <motion.button
@@ -164,6 +165,7 @@ export default function Navbar() {
                 { label: "Services", path: "/services" },
                 { label: "Guarantee", path: "/guarantee" },
                 { label: "Flat plan", path: "/plan" },
+                { label: "Agents", path: "/agents" },
                 { label: "Listings / Map", path: "/map" },
                 { label: "Saved & activity", path: "/activity" },
               ].map(({ label, path }) => (
@@ -178,7 +180,7 @@ export default function Navbar() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
               >
-                Book a Free Consultation Now
+                Personalized match · ₹199
               </motion.button>
               {user?.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">

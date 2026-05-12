@@ -6,7 +6,7 @@ function planHtmlUrl() {
   const base = import.meta.env.BASE_URL || "/";
   const normalized = base.endsWith("/") ? base : `${base}/`;
   /* embed=1 hides in-frame nav (React Navbar is the real chrome). v= bumps cache after edits. */
-  const v = import.meta.env.VITE_PLAN_PAGE_ASSET_VERSION ?? "20260511d";
+  const v = import.meta.env.VITE_PLAN_PAGE_ASSET_VERSION ?? "20260511f";
   return `${normalized}moveazy-plan-page.html?embed=1&v=${encodeURIComponent(v)}`;
 }
 

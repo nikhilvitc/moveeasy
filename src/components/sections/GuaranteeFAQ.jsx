@@ -135,7 +135,7 @@ export default function GuaranteeFAQ() {
                 <div>
                   <p className="text-[15px] font-bold text-[#1E2A3A]">Book A 15 Min Call</p>
                   <p className="mt-1 text-[12px] text-gray-400 leading-[1.6]">
-                    If You Have Any Questions Feel Free To Book A Consultation Call Before Subscribing To Our Plans
+                    Questions before you subscribe? Reach us on the contact page — personalized property shortlists start at ₹199.
                   </p>
                 </div>
               </div>
@@ -150,7 +150,7 @@ export default function GuaranteeFAQ() {
                   transition-all duration-200
                 "
               >
-                Book A Consultation
+                Contact &amp; paid match
               </button>
             </motion.div>
           </div>

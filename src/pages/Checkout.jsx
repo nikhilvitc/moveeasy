@@ -2,24 +2,72 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import Tilt3D from "../components/ui/Tilt3D";
 import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const EASE = [0.22, 1, 0.36, 1];
 
-/** Scannable UPI QR for the Guarantee Plan amount (same VPA as copy below). */
+/** Scannable UPI QR — same VPA; amount varies by product. */
 const UPI_VPA = "9413186425@ybl";
-const UPI_PAY_URI = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent("MovEazy Guarantee")}&am=1999&cu=INR`;
-const UPI_QR_IMAGE_SRC = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(UPI_PAY_URI)}`;
+
+const PRODUCTS = {
+  guarantee: {
+    key: "guarantee",
+    amountRupee: 1999,
+    amountPaise: "1999",
+    title: "MovEazy Guarantee Plan",
+    subtitle: "Legal verification + escrow deposit security",
+    bullets: [
+      "Binding contract verification",
+      "Escrow-style deposit protection",
+      "Broker negligence coverage",
+      "24/7 legal support hotline",
+      "100% refund if deal falls through",
+    ],
+    whatsappPath:
+      "I've%20paid%20₹1999%20for%20Guarantee%20Plan.%20Here's%20my%20receipt.",
+    confirmTitle: "Guarantee Plan enrollment",
+    confirmBody:
+      "Our team will verify your payment and activate your Guarantee Plan within 2 hours. You'll receive a confirmation on WhatsApp.",
+    qrAlt: "UPI QR code for ₹1,999 MovEazy Guarantee payment",
+  },
+  "personalized-match": {
+    key: "personalized-match",
+    amountRupee: 199,
+    amountPaise: "199",
+    title: "Personalized property match",
+    subtitle: "Human-curated shortlist from your requirements — priority on exclusive listings",
+    bullets: [
+      "Shortlist matched to budget, commute & move-in date",
+      "Exclusive & fast-moving deals surfaced first",
+      "Priority queue when you are ready to visit or lock",
+      "WhatsApp handoff to your area expert after payment",
+    ],
+    whatsappPath:
+      "I've%20paid%20₹199%20for%20Personalized%20Property%20Match.%20Here's%20my%20receipt%20—%20please%20send%20the%20intake%20form.",
+    confirmTitle: "Personalized property match",
+    confirmBody:
+      "We will verify your ₹199 payment and send the intake form on WhatsApp within a few hours. A consultant will then build your curated shortlist.",
+    qrAlt: "UPI QR code for ₹199 personalized property match",
+  },
+};
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [confirmed, setConfirmed] = useState(false);
+
+  const product = useMemo(() => {
+    const sku = searchParams.get("sku");
+    return sku === "personalized-match" ? PRODUCTS["personalized-match"] : PRODUCTS.guarantee;
+  }, [searchParams]);
+
+  const upiPayUri = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent("Moveazy")}&am=${product.amountPaise}&cu=INR`;
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(upiPayUri)}`;
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden antialiased">
-      {/* Full-viewport layer so animated background is obvious (not clipped to content height) */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <PremiumPageBackdrop variant="checkout" />
       </div>
@@ -27,11 +75,7 @@ export default function Checkout() {
       <Navbar />
 
       <main className="relative z-10 max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: EASE }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-rose-200/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-700 shadow-sm backdrop-blur-sm">
             <motion.span
               className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
@@ -41,36 +85,30 @@ export default function Checkout() {
             Live checkout
           </div>
           <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-stone-900 via-rose-900 to-orange-700 bg-clip-text text-transparent">
-              Checkout
-            </span>
+            <span className="bg-gradient-to-r from-stone-900 via-rose-900 to-orange-700 bg-clip-text text-transparent">Checkout</span>
           </h1>
           <p className="mt-2 text-slate-600 font-medium">
-            Complete your Guarantee Plan enrollment — secure UPI, instant confirmation.
+            {product.key === "personalized-match"
+              ? "Unlock your personalized property pack — pay once, get curated picks and priority."
+              : "Complete your Guarantee Plan enrollment — secure UPI, instant confirmation."}
           </p>
 
           <div className="mt-10 grid md:grid-cols-2 gap-8 md:gap-10">
             <Tilt3D intensity={6} scale={1.01} className="rounded-2xl [transform-style:preserve-3d]">
               <div className="rounded-2xl border border-white/80 bg-white/95 p-8 shadow-card-lg backdrop-blur-md ring-1 ring-stone-900/[0.04]">
-                <h2 className="text-xl font-bold text-stone-900 mb-6">Order Summary</h2>
+                <h2 className="text-xl font-bold text-stone-900 mb-6">Order summary</h2>
 
                 <div className="space-y-4 mb-8">
                   <div className="flex justify-between items-center gap-4 pb-4 border-b border-stone-100">
                     <div className="min-w-0">
-                      <div className="font-semibold text-stone-900">MovEazy Guarantee Plan</div>
-                      <div className="text-sm text-slate-500 mt-1">Legal verification + escrow deposit security</div>
+                      <div className="font-semibold text-stone-900">{product.title}</div>
+                      <div className="text-sm text-slate-500 mt-1">{product.subtitle}</div>
                     </div>
-                    <div className="font-bold text-lg text-stone-900 shrink-0">₹1,999</div>
+                    <div className="font-bold text-lg text-stone-900 shrink-0">₹{product.amountRupee.toLocaleString("en-IN")}</div>
                   </div>
 
                   <div className="space-y-2 text-sm text-slate-600">
-                    {[
-                      "Binding contract verification",
-                      "Escrow-style deposit protection",
-                      "Broker negligence coverage",
-                      "24/7 legal support hotline",
-                      "100% refund if deal falls through",
-                    ].map((line) => (
+                    {product.bullets.map((line) => (
                       <div key={line} className="flex items-center gap-2">
                         <span className="text-emerald-500 font-bold">✓</span>
                         {line}
@@ -86,7 +124,7 @@ export default function Checkout() {
                     animate={{ scale: [1, 1.03, 1] }}
                     transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    ₹1,999
+                    ₹{product.amountRupee.toLocaleString("en-IN")}
                   </motion.div>
                 </div>
               </div>
@@ -105,14 +143,7 @@ export default function Checkout() {
                   <div className="rounded-[14px] bg-gradient-to-b from-stone-50/95 to-white p-6 text-center">
                     <Tilt3D intensity={5} scale={1.02} className="mx-auto inline-block rounded-xl">
                       <div className="w-52 h-52 mx-auto bg-white rounded-xl shadow-inner flex items-center justify-center border border-stone-200/80 p-2 ring-2 ring-white">
-                        <img
-                          src={UPI_QR_IMAGE_SRC}
-                          alt="UPI QR code for ₹1,999 MovEazy Guarantee payment"
-                          width={220}
-                          height={220}
-                          className="max-w-full h-auto rounded-md"
-                          decoding="async"
-                        />
+                        <img src={qrSrc} alt={product.qrAlt} width={220} height={220} className="max-w-full h-auto rounded-md" decoding="async" />
                       </div>
                     </Tilt3D>
                     <p className="mt-4 text-sm font-semibold text-stone-800">Scan with any UPI app</p>
@@ -121,14 +152,14 @@ export default function Checkout() {
                 </div>
 
                 <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
-                  <div className="font-semibold text-sky-950 mb-2">Or pay via Bank Transfer:</div>
+                  <div className="font-semibold text-sky-950 mb-2">Or pay via bank / UPI id:</div>
                   <div className="text-sky-900 space-y-1">
                     <div>
                       UPI: <span className="font-mono font-bold">{UPI_VPA}</span>
                     </div>
                     <div>After payment, share screenshot on WhatsApp:</div>
                     <a
-                      href="https://wa.me/919413186425?text=I've%20paid%20₹1999%20for%20Guarantee%20Plan.%20Here's%20my%20receipt."
+                      href={`https://wa.me/919413186425?text=${product.whatsappPath}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
@@ -151,7 +182,7 @@ export default function Checkout() {
                     animate={{ boxShadow: ["0 8px 28px rgba(225,29,72,0.45)", "0 12px 40px rgba(225,29,72,0.65)", "0 8px 28px rgba(225,29,72,0.45)"] }}
                     transition={{ boxShadow: { duration: 2.2, repeat: Infinity, ease: "easeInOut" } }}
                   >
-                    <span className="relative z-[1]">I&apos;ve Made the Payment — activate my plan</span>
+                    <span className="relative z-[1]">I&apos;ve made the payment — continue</span>
                     <motion.span
                       className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
                       initial={{ x: "-100%" }}
@@ -170,24 +201,22 @@ export default function Checkout() {
                       >
                         🎉
                       </motion.div>
-                      <div className="font-bold text-emerald-900 text-lg">Payment Received!</div>
-                      <div className="text-sm text-emerald-700/90 mt-2">
-                        Our team will verify your payment and activate your Guarantee Plan within 2 hours.
-                        You&apos;ll receive a confirmation on WhatsApp.
-                      </div>
+                      <div className="font-bold text-emerald-900 text-lg">Payment received</div>
+                      <div className="text-sm font-semibold text-emerald-900/90 mt-1">{product.confirmTitle}</div>
+                      <div className="text-sm text-emerald-700/90 mt-2">{product.confirmBody}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => navigate("/")}
                       className="px-8 py-3 rounded-full font-semibold text-white bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 shadow-md transition-colors"
                     >
-                      Back to Home
+                      Back to home
                     </button>
                   </div>
                 )}
 
                 <p className="mt-5 text-center text-[11px] font-medium text-slate-400">
-                  Trusted checkout · UPI protected · No card data stored on MovEazy
+                  Trusted checkout · UPI protected · No card data stored on Moveazy
                 </p>
               </div>
             </Tilt3D>

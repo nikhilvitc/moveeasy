@@ -123,7 +123,7 @@ export default function Features() {
             onClick={() => navigate("/contact")}
             className="px-9 py-4 text-[15px] sm:text-[16px] font-semibold text-white bg-primary rounded-xl btn-glow-pulse"
           >
-            Book a Free Consultation Now
+            Personalized match · ₹199
           </button>
         </div>
       </div>
