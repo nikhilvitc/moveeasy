@@ -65,13 +65,13 @@ export default function Navbar() {
 
           <motion.button
             type="button"
-            onClick={() => closeAndGo("/contact")}
+            onClick={() => closeAndGo("/plan")}
             className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_2px_10px_rgba(220,38,38,0.28)]"
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
           >
-            Personalized match · ₹199
+            Personalized match
           </motion.button>
 
           <motion.button
@@ -175,12 +175,12 @@ export default function Navbar() {
               ))}
               <motion.button
                 type="button"
-                onClick={() => closeAndGo("/contact")}
+                onClick={() => closeAndGo("/plan")}
                 className="rounded-lg px-4 py-2.5 bg-red-600 text-white text-center font-bold border border-red-700 hover:bg-red-500"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
               >
-                Personalized match · ₹199
+                Personalized match
               </motion.button>
               {user?.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">

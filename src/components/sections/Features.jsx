@@ -120,10 +120,10 @@ export default function Features() {
         <div className="flex justify-center mt-14 sm:mt-16 lg:mt-20" data-gsap-reveal>
           <button
             type="button"
-            onClick={() => navigate("/contact")}
+            onClick={() => navigate("/plan")}
             className="px-9 py-4 text-[15px] sm:text-[16px] font-semibold text-white bg-primary rounded-xl btn-glow-pulse"
           >
-            Personalized match · ₹199
+            Personalized match
           </button>
         </div>
       </div>
