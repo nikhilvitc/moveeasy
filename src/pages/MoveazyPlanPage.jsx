@@ -6,7 +6,7 @@ function planHtmlUrl() {
   const base = import.meta.env.BASE_URL || "/";
   const normalized = base.endsWith("/") ? base : `${base}/`;
   /* embed=1 hides in-frame nav (React Navbar is the real chrome). v= bumps cache after edits. */
-  const v = import.meta.env.VITE_PLAN_PAGE_ASSET_VERSION ?? "20260511g";
+  const v = import.meta.env.VITE_PLAN_PAGE_ASSET_VERSION ?? "20260512a";
   return `${normalized}moveazy-plan-page.html?embed=1&v=${encodeURIComponent(v)}`;
 }
 
@@ -15,7 +15,7 @@ export default function MoveazyPlanPage() {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = "Moveazy — Your Flat-Finding Plan";
+    document.title = "MovEazy — Your Flat-Finding Plan";
     return () => {
       document.title = prev;
     };
@@ -28,7 +28,7 @@ export default function MoveazyPlanPage() {
         <Navbar />
       </div>
       <iframe
-        title="Moveazy flat-finding plan"
+        title="MovEazy flat-finding plan"
         src={src}
         className="relative z-10 min-h-0 w-full flex-1 border-0 bg-transparent"
         referrerPolicy="strict-origin-when-cross-origin"

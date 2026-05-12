@@ -29,7 +29,7 @@ const FEATURES = [
   {
     icon: userMaleIcon,
     title: "Deposit Protection Guaranteed",
-    desc: "Avoid unfair deductions with our Moveazy Guarantee — legal support that ensures you get your money back.",
+    desc: "Avoid unfair deductions with our MovEazy Guarantee — legal support that ensures you get your money back.",
     gradient: "from-[#8b5cf6] to-[#e85a4f]",
     glow: "rgba(139,92,246,0.40)",
   },
@@ -98,7 +98,7 @@ export default function Features() {
           <h2 className="text-[32px] sm:text-[40px] lg:text-[48px] xl:text-[52px] font-extrabold text-gray-950 leading-[1.12] tracking-tight max-w-[1100px] mx-auto">
             Thousands Are Moving{" "}
             <span className="gradient-text">Smarter</span>{" "}
-            with Moveazy
+            with MovEazy
           </h2>
         </div>
 

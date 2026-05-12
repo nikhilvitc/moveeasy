@@ -52,7 +52,7 @@ export default function StorySection() {
           {...scrollFadeUp(0.12)}
           className="mt-10 text-[16px] sm:text-[17px] text-gray-500 leading-[1.88]"
         >
-          Moveazy was born in the middle of a chaotic relocation. Our founders
+          MovEazy was born in the middle of a chaotic relocation. Our founders
           spent weeks navigating fragmented websites, unreliable brokers, and
           the crushing isolation of a new city where they knew no one.
         </motion.p>

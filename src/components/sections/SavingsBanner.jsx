@@ -81,7 +81,7 @@ export default function SavingsBanner() {
             transition={​{ duration: 0.6, delay: 0.1, ease: EASE }}
             className="mt-3 text-[14.5px] sm:text-[15.5px] text-white/70"
           >
-            Average savings realized per move-out through Moveazy intervention.
+            Average savings realized per move-out through MovEazy intervention.
           </motion.p>
 
           {/* Chips */}

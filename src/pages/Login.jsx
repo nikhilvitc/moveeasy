@@ -254,7 +254,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-2">
           <h1 className="text-[32px] font-black tracking-tight gradient-text-shimmer">
-            Moveazy
+            MovEazy
           </h1>
           <p className="text-white/55 text-[14px] mt-1">
             {isSignup ? "Create your account" : "Sign in to your account"}

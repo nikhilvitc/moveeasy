@@ -149,7 +149,7 @@ export default function Contact() {
                 Pay ₹199 — start my match
               </Link>
               <a
-                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B9199%20for%20Moveazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
+                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B9199%20for%20MovEazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
@@ -246,7 +246,7 @@ export default function Contact() {
                         </motion.a>
                         <motion.a
                           href={`https://wa.me/${c.phoneRaw}?text=${encodeURIComponent(
-                            "Hi — I'm interested in Moveazy's ₹199 personalized property match (curated shortlist + priority). Please confirm next steps."
+                            "Hi — I'm interested in MovEazy's ₹199 personalized property match (curated shortlist + priority). Please confirm next steps."
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"

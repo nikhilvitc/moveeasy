@@ -110,7 +110,7 @@ export default function ServiceRecap() {
             >
               We don't provide a list of features; we provide a curated
               journey. From the moment you think about moving to the night you
-              host your first housewarming, Moveazy is there.
+              host your first housewarming, MovEazy is there.
             </motion.p>
 
             {/* Checkpoints */}

@@ -60,7 +60,7 @@ export default function Footer() {
               <img src={logoSvg} alt="MovEASY" className="h-8 w-auto" />
             </motion.span>
             <p className="text-[11.5px] text-gray-400 uppercase tracking-wide font-medium">
-              © 2024 Moveazy Architectural Relocation. All Rights Reserved.
+              © 2024 MovEazy Architectural Relocation. All Rights Reserved.
             </p>
           </div>
 

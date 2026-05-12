@@ -49,7 +49,7 @@ export default function Comparison() {
             <span className="gradient-text">Start Moving Smart.</span>
           </h2>
           <p className="mt-4 text-[14.5px] sm:text-[15.5px] text-gray-500">
-            Why Moveazy works better than traditional platforms
+            Why MovEazy works better than traditional platforms
           </p>
         </motion.div>
 
@@ -63,13 +63,13 @@ export default function Comparison() {
             <div
               className="text-[15px] font-semibold pl-8 pb-2 gradient-text"
             >
-              Moveazy
+              MovEazy
             </div>
           </div>
 
           {/* Rows */}
           <div className="relative">
-            {/* Gradient backdrop for Moveazy column — desktop */}
+            {/* Gradient backdrop for MovEazy column — desktop */}
             <div
               aria-hidden="true"
               className="hidden lg:block absolute top-0 right-20 w-[calc(32%)] h-full rounded-2xl z-0 overflow-hidden"
@@ -109,7 +109,7 @@ export default function Comparison() {
                     {row.others}
                   </div>
 
-                  {/* Moveazy */}
+                  {/* MovEazy */}
                   <div
                     className="text-[14.5px] sm:text-[15px] font-semibold text-white flex items-start lg:py-5 lg:pl-8 bg-gradient-to-br from-[#350101]/90 to-[#b91c1c]/70 lg:bg-none rounded-lg lg:rounded-none px-4 py-3 lg:px-0 lg:py-0"
                   >

@@ -86,7 +86,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
   const handleShare = () => {
     const origin = window.location.origin;
     const url = `${origin}/map?listingId=${encodeURIComponent(String(property?.id || ""))}`;
-    const title = property?.title ? `Moveazy · ${property.title}` : "Moveazy listing";
+    const title = property?.title ? `MovEazy · ${property.title}` : "MovEazy listing";
 
     const done = () => {
       setShareText("✓ Copied!");
@@ -98,7 +98,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
       navigator
         .share({
           title,
-          text: property?.address ? `${property.address}` : "View this listing on Moveazy",
+          text: property?.address ? `${property.address}` : "View this listing on MovEazy",
           url,
         })
         .then(() => done())
@@ -435,7 +435,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                 lineHeight: 1.45,
               }}
             >
-              This home is off market — new interest and tour requests are closed. (Same policy as major rental marketplaces: sellers withdraw; only Moveazy admin can permanently remove a listing.)
+              This home is off market — new interest and tour requests are closed. (Same policy as major rental marketplaces: sellers withdraw; only MovEazy admin can permanently remove a listing.)
             </div>
           ) : null}
 
@@ -951,7 +951,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   <div style={{ marginTop: "20px", display: "flex", gap: "12px", alignItems: "flex-start", background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
                     <div style={{ fontSize: "20px" }}>💡</div>
                     <div style={{ fontSize: "12px", color: "#475569", lineHeight: "1.5" }}>
-                      <strong>Moveazy Guarantee Plan Available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
+                      <strong>MovEazy Deposit Saver available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
                     </div>
                   </div>
                 </div>

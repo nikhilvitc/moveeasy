@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import nodemailer from "nodemailer";
+import Razorpay from "razorpay";
 import { welcomeEmailTemplate } from "./templates.js";
 
 initializeApp();
@@ -186,3 +187,64 @@ export const triggerBrokerImport = onCall({ cors: true, region: "us-central1" },
     throw new HttpsError("internal", "Failed to trigger Cloud Run job.");
   }
 });
+
+const RAZORPAY_KEY_ID = defineSecret("RAZORPAY_KEY_ID");
+const RAZORPAY_KEY_SECRET = defineSecret("RAZORPAY_KEY_SECRET");
+
+/** Allowed SKUs → amount in paise (must match src/config/paymentProducts.js). */
+const RAZORPAY_SKU_PAISE = {
+  "flat-search": 149900,
+  guarantee: 199900,
+  "deposit-saver": 199900,
+  "personalized-match": 19900,
+};
+
+/** Razorpay order creation — set secrets RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET (Razorpay dashboard). */
+export const createRazorpayOrder = onRequest(
+  {
+    cors: true,
+    region: "asia-south1",
+    secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET],
+  },
+  async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+    if (req.method !== "POST") {
+      res.status(405).json({ ok: false, error: "Method not allowed" });
+      return;
+    }
+    const body = typeof req.body === "object" && req.body != null ? req.body : {};
+    const sku = String(body.sku || "guarantee").toLowerCase().trim();
+    const amount = RAZORPAY_SKU_PAISE[sku];
+    if (!amount) {
+      res.status(400).json({ ok: false, error: "Unknown sku" });
+      return;
+    }
+    const receipt = String(body.receipt || `mvz_${sku}_${Date.now()}`).replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 40);
+    try {
+      const razorpay = new Razorpay({
+        key_id: RAZORPAY_KEY_ID.value(),
+        key_secret: RAZORPAY_KEY_SECRET.value(),
+      });
+      const order = await razorpay.orders.create({
+        amount,
+        currency: "INR",
+        receipt,
+        notes: { sku },
+      });
+      res.status(200).json({
+        ok: true,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: RAZORPAY_KEY_ID.value(),
+        sku,
+      });
+    } catch (e) {
+      console.error("createRazorpayOrder", e);
+      res.status(500).json({ ok: false, error: "Order creation failed" });
+    }
+  },
+);

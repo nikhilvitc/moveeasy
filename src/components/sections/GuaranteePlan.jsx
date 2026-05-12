@@ -121,7 +121,7 @@ export default function GuaranteePlan() {
               transition={{ duration: 0.58, delay: 0.18, ease: EASE }}
               className="mt-5 text-[14.5px] sm:text-[15.5px] text-white/85 leading-[1.8] max-w-lg mx-auto"
             >
-              Total peace of mind for just ₹1999. Our legal protocol covers your entire transaction,
+              Total peace of mind for just ₹1,999. Our legal protocol covers your entire transaction,
               providing binding contract verification and an escrow-style deposit security layer.
               If the deal falls through due to broker negligence, we cover the costs.
             </motion.p>

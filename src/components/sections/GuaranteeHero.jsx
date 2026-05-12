@@ -55,7 +55,7 @@ export default function GuaranteeHero() {
             <motion.div {...fadeUp(0.18)} className="mt-7 flex flex-col gap-3">
               <div>
                 <button
-                  onClick={() => navigate("/checkout")}
+                  onClick={() => navigate("/pay?sku=deposit-saver")}
                   className="
                     px-7 py-[13px] text-[14.5px] font-semibold
                     text-white bg-[#EF4444] rounded-full
@@ -68,7 +68,7 @@ export default function GuaranteeHero() {
                 </button>
               </div>
               <p className="text-[12.5px] text-gray-400">
-                Backed by Legal Support &amp; Moveazy Team
+                Backed by Legal Support &amp; MovEazy Team
               </p>
             </motion.div>
 
@@ -88,7 +88,7 @@ export default function GuaranteeHero() {
               <div>
                 <p className="text-[13px] font-bold text-[#1E2A3A]">100% Protection Focus</p>
                 <p className="mt-0.5 text-[11.5px] text-gray-400 max-w-[160px] leading-[1.5]">
-                  Moveazy Prioritises Protecting Your Security Deposit With Structured Support And Legal Backing
+                  MovEazy Prioritises Protecting Your Security Deposit With Structured Support And Legal Backing
                 </p>
               </div>
             </motion.div>

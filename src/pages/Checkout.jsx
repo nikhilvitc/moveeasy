@@ -2,68 +2,24 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import Tilt3D from "../components/ui/Tilt3D";
 import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
+import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
 
 const EASE = [0.22, 1, 0.36, 1];
 
 /** Scannable UPI QR — same VPA; amount varies by product. */
 const UPI_VPA = "9413186425@ybl";
 
-const PRODUCTS = {
-  guarantee: {
-    key: "guarantee",
-    amountRupee: 1999,
-    amountPaise: "1999",
-    title: "MovEazy Guarantee Plan",
-    subtitle: "Legal verification + escrow deposit security",
-    bullets: [
-      "Binding contract verification",
-      "Escrow-style deposit protection",
-      "Broker negligence coverage",
-      "24/7 legal support hotline",
-      "100% refund if deal falls through",
-    ],
-    whatsappPath:
-      "I've%20paid%20₹1999%20for%20Guarantee%20Plan.%20Here's%20my%20receipt.",
-    confirmTitle: "Guarantee Plan enrollment",
-    confirmBody:
-      "Our team will verify your payment and activate your Guarantee Plan within 2 hours. You'll receive a confirmation on WhatsApp.",
-    qrAlt: "UPI QR code for ₹1,999 MovEazy Guarantee payment",
-  },
-  "personalized-match": {
-    key: "personalized-match",
-    amountRupee: 199,
-    amountPaise: "199",
-    title: "Personalized property match",
-    subtitle: "Human-curated shortlist from your requirements — priority on exclusive listings",
-    bullets: [
-      "Shortlist matched to budget, commute & move-in date",
-      "Exclusive & fast-moving deals surfaced first",
-      "Priority queue when you are ready to visit or lock",
-      "WhatsApp handoff to your area expert after payment",
-    ],
-    whatsappPath:
-      "I've%20paid%20₹199%20for%20Personalized%20Property%20Match.%20Here's%20my%20receipt%20—%20please%20send%20the%20intake%20form.",
-    confirmTitle: "Personalized property match",
-    confirmBody:
-      "We will verify your ₹199 payment and send the intake form on WhatsApp within a few hours. A consultant will then build your curated shortlist.",
-    qrAlt: "UPI QR code for ₹199 personalized property match",
-  },
-};
-
 export default function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [confirmed, setConfirmed] = useState(false);
 
-  const product = useMemo(() => {
-    const sku = searchParams.get("sku");
-    return sku === "personalized-match" ? PRODUCTS["personalized-match"] : PRODUCTS.guarantee;
-  }, [searchParams]);
+  const product = useMemo(() => getPaymentProduct(searchParams), [searchParams]);
 
-  const upiPayUri = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent("Moveazy")}&am=${product.amountPaise}&cu=INR`;
+  const upiPayUri = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(BRAND_PAYEE_NAME)}&am=${product.amountPaise}&cu=INR`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(upiPayUri)}`;
 
   return (
@@ -90,7 +46,15 @@ export default function Checkout() {
           <p className="mt-2 text-slate-600 font-medium">
             {product.key === "personalized-match"
               ? "Unlock your personalized property pack — pay once, get curated picks and priority."
-              : "Complete your Guarantee Plan enrollment — secure UPI, instant confirmation."}
+              : "Complete your payment — secure UPI, instant confirmation."}
+          </p>
+
+          <p className="mt-3 text-sm text-slate-600">
+            Pay with card / UPI apps via{" "}
+            <Link to={`/pay${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} className="font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800">
+              Razorpay
+            </Link>{" "}
+            or scan the QR below.
           </p>
 
           <div className="mt-10 grid md:grid-cols-2 gap-8 md:gap-10">
@@ -216,7 +180,7 @@ export default function Checkout() {
                 )}
 
                 <p className="mt-5 text-center text-[11px] font-medium text-slate-400">
-                  Trusted checkout · UPI protected · No card data stored on Moveazy
+                  Trusted checkout · UPI protected · No card data stored on {BRAND_PAYEE_NAME}
                 </p>
               </div>
             </Tilt3D>

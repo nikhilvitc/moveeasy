@@ -303,7 +303,7 @@ export async function getAllUsersData() {
     .filter((row) => !adminEmailSet.has(String(row.email || "").toLowerCase().trim()));
 
   return [
-    ...ADMIN_EMAILS.map((email) => ({ uid: `reserved-admin-${email}`, email, name: "Moveazy Admin", role: "admin", phone: "" })),
+    ...ADMIN_EMAILS.map((email) => ({ uid: `reserved-admin-${email}`, email, name: "MovEazy Admin", role: "admin", phone: "" })),
     ...fromProfiles,
   ];
 }

@@ -13,6 +13,7 @@ import Guarantee from "./pages/Guarantee";
 import Contact from "./pages/Contact";
 import MyActivity from "./pages/MyActivity";
 import Checkout from "./pages/Checkout";
+import Pay from "./pages/Pay";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import MoveazyPlanPage from "./pages/MoveazyPlanPage";
@@ -54,6 +55,7 @@ function AppRoutes() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/activity" element={<MyActivity />} />
       <Route path="/checkout" element={<Checkout />} />
+      <Route path="/pay" element={<Pay />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/plan" element={<MoveazyPlanPage />} />

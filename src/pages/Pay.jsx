@@ -1,0 +1,225 @@
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
+import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useMemo, useState, useCallback } from "react";
+import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
+
+const ORDER_FN = import.meta.env.VITE_RAZORPAY_ORDER_URL?.trim();
+const BILLING_EMAIL = import.meta.env.VITE_BILLING_CONTACT_EMAIL?.trim();
+
+function loadRazorpayScript() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("no window"));
+      return;
+    }
+    if (window.Razorpay) {
+      resolve(window.Razorpay);
+      return;
+    }
+    const existing = document.querySelector('script[data-razorpay-checkout="1"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.Razorpay));
+      existing.addEventListener("error", reject);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.async = true;
+    s.dataset.razorpayCheckout = "1";
+    s.onload = () => resolve(window.Razorpay);
+    s.onerror = () => reject(new Error("Razorpay script failed to load"));
+    document.body.appendChild(s);
+  });
+}
+
+export default function Pay() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const product = useMemo(() => getPaymentProduct(searchParams), [searchParams]);
+  const apiSku = useMemo(() => {
+    const q = String(searchParams.get("sku") || "").trim().toLowerCase();
+    if (q === "deposit-saver" || q === "flat-search" || q === "personalized-match" || q === "guarantee") return q;
+    return "guarantee";
+  }, [searchParams]);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState(false);
+
+  const checkoutSkuQuery = searchParams.toString() ? `?${searchParams.toString()}` : "";
+
+  const payWithRazorpay = useCallback(async () => {
+    setErr("");
+    if (!ORDER_FN) {
+      setErr("Razorpay is not configured yet. Use UPI checkout instead.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setErr("Enter a valid email for your receipt.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const Razorpay = await loadRazorpayScript();
+      const res = await fetch(ORDER_FN, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sku: apiSku,
+          receipt: `web_${apiSku}_${Date.now()}`,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok || !data.orderId || !data.keyId) {
+        setErr(data.error || "Could not start payment. Try again or use UPI checkout.");
+        setBusy(false);
+        return;
+      }
+
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        order_id: data.orderId,
+        name: BRAND_PAYEE_NAME,
+        description: product.title,
+        prefill: {
+          name: name.trim() || undefined,
+          email: email.trim(),
+          contact: phone.replace(/\D/g, "").slice(0, 15) || undefined,
+        },
+        theme: { color: "#e11d48" },
+        handler() {
+          setDone(true);
+          setBusy(false);
+        },
+        modal: {
+          ondismiss() {
+            setBusy(false);
+          },
+        },
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+    } catch (e) {
+      console.error(e);
+      setErr(e?.message || "Payment could not start.");
+      setBusy(false);
+    }
+  }, [ORDER_FN, email, name, phone, product.title, apiSku]);
+
+  return (
+    <div className="relative min-h-[100dvh] overflow-x-hidden antialiased">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <PremiumPageBackdrop variant="checkout" />
+      </div>
+      <Navbar />
+
+      <main className="relative z-10 max-w-lg mx-auto px-6 py-12 sm:py-16">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-rose-700">MovEazy · Razorpay</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-stone-900">Pay securely</h1>
+          <p className="mt-2 text-slate-600 text-sm">{product.title}</p>
+          <p className="mt-1 text-2xl font-extrabold text-stone-900 tabular-nums">₹{product.amountRupee.toLocaleString("en-IN")}</p>
+
+          {BILLING_EMAIL && (
+            <p className="mt-3 text-xs text-slate-500">
+              Billing &amp; Razorpay account contact: <span className="font-semibold text-slate-700">{BILLING_EMAIL}</span>
+            </p>
+          )}
+
+          {!ORDER_FN && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              Set <code className="text-xs bg-white/80 px-1 rounded">VITE_RAZORPAY_ORDER_URL</code> to your deployed{" "}
+              <code className="text-xs">createRazorpayOrder</code> URL, and configure Firebase secrets{" "}
+              <code className="text-xs">RAZORPAY_KEY_ID</code> / <code className="text-xs">RAZORPAY_KEY_SECRET</code>. Until then, use{" "}
+              <Link className="font-semibold underline" to={`/checkout${checkoutSkuQuery}`}>
+                UPI checkout
+              </Link>
+              .
+            </div>
+          )}
+
+          {done ? (
+            <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+              <div className="text-3xl mb-2">✓</div>
+              <p className="font-bold text-emerald-900">Payment submitted</p>
+              <p className="text-sm text-emerald-800 mt-2">{product.confirmBody}</p>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="mt-6 w-full rounded-xl bg-rose-600 py-3 font-bold text-white hover:bg-rose-700"
+              >
+                Back to home
+              </button>
+            </div>
+          ) : (
+            <div className="mt-8 space-y-4 rounded-2xl border border-white/80 bg-white/95 p-6 shadow-lg backdrop-blur-md">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Full name</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                  placeholder="As on ID / bank"
+                  autoComplete="name"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Email (receipt)</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  required
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                  placeholder="you@email.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Phone (optional)</label>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                  placeholder="+91 …"
+                  autoComplete="tel"
+                />
+              </div>
+
+              {err && <p className="text-sm text-red-600 font-medium">{err}</p>}
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={payWithRazorpay}
+                className="w-full rounded-xl bg-gradient-to-r from-rose-600 to-red-600 py-3.5 font-bold text-white shadow-md disabled:opacity-60"
+              >
+                {busy ? "Opening Razorpay…" : `Pay ₹${product.amountRupee.toLocaleString("en-IN")} with Razorpay`}
+              </button>
+
+              <p className="text-center text-xs text-slate-500">
+                Prefer UPI scan?{" "}
+                <Link to={`/checkout${checkoutSkuQuery}`} className="font-semibold text-rose-700 underline">
+                  Open UPI checkout
+                </Link>
+              </p>
+            </div>
+          )}
+        </motion.div>
+      </main>
+
+      <div className="relative z-10">
+        <Footer />
+      </div>
+    </div>
+  );
+}

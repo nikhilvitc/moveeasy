@@ -85,7 +85,7 @@ export default function CityCTA() {
             >
               Stop wasting time on listings, confusion, and unreliable brokers.
               <br className="hidden sm:block" />
-              Moveazy helps you find the right home faster — with complete clarity and protection.
+              MovEazy helps you find the right home faster — with complete clarity and protection.
             </motion.p>
 
             <motion.div

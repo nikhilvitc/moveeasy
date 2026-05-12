@@ -49,7 +49,7 @@
 //               className="mt-6 text-[16px] text-gray-500 leading-[1.82] max-w-[440px]"
 //             >
 //               Relocation isn't just about moving boxes; it's about starting a
-//               new chapter. Moveazy simplifies the journey through empathy,
+//               new chapter. MovEazy simplifies the journey through empathy,
 //               technology, and a deep understanding of what makes a place feel
 //               like home.
 //             </motion.p>
@@ -168,7 +168,7 @@ export default function ServicesHero() {
               "
             >
               Relocation isn't just about moving boxes; it's about starting a
-              new chapter. Moveazy simplifies the journey through empathy,
+              new chapter. MovEazy simplifies the journey through empathy,
               technology, and a deep understanding of what makes a place feel
               like home.
             </motion.p>

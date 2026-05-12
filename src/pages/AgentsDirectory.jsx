@@ -98,8 +98,8 @@ export default function AgentsDirectory() {
             {tab === "experts" ? "Area experts" : "Partner brokers"} in Bengaluru
           </motion.h1>
           <p className="mt-2 text-sm text-zinc-600 max-w-2xl">
-            Search verified Moveazy area guides and partner listing agents — ratings, focus areas, languages, and activity
-            (demo data). Inspired by professional directory patterns; Moveazy is not affiliated with Zillow.
+            Search verified MovEazy area guides and partner listing agents — ratings, focus areas, languages, and activity
+            (demo data). Inspired by professional directory patterns; MovEazy is not affiliated with Zillow.
           </p>
 
           {/* Search row */}

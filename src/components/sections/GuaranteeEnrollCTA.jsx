@@ -72,7 +72,7 @@ export default function GuaranteeEnrollCTA() {
               className="mt-9 flex flex-col items-center gap-3"
             >
               <button
-                onClick={() => navigate('/checkout')}
+                onClick={() => navigate("/pay?sku=deposit-saver")}
                 className="
                   px-10 sm:px-12 py-[14px] sm:py-[16px]
                   text-[14.5px] sm:text-[15px] font-semibold uppercase tracking-[0.08em]
@@ -82,7 +82,7 @@ export default function GuaranteeEnrollCTA() {
                   shadow-[0_8px_32px_rgba(239,68,68,0.42)]
                 "
               >
-                Enroll For ₹1999
+                Enroll for ₹1,999
               </button>
 
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">

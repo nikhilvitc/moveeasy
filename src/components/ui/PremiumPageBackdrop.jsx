@@ -231,7 +231,7 @@ export default function PremiumPageBackdrop({ variant = "subtle", overlayOnly = 
             Secure UPI
           </FrostChip>
           <FrostChip className="right-[6%] top-[52%] md:right-[20%] md:top-[56%]" delay={1.1}>
-            ₹1,999 plan
+            Flat ₹1,499 · Saver ₹1,999
           </FrostChip>
         </>
       )}

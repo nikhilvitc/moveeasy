@@ -52,7 +52,7 @@ export async function createProfileAfterSignup({ firebaseUser, name, role, phone
 export async function getProfileForUser(firebaseUser) {
   const email = firebaseUser.email.toLowerCase().trim();
   if (ADMIN_EMAILS.includes(email)) {
-    return { email, name: "Moveazy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
+    return { email, name: "MovEazy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
   }
 
   const [profileSnap, roleSnap, emailRoleSnap] = await Promise.all([

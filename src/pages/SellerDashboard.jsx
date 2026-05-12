@@ -487,7 +487,7 @@ export default function SellerDashboard() {
         {sellerMainTab === "leads" && (
         <>
         <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "12px", padding: "12px 14px", marginBottom: "16px", fontSize: "12px", color: "#14532d", lineHeight: 1.55 }}>
-          <strong>Your access:</strong> See renter applications, admin-assigned leads, and visit requests tied to your listings. <strong>Pipeline status</strong> (new → contacted → …) is updated by Moveazy admin. You can add <strong>private notes</strong> on each application. Use <em>My listings</em> to add or edit homes, withdraw from search, or relist.
+          <strong>Your access:</strong> See renter applications, admin-assigned leads, and visit requests tied to your listings. <strong>Pipeline status</strong> (new → contacted → …) is updated by MovEazy admin. You can add <strong>private notes</strong> on each application. Use <em>My listings</em> to add or edit homes, withdraw from search, or relist.
         </div>
         {sellerNotifs.length > 0 && (
           <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
@@ -610,7 +610,7 @@ export default function SellerDashboard() {
         <div style={{ background: "white", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
           <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "6px" }}>Seller trust badge (optional)</div>
           <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 10px", lineHeight: 1.45 }}>
-            You can use Moveazy immediately after sign-up. For a <strong>verified seller</strong> badge (closer to how large marketplaces gate trusted sellers), submit business details; an admin reviews this separately from your login.
+            You can use MovEazy immediately after sign-up. For a <strong>verified seller</strong> badge (closer to how large marketplaces gate trusted sellers), submit business details; an admin reviews this separately from your login.
           </p>
           {sellerRow?.sellerBadgeStatus === "verified" && (
             <div style={{ fontSize: "13px", fontWeight: 700, color: "#15803d" }}>Status: Verified seller</div>
@@ -775,7 +775,7 @@ export default function SellerDashboard() {
               <div style={{ fontSize: "12px", color: "#64748b" }}>{l.address}</div>
               <p style={{ fontSize: "11px", color: "#64748b", margin: "8px 0 0", lineHeight: 1.45 }}>
                 {live
-                  ? "Withdraw hides this home from search and the map. Permanent removal is done by Moveazy admin (audit trail)."
+                  ? "Withdraw hides this home from search and the map. Permanent removal is done by MovEazy admin (audit trail)."
                   : "This listing is hidden from renters. Relist when it is available again."}
               </p>
               <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>

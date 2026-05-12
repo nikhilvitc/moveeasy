@@ -618,7 +618,7 @@ function LeadRow({ row, isElevated, isFullAdmin, staffAssignees = [], savingId, 
 
   const wa = digitsForWa(row.customerPhone);
   const waHref = wa
-    ? `https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${row.customerName || "there"}, this is Moveazy follow-up regarding your home search.`)}`
+    ? `https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${row.customerName || "there"}, this is MovEazy follow-up regarding your home search.`)}`
     : "";
 
   return (

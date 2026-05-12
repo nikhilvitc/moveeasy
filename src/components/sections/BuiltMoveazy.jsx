@@ -45,7 +45,7 @@ export default function BuiltMoveazy() {
             {...fadeUp(0)}
             className="text-[32px] sm:text-[42px] lg:text-[52px] font-extrabold text-[#1E2A3A] leading-[1.08] tracking-tight"
           >
-            So we built <strong className="text-[#1E2A3A]">Moveazy</strong>.
+            So we built <strong className="text-[#1E2A3A]">MovEazy</strong>.
           </motion.h2>
 
           <motion.p

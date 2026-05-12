@@ -13,7 +13,7 @@ const REVIEWS = [
     date: "29 Aug, 2018",
     avatar: "https://randomuser.me/api/portraits/women/44.jpg",
     quote: "Found my dream home in 4 days.",
-    body: "I moved from Pune to Bangalore with zero contacts. Moveazy matched me with a broker who knew exactly what I needed. Within 4 days I had visited 3 shortlisted flats and signed the one I loved.",
+    body: "I moved from Pune to Bangalore with zero contacts. MovEazy matched me with a broker who knew exactly what I needed. Within 4 days I had visited 3 shortlisted flats and signed the one I loved.",
   },
   {
     id: 1,
@@ -22,7 +22,7 @@ const REVIEWS = [
     date: "12 Dec, 2021",
     avatar: "https://randomuser.me/api/portraits/women/68.jpg",
     quote: "Saved my deposit completely.",
-    body: "I've always lost money during move-out, but this time Moveazy handled everything. Got my full deposit back without stress.",
+    body: "I've always lost money during move-out, but this time MovEazy handled everything. Got my full deposit back without stress.",
   },
   {
     id: 2,

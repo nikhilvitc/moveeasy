@@ -8,19 +8,19 @@ const EASE = [0.22, 1, 0.36, 1];
 
 const FAQS = [
   {
-    q: "What Exactly Is Moveazy Guarantee?",
-    a: "Moveazy Guarantee is a protection plan that helps you avoid illegal security deposit deductions during move-out. It works with legal and operational support to audit your rental agreement, document the property condition, and negotiate directly with your landlord if any unfair charges arise.",
+    q: "What Exactly Is MovEazy Deposit Saver?",
+    a: "MovEazy Deposit Saver is a protection plan that helps you avoid illegal security deposit deductions during move-out. It works with legal and operational support to audit your rental agreement, document the property condition, and negotiate directly with your landlord if any unfair charges arise.",
   },
   {
-    q: "How Does Moveazy Protect My Deposit?",
+    q: "How Does MovEazy Protect My Deposit?",
     a: "We protect your deposit through a three-step Structural Shield process: legal audit of your contract, comprehensive photo and document verification of the property, and direct legal negotiation with your landlord to dispute any invalid deductions.",
   },
   {
     q: "What If The Owner Still Refuses To Return My Deposit?",
-    a: "If your landlord refuses to comply after our negotiation, Moveazy will escalate the matter through legal channels. We provide binding contract documentation and evidence gathered during the move-in/move-out inspection to back your claim.",
+    a: "If your landlord refuses to comply after our negotiation, MovEazy will escalate the matter through legal channels. We provide binding contract documentation and evidence gathered during the move-in/move-out inspection to back your claim.",
   },
   {
-    q: "When Should I Take The Moveazy Guarantee Plan?",
+    q: "When Should I Take The MovEazy Deposit Saver Plan?",
     a: "Ideally, subscribe before or at the time of signing your rental agreement. This gives us time to audit the contract and establish a baseline property condition record. However, you can also subscribe during your tenancy or at move-out to still get protection.",
   },
   {

@@ -20,7 +20,7 @@ async function triggerEmailJsOnboarding({ email, name, role }) {
 
   const templateParams = {
     to_email: String(email || ""),
-    to_name: String(name || "Moveazy user"),
+    to_name: String(name || "MovEazy user"),
     role: role === "seller" ? "seller" : "customer",
   };
 
