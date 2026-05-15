@@ -44,8 +44,8 @@ export const PAYMENT_SKUS = {
   },
   "personalized-match": {
     key: "personalized-match",
-    amountRupee: 199,
-    amountPaise: "199",
+    amountRupee: 1999,
+    amountPaise: "1999",
     title: "Personalized property match",
     subtitle: "Human-curated shortlist from your requirements — priority on exclusive listings",
     bullets: [
@@ -55,11 +55,11 @@ export const PAYMENT_SKUS = {
       "WhatsApp handoff to your area expert after payment",
     ],
     whatsappPath:
-      "I've%20paid%20₹199%20for%20Personalized%20Property%20Match.%20Here's%20my%20receipt%20—%20please%20send%20the%20intake%20form.",
+      "I've%20paid%20₹1999%20for%20Personalized%20Property%20Match.%20Here's%20my%20receipt%20—%20please%20send%20the%20intake%20form.",
     confirmTitle: "Personalized property match",
     confirmBody:
-      "We will verify your ₹199 payment and send the intake form on WhatsApp within a few hours. A consultant will then build your curated shortlist.",
-    qrAlt: "UPI QR code for ₹199 personalized property match",
+      "We will verify your ₹1,999 payment and send the intake form on WhatsApp within a few hours. A consultant will then build your curated shortlist.",
+    qrAlt: "UPI QR code for ₹1,999 personalized property match",
   },
 };
 

@@ -120,7 +120,7 @@ export default function Contact() {
               Your shortlist,{" "}
               <span className="gradient-text">built for you</span>
               <span className="block sm:inline sm:ml-3 text-3xl sm:text-4xl lg:text-5xl mt-2 sm:mt-0 font-extrabold text-white/95">
-                — ₹199
+                — ₹1,999
               </span>
             </motion.h1>
             <motion.p
@@ -130,7 +130,7 @@ export default function Contact() {
               className="mt-5 text-lg max-w-2xl mx-auto"
               style={{ color: "rgba(255,255,255,0.60)" }}
             >
-              We no longer offer open-ended free consults. Instead, for <strong className="text-white/90">₹199</strong> you unlock a{" "}
+              We no longer offer open-ended free consults. Instead, for <strong className="text-white/90">₹1,999</strong> you unlock a{" "}
               <strong className="text-white/90">personalized property recommendation pack</strong>: a consultant reviews your requirements, curates matching homes
               (including sharper picks as inventory moves), flags exclusive or fast-closing deals, and <strong className="text-white/90">prioritizes</strong> your visits
               and callbacks when you are ready to move in.
@@ -146,10 +146,10 @@ export default function Contact() {
                 className="inline-flex px-10 py-4 rounded-full font-bold text-base text-white btn-glow-pulse text-center"
                 style={{ background: "linear-gradient(135deg, #e85a4f, #f97316)" }}
               >
-                Pay ₹199 — start my match
+                Pay ₹1,999 — start my match
               </Link>
               <a
-                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B9199%20for%20MovEazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
+                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B91999%20for%20MovEazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
@@ -246,7 +246,7 @@ export default function Contact() {
                         </motion.a>
                         <motion.a
                           href={`https://wa.me/${c.phoneRaw}?text=${encodeURIComponent(
-                            "Hi — I'm interested in MovEazy's ₹199 personalized property match (curated shortlist + priority). Please confirm next steps."
+                            "Hi — I'm interested in MovEazy's ₹1,999 personalized property match (curated shortlist + priority). Please confirm next steps."
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"

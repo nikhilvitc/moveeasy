@@ -135,7 +135,7 @@ export default function GuaranteeFAQ() {
                 <div>
                   <p className="text-[15px] font-bold text-[#1E2A3A]">Book A 15 Min Call</p>
                   <p className="mt-1 text-[12px] text-gray-400 leading-[1.6]">
-                    Questions before you subscribe? Reach us on the contact page — personalized property shortlists start at ₹199.
+                    Questions before you subscribe? Reach us on the contact page — MovEazy Flat Search starts at ₹1,499; Deposit Saver is ₹1,999.
                   </p>
                 </div>
               </div>

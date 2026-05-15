@@ -196,7 +196,7 @@ const RAZORPAY_SKU_PAISE = {
   "flat-search": 149900,
   guarantee: 199900,
   "deposit-saver": 199900,
-  "personalized-match": 19900,
+  "personalized-match": 199900,
 };
 
 /** Razorpay order creation — set secrets RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET (Razorpay dashboard). */
