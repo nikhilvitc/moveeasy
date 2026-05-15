@@ -183,10 +183,10 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
-    // Public marketing copy: contact cards, support emails (Terms / Privacy). Admin-only writes.
+    // Public marketing copy: contact cards, agents directory, support emails. Admin-only writes.
     match /siteSettings/{docId} {
       allow read: if true;
-      allow write: if isAdmin() && docId == "public";
+      allow write: if isAdmin() && (docId == "public" || docId == "directoryAgents");
     }
 
     // Staff CRM — customers/sellers have no access. Admins see all; sub-admins & consultants only rows where they are assignee.

@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { motion } from "framer-motion";
 import {
   AGENT_TABS,
-  AGENTS,
   SPECIALTY_OPTIONS,
   LANGUAGE_OPTIONS,
   BUDGET_OPTIONS,
 } from "../data/agentsDirectory";
+import { fetchDirectoryAgents } from "../lib/directoryAgentsSettings";
+import { FLAT_SEARCH_CTA } from "../config/navLinks";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -23,22 +24,36 @@ function matchesBudget(tier, budgetLabel) {
 }
 
 export default function AgentsDirectory() {
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("experts");
   const [locationQ, setLocationQ] = useState("");
   const [nameQ, setNameQ] = useState("");
   const [rentAdvisory, setRentAdvisory] = useState(true);
   const [buyAdvisory, setBuyAdvisory] = useState(false);
-  const [topOnly, setTopOnly] = useState(false);
   const [specialty, setSpecialty] = useState("All");
   const [language, setLanguage] = useState("All");
   const [budget, setBudget] = useState("All");
 
+  useEffect(() => {
+    let alive = true;
+    fetchDirectoryAgents()
+      .then((rows) => {
+        if (alive) setAgents(rows);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const loc = locationQ.trim().toLowerCase();
     const nm = nameQ.trim().toLowerCase();
-    return AGENTS.filter((a) => {
+    return agents.filter((a) => {
       if (a.tab !== tab) return false;
-      if (topOnly && !a.topRated) return false;
       if (rentAdvisory || buyAdvisory) {
         if (rentAdvisory && buyAdvisory) {
           if (!a.rentFocus && !a.buyFocus) return false;
@@ -59,7 +74,7 @@ export default function AgentsDirectory() {
       if (nm && !a.name.toLowerCase().includes(nm)) return false;
       return true;
     });
-  }, [tab, locationQ, nameQ, rentAdvisory, buyAdvisory, topOnly, specialty, language, budget]);
+  }, [agents, tab, locationQ, nameQ, rentAdvisory, buyAdvisory, specialty, language, budget]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-50 antialiased text-stone-900">
@@ -98,8 +113,8 @@ export default function AgentsDirectory() {
             {tab === "experts" ? "Area experts" : "Partner brokers"} in Bengaluru
           </motion.h1>
           <p className="mt-2 text-sm text-zinc-600 max-w-2xl">
-            Search verified MovEazy area guides and partner listing agents — ratings, focus areas, languages, and activity
-            (demo data). Inspired by professional directory patterns; MovEazy is not affiliated with Zillow.
+            Search verified MovEazy area guides and partner listing agents — focus areas, languages, and activity.
+            Profiles are managed from Admin → Agents directory.
           </p>
 
           {/* Search row */}
@@ -152,15 +167,6 @@ export default function AgentsDirectory() {
             >
               Sale / investment advisory
             </button>
-            <button
-              type="button"
-              onClick={() => setTopOnly((v) => !v)}
-              className={`rounded-full border px-4 py-2 text-xs font-bold transition-colors flex items-center gap-1.5 ${
-                topOnly ? "border-amber-500 bg-amber-50 text-amber-900" : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
-              }`}
-            >
-              <span aria-hidden>★</span> Top rated
-            </button>
             <select
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
@@ -199,7 +205,7 @@ export default function AgentsDirectory() {
           <p className="mt-6 text-sm font-semibold text-zinc-700">
             {filtered.length.toLocaleString("en-IN")}{" "}
             {tab === "experts" ? "experts" : "brokers"} found
-            <span className="font-normal text-zinc-500"> (demo)</span>
+            {loading ? <span className="font-normal text-zinc-500"> — loading…</span> : null}
           </p>
         </div>
 
@@ -228,13 +234,6 @@ export default function AgentsDirectory() {
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-stone-900 leading-snug">{a.name}</div>
                     <div className="text-xs text-zinc-600 mt-0.5">{a.brokerage}</div>
-                    <div className="mt-2 flex items-center gap-1.5 text-sm font-bold text-blue-700">
-                      <span>{a.rating.toFixed(1)}</span>
-                      <span className="text-amber-500" aria-hidden>
-                        ★
-                      </span>
-                      <span className="text-xs font-semibold text-zinc-500">({a.reviewCount} reviews)</span>
-                    </div>
                     <ul className="mt-3 space-y-1.5 text-xs text-zinc-700">
                       <li className="flex gap-2">
                         <span className="text-zinc-400 shrink-0">•</span>
@@ -278,18 +277,18 @@ export default function AgentsDirectory() {
                 📞
               </div>
               <div>
-                <div className="font-bold text-sky-950 text-sm sm:text-base">Want a human-curated shortlist?</div>
+                <div className="font-bold text-sky-950 text-sm sm:text-base">Ready to start your flat search?</div>
                 <p className="mt-1 text-xs sm:text-sm text-sky-900/80 max-w-xl">
-                  Pay <strong>₹199</strong> for a personalized property pack — hand-matched to your budget, commute, and move-in date. Includes priority on exclusive
-                  listings and faster callbacks when you are ready to move.
+                  MovEazy Flat Search — on-ground shortlisting, neighbourhood fit, and visit scheduling. One-time fee{" "}
+                  <strong>₹1,499</strong> with WhatsApp updates through your search.
                 </p>
               </div>
             </div>
             <Link
-              to="/checkout?sku=personalized-match"
+              to={FLAT_SEARCH_CTA.path}
               className="mt-4 sm:mt-0 inline-flex shrink-0 items-center justify-center rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-sky-800 transition-colors"
             >
-              Pay ₹199 — start match
+              {FLAT_SEARCH_CTA.label}
             </Link>
           </motion.div>
 

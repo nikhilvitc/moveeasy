@@ -58,6 +58,12 @@ import {
   fetchSitePublicSettings,
   saveSitePublicSettings,
 } from "../lib/sitePublicSettings";
+import {
+  fetchDirectoryAgents,
+  getDefaultDirectoryAgents,
+  saveDirectoryAgents,
+} from "../lib/directoryAgentsSettings";
+import { AGENT_TABS } from "../data/agentsDirectory";
 
 const DEFAULT_FORM = {
   title: "",
@@ -232,6 +238,15 @@ export default function AdminDashboard() {
     contacts: DEFAULT_SITE_PUBLIC.contacts.map((c) => ({ ...c })),
   }));
   const [sitePublicStatus, setSitePublicStatus] = useState("");
+  const [agentsDraft, setAgentsDraft] = useState(() =>
+    getDefaultDirectoryAgents().map((a) => ({
+      ...a,
+      specialties: Array.isArray(a.specialties) ? a.specialties.join(", ") : "",
+      languages: Array.isArray(a.languages) ? a.languages.join(", ") : "",
+      areas: Array.isArray(a.areas) ? a.areas.join(", ") : "",
+    })),
+  );
+  const [agentsSaveStatus, setAgentsSaveStatus] = useState("");
   const [adminListingMsg, setAdminListingMsg] = useState("");
   const [adminListingMsgKind, setAdminListingMsgKind] = useState("ok");
   const [adminListingWarning, setAdminListingWarning] = useState("");
@@ -273,7 +288,7 @@ export default function AdminDashboard() {
     async function load() {
       if (isFirebaseConfigured) {
         setLoadErrors([]);
-        const labels = ["listings", "users", "sellerRequests", "visits", "interests", "assignments", "notifications", "siteSettings"];
+        const labels = ["listings", "users", "sellerRequests", "visits", "interests", "assignments", "notifications", "siteSettings", "agents"];
         const settled = await Promise.allSettled([
           getAdminListingsData(),
           getAllUsersData(),
@@ -283,6 +298,7 @@ export default function AdminDashboard() {
           getAssignmentsData(),
           getAdminNotificationsData(),
           fetchSitePublicSettings(),
+          fetchDirectoryAgents(),
         ]);
         if (!alive) return;
         const errs = [];
@@ -302,6 +318,15 @@ export default function AdminDashboard() {
           ...sitePub,
           contacts: (sitePub.contacts || []).map((c) => ({ ...c })),
         });
+        const agentRows = settled[8].status === "fulfilled" ? settled[8].value : getDefaultDirectoryAgents();
+        setAgentsDraft(
+          agentRows.map((a) => ({
+            ...a,
+            specialties: Array.isArray(a.specialties) ? a.specialties.join(", ") : "",
+            languages: Array.isArray(a.languages) ? a.languages.join(", ") : "",
+            areas: Array.isArray(a.areas) ? a.areas.join(", ") : "",
+          })),
+        );
       } else {
         setLoadErrors([]);
         setListingsState(getListings());
@@ -411,6 +436,31 @@ export default function AdminDashboard() {
       ...p,
       contacts: p.contacts.map((row, i) => (i === idx ? { ...row, [field]: value } : row)),
     }));
+  };
+
+  const moveAgentRow = (idx, dir) => {
+    setAgentsDraft((rows) => {
+      const next = [...rows];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return rows;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  };
+
+  const handleSaveAgents = async () => {
+    if (!isFirebaseConfigured) {
+      alert("Firebase is not configured — agents save is disabled.");
+      return;
+    }
+    setAgentsSaveStatus("Saving…");
+    try {
+      await saveDirectoryAgents(agentsDraft);
+      setAgentsSaveStatus("Saved. /agents will show this order on refresh.");
+      setTimeout(() => setAgentsSaveStatus(""), 5000);
+    } catch (e) {
+      setAgentsSaveStatus(String(e?.message || e || "Save failed"));
+    }
   };
 
   const handleSaveSitePublic = async () => {
@@ -923,6 +973,7 @@ export default function AdminDashboard() {
             {[
               ["overview", "Overview"],
               ["site", "Site & contact"],
+              ["agents", "Agents"],
               ["operations", "Leads & queue"],
               ["users", "Users"],
               ["listings", "Listings"],
@@ -1107,6 +1158,83 @@ export default function AdminDashboard() {
               Save to Firestore
             </button>
             {sitePublicStatus ? <span style={{ fontSize: 13, color: sitePublicStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{sitePublicStatus}</span> : null}
+          </div>
+        </div>
+        )}
+
+        {adminSection === "agents" && (
+        <div style={{ ...sectionCard, border: "1px solid #fde68a", background: "#fffbeb", marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: "#78350f" }}>Agents directory</div>
+          <p style={{ fontSize: 13, color: "#92400e", marginBottom: 14, lineHeight: 1.5 }}>
+            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/directoryAgents</code>). Order on{" "}
+            <strong>/agents</strong> follows the list — use ↑ ↓ to rearrange. Ratings/reviews are hidden for now.
+          </p>
+          {agentsDraft.map((a, idx) => (
+            <div key={a.id || `agent-${idx}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginBottom: 10, background: "#fff" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                <strong style={{ fontSize: 14, color: "#0f172a" }}>#{idx + 1}</strong>
+                <button type="button" disabled={idx === 0} onClick={() => moveAgentRow(idx, -1)} style={{ ...btn, fontSize: 12, padding: "4px 10px" }}>↑</button>
+                <button type="button" disabled={idx >= agentsDraft.length - 1} onClick={() => moveAgentRow(idx, 1)} style={{ ...btn, fontSize: 12, padding: "4px 10px" }}>↓</button>
+                <button type="button" onClick={() => setAgentsDraft((rows) => rows.filter((_, i) => i !== idx))} style={{ ...btn, fontSize: 12, padding: "4px 10px", background: "#fef2f2", color: "#b91c1c" }}>Remove</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+                <input placeholder="Name" value={a.name} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <select value={a.tab} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, tab: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}>
+                  {AGENT_TABS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+                <input placeholder="Brokerage" value={a.brokerage} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, brokerage: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
+                <input placeholder="Price range label" value={a.priceRangeLabel} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, priceRangeLabel: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <input placeholder="Recent activity" value={a.recentActivity} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, recentActivity: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <input placeholder="Local expertise" value={a.localExpertise} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, localExpertise: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
+                <input placeholder="Specialties (comma-separated)" value={a.specialties} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, specialties: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
+                <input placeholder="Languages (comma-separated)" value={a.languages} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, languages: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <input placeholder="Areas (comma-separated)" value={a.areas} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, areas: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="checkbox" checked={a.team} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, team: e.target.checked } : r)))} /> Team
+                </label>
+                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="checkbox" checked={a.rentFocus} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, rentFocus: e.target.checked } : r)))} /> Rentals
+                </label>
+                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="checkbox" checked={a.buyFocus} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, buyFocus: e.target.checked } : r)))} /> Buy / invest
+                </label>
+              </div>
+            </div>
+          ))}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() =>
+                setAgentsDraft((rows) => [
+                  ...rows,
+                  {
+                    id: `agent-${Date.now()}`,
+                    tab: "experts",
+                    name: "",
+                    initials: "",
+                    team: false,
+                    brokerage: "MovEazy · Verified area guide",
+                    priceRangeLabel: "",
+                    recentActivity: "",
+                    localExpertise: "",
+                    specialties: "Rentals",
+                    languages: "English, Hindi",
+                    areas: "",
+                    rentFocus: true,
+                    buyFocus: false,
+                    budgetTier: 2,
+                  },
+                ])
+              }
+              style={{ ...btn, background: "#d97706", color: "white" }}
+            >
+              + Add agent
+            </button>
+            <button type="button" onClick={() => navigate("/agents")} style={{ ...btn, background: "#e0f2fe", color: "#0369a1" }}>Preview /agents</button>
+            <button type="button" onClick={handleSaveAgents} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>Save agents</button>
+            {agentsSaveStatus ? <span style={{ fontSize: 13, color: agentsSaveStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{agentsSaveStatus}</span> : null}
           </div>
         </div>
         )}

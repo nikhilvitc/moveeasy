@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MovEAZYLogo from "../branding/MovEAZYLogo";
+import { FLAT_SEARCH_CTA, PRIMARY_NAV_LINKS } from "../../config/navLinks";
 
 const navBtn =
   "rounded-md px-2.5 py-1.5 text-[12px] font-bold leading-tight border border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:border-zinc-500 transition-colors";
@@ -52,26 +53,19 @@ export default function Navbar() {
         </motion.div>
 
         <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 text-[12px] font-semibold text-zinc-300 flex-wrap justify-end">
-          {[
-            { label: "Services", path: "/services" },
-            { label: "Guarantee", path: "/guarantee" },
-            { label: "Flat plan", path: "/plan" },
-            { label: "Agents", path: "/agents" },
-            { label: "Listings", path: "/map" },
-            { label: "Saved", path: "/activity" },
-          ].map(({ label, path }) => (
-            <NavLink key={label} label={label} onClick={() => closeAndGo(path)} />
+          {PRIMARY_NAV_LINKS.map(({ label, path }) => (
+            <NavLink key={path} label={label} onClick={() => closeAndGo(path)} />
           ))}
 
           <motion.button
             type="button"
-            onClick={() => closeAndGo("/plan")}
+            onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
             className="rounded-md px-3 py-1.5 text-[12px] font-bold leading-tight bg-red-600 text-white border border-red-700 hover:bg-red-500 shadow-[0_2px_10px_rgba(220,38,38,0.28)]"
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.18 }}
           >
-            Personalized match
+            {FLAT_SEARCH_CTA.label}
           </motion.button>
 
           <motion.button
@@ -161,26 +155,19 @@ export default function Navbar() {
             className="lg:hidden border-t border-zinc-800 px-4 py-4 bg-[#000000]"
           >
             <div className="grid gap-2 text-sm font-semibold text-zinc-200">
-              {[
-                { label: "Services", path: "/services" },
-                { label: "Guarantee", path: "/guarantee" },
-                { label: "Flat plan", path: "/plan" },
-                { label: "Agents", path: "/agents" },
-                { label: "Listings / Map", path: "/map" },
-                { label: "Saved & activity", path: "/activity" },
-              ].map(({ label, path }) => (
-                <button key={label} type="button" onClick={() => closeAndGo(path)} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900 hover:text-red-400 transition-colors">
+              {PRIMARY_NAV_LINKS.map(({ label, path }) => (
+                <button key={path} type="button" onClick={() => closeAndGo(path)} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900 hover:text-red-400 transition-colors">
                   {label}
                 </button>
               ))}
               <motion.button
                 type="button"
-                onClick={() => closeAndGo("/plan")}
+                onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
                 className="rounded-lg px-4 py-2.5 bg-red-600 text-white text-center font-bold border border-red-700 hover:bg-red-500"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
               >
-                Personalized match
+                {FLAT_SEARCH_CTA.label}
               </motion.button>
               {user?.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-zinc-900">
