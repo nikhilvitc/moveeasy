@@ -1,25 +1,31 @@
-import wordmarkPng from "../../assets/logo/moveazy-wordmark.png";
+import brandPng from "../../assets/logo/moveazy-brand.png";
 
 /**
- * Transparent MovEazy wordmark (no separate text label beside it).
+ * MovEAZY brand lockup (Mov + EAZY + pin).
+ * Black in the PNG is knocked out on dark surfaces via mix-blend-screen.
  */
 export default function MovEAZYLogo({ variant = "onDark", size = "md", className = "" }) {
   const imgClass =
     size === "sm"
-      ? "h-7 w-auto max-w-[140px] object-contain object-left"
+      ? "h-7 w-auto max-w-[168px] object-contain object-left"
       : size === "lg"
-        ? "h-10 w-auto max-w-[220px] sm:h-11 sm:max-w-[260px] object-contain object-left"
-        : "h-8 w-auto max-w-[180px] sm:h-9 sm:max-w-[210px] object-contain object-left";
+        ? "h-11 w-auto max-w-[280px] sm:h-12 sm:max-w-[320px] object-contain object-left"
+        : "h-8 w-auto max-w-[210px] sm:h-9 sm:max-w-[240px] object-contain object-left";
 
   const onLight = variant === "onLight";
+  const knockout = !onLight;
 
   return (
-    <span className={`inline-flex items-center shrink-0 ${className}`} role="img" aria-label="MovEazy">
+    <span
+      className={`inline-flex items-center shrink-0 ${knockout ? "isolation-auto" : ""} ${className}`}
+      role="img"
+      aria-label="MovEazy"
+    >
       <img
-        src={wordmarkPng}
+        src={brandPng}
         alt=""
         draggable={false}
-        className={`${imgClass} ${onLight ? "" : "brightness-100"}`}
+        className={`${imgClass} block ${knockout ? "mix-blend-screen" : ""}`}
       />
     </span>
   );
