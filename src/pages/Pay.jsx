@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMemo, useState, useCallback } from "react";
 import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
+import { getRazorpayHostedPaymentUrl } from "../config/razorpayHosted";
 
 const ORDER_FN = import.meta.env.VITE_RAZORPAY_ORDER_URL?.trim();
 const BILLING_EMAIL = import.meta.env.VITE_BILLING_CONTACT_EMAIL?.trim();
@@ -45,6 +46,8 @@ export default function Pay() {
     return "guarantee";
   }, [searchParams]);
 
+  const hostedUrl = useMemo(() => getRazorpayHostedPaymentUrl(product.key), [product.key]);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -54,10 +57,10 @@ export default function Pay() {
 
   const checkoutSkuQuery = searchParams.toString() ? `?${searchParams.toString()}` : "";
 
-  const payWithRazorpay = useCallback(async () => {
+  const payWithRazorpayModal = useCallback(async () => {
     setErr("");
     if (!ORDER_FN) {
-      setErr("Razorpay is not configured yet. Use UPI checkout instead.");
+      setErr("Server checkout is not configured. Use the Razorpay page button or UPI checkout.");
       return;
     }
     if (!email.trim() || !email.includes("@")) {
@@ -77,7 +80,7 @@ export default function Pay() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok || !data.orderId || !data.keyId) {
-        setErr(data.error || "Could not start payment. Try again or use UPI checkout.");
+        setErr(data.error || "Could not start payment. Try the Razorpay page or UPI checkout.");
         setBusy(false);
         return;
       }
@@ -131,21 +134,14 @@ export default function Pay() {
 
           {BILLING_EMAIL && (
             <p className="mt-3 text-xs text-slate-500">
-              Billing &amp; Razorpay account contact: <span className="font-semibold text-slate-700">{BILLING_EMAIL}</span>
+              Billing contact: <span className="font-semibold text-slate-700">{BILLING_EMAIL}</span>
             </p>
           )}
 
-          {!ORDER_FN && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              Set <code className="text-xs bg-white/80 px-1 rounded">VITE_RAZORPAY_ORDER_URL</code> to your deployed{" "}
-              <code className="text-xs">createRazorpayOrder</code> URL, and configure Firebase secrets{" "}
-              <code className="text-xs">RAZORPAY_KEY_ID</code> / <code className="text-xs">RAZORPAY_KEY_SECRET</code>. Until then, use{" "}
-              <Link className="font-semibold underline" to={`/checkout${checkoutSkuQuery}`}>
-                UPI checkout
-              </Link>
-              .
-            </div>
-          )}
+          <p className="mt-4 text-xs text-slate-500 leading-relaxed">
+            Opens Razorpay&apos;s secure page — <strong className="text-slate-700">UPI</strong> (Google Pay, PhonePe, Paytm, BHIM),{" "}
+            <strong className="text-slate-700">debit / credit cards</strong>, netbanking and wallets, depending on what is enabled on your Razorpay link.
+          </p>
 
           {done ? (
             <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
@@ -162,52 +158,66 @@ export default function Pay() {
             </div>
           ) : (
             <div className="mt-8 space-y-4 rounded-2xl border border-white/80 bg-white/95 p-6 shadow-lg backdrop-blur-md">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Full name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
-                  placeholder="As on ID / bank"
-                  autoComplete="name"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Email (receipt)</label>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  required
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
-                  placeholder="you@email.com"
-                  autoComplete="email"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Phone (optional)</label>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
-                  placeholder="+91 …"
-                  autoComplete="tel"
-                />
-              </div>
-
-              {err && <p className="text-sm text-red-600 font-medium">{err}</p>}
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={payWithRazorpay}
-                className="w-full rounded-xl bg-gradient-to-r from-rose-600 to-red-600 py-3.5 font-bold text-white shadow-md disabled:opacity-60"
+              <a
+                href={hostedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#0d3c61] to-[#0f5a8c] py-4 text-base font-bold text-white shadow-lg ring-1 ring-black/10 hover:opacity-[0.96] active:scale-[0.99] transition-transform"
               >
-                {busy ? "Opening Razorpay…" : `Pay ₹${product.amountRupee.toLocaleString("en-IN")} with Razorpay`}
-              </button>
+                Pay on Razorpay — UPI · Card · more
+              </a>
+              <p className="text-center text-[11px] text-slate-500">Opens Razorpay in a new tab</p>
 
-              <p className="text-center text-xs text-slate-500">
-                Prefer UPI scan?{" "}
+              <div className="border-t border-stone-200 pt-4 mt-2">
+                <p className="text-xs font-semibold text-slate-600 mb-3">Optional — for in-site modal checkout (requires server setup)</p>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Full name</label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                    placeholder="As on ID / bank"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Email (receipt)</label>
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                    placeholder="you@email.com"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="mt-2">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">Phone (optional)</label>
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-stone-900"
+                    placeholder="+91 …"
+                    autoComplete="tel"
+                  />
+                </div>
+
+                {err && <p className="text-sm text-red-600 font-medium mt-2">{err}</p>}
+
+                {ORDER_FN ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={payWithRazorpayModal}
+                    className="mt-4 w-full rounded-xl border-2 border-rose-200 bg-white py-3 text-sm font-bold text-rose-700 shadow-sm hover:bg-rose-50 disabled:opacity-60"
+                  >
+                    {busy ? "Opening…" : "Pay in-page (server order)"}
+                  </button>
+                ) : null}
+              </div>
+
+              <p className="text-center text-xs text-slate-500 pt-2">
+                Scan static UPI QR instead?{" "}
                 <Link to={`/checkout${checkoutSkuQuery}`} className="font-semibold text-rose-700 underline">
                   Open UPI checkout
                 </Link>

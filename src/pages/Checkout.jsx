@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
+import { getRazorpayHostedPaymentUrl } from "../config/razorpayHosted";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -18,6 +19,7 @@ export default function Checkout() {
   const [confirmed, setConfirmed] = useState(false);
 
   const product = useMemo(() => getPaymentProduct(searchParams), [searchParams]);
+  const razorpayHostedUrl = useMemo(() => getRazorpayHostedPaymentUrl(product.key), [product.key]);
 
   const upiPayUri = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(BRAND_PAYEE_NAME)}&am=${product.amountPaise}&cu=INR`;
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(upiPayUri)}`;
@@ -46,15 +48,25 @@ export default function Checkout() {
           <p className="mt-2 text-slate-600 font-medium">
             {product.key === "personalized-match"
               ? "Unlock your personalized property pack — pay once, get curated picks and priority."
-              : "Complete your payment — secure UPI, instant confirmation."}
+              : "Pay on Razorpay (UPI, cards & more) or scan the static UPI QR below."}
           </p>
 
-          <p className="mt-3 text-sm text-slate-600">
-            Pay with card / UPI apps via{" "}
-            <Link to={`/pay${searchParams.toString() ? `?${searchParams.toString()}` : ""}`} className="font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800">
-              Razorpay
-            </Link>{" "}
-            or scan the QR below.
+          <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <a
+              href={razorpayHostedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#0d3c61] to-[#0f5a8c] px-5 py-2.5 text-sm font-bold text-white shadow-md ring-1 ring-black/10 hover:opacity-[0.96]"
+            >
+              Pay on Razorpay — UPI · Card · more
+            </a>
+            <span className="text-slate-400">or</span>
+            <Link
+              to={`/pay${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
+              className="font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800"
+            >
+              Full pay page
+            </Link>
           </p>
 
           <div className="mt-10 grid md:grid-cols-2 gap-8 md:gap-10">
@@ -97,11 +109,22 @@ export default function Checkout() {
             <Tilt3D intensity={7} scale={1.015} className="rounded-2xl [transform-style:preserve-3d]">
               <div className="rounded-2xl border border-white/80 bg-white/95 p-8 shadow-card-lg backdrop-blur-md ring-1 ring-stone-900/[0.04]">
                 <div className="mb-6 flex items-start justify-between gap-3">
-                  <h2 className="text-xl font-bold text-stone-900">Pay via UPI</h2>
+                  <h2 className="text-xl font-bold text-stone-900">Pay on Razorpay or UPI</h2>
                   <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80">
                     Encrypted
                   </span>
                 </div>
+
+                <a
+                  href={razorpayHostedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-5 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#0d3c61] to-[#0f5a8c] py-3.5 text-sm font-bold text-white shadow-md ring-1 ring-black/10 hover:opacity-[0.96]"
+                >
+                  Razorpay — UPI · debit / credit · more
+                </a>
+
+                <div className="mb-5 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400">or scan QR</div>
 
                 <div className="mb-6 rounded-2xl bg-gradient-to-r from-rose-400 via-orange-300 to-violet-400 p-[2px] shadow-lg bg-[length:240%_240%] animate-gradient-shift">
                   <div className="rounded-[14px] bg-gradient-to-b from-stone-50/95 to-white p-6 text-center">
