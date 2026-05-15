@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/** Production smoke: set PLAYWRIGHT_BASE_URL=https://jiyanshud22.github.io/MOVEASY-WEBSITE/ */
+/** Production smoke: PLAYWRIGHT_BASE_URL=https://moveasy-30eed.web.app/ (Firebase) or GitHub Pages URL */
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:5173/MOVEASY-WEBSITE/";
 
