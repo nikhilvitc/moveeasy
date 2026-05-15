@@ -921,7 +921,7 @@ export default function AdminDashboard() {
             onClick={() => navigate("/")}
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
           >
-            <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "lg"} />
+            <MovEAZYLogo size={isMobile ? "sm" : "lg"} />
           </div>
           {!isMobile && (
             <div style={{ borderLeft: "1px solid #3f3f46", paddingLeft: "16px" }}>

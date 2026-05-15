@@ -1,46 +1,37 @@
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MovEAZYLogo from "../branding/MovEAZYLogo";
 import { FLAT_SEARCH_CTA, PRIMARY_NAV_LINKS } from "../../config/navLinks";
 
+const NAV_BG = "bg-[#000000]";
+
 const chipBtn =
-  "rounded-md px-2 py-1 text-[11px] font-semibold border border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10 transition-colors";
+  "rounded-lg px-2.5 py-1.5 text-xs font-semibold border border-white/12 bg-white/[0.06] text-zinc-100 hover:bg-white/10 transition-colors";
 const chipAdmin =
-  "rounded-md px-2 py-1 text-[11px] font-semibold border border-red-500/40 bg-red-600/20 text-red-100 hover:bg-red-600/30 transition-colors";
+  "rounded-lg px-2.5 py-1.5 text-xs font-semibold border border-red-500/35 bg-red-600/25 text-red-50 hover:bg-red-600/35 transition-colors";
 
 /**
  * @param {{ variant?: "solid" | "overlay" }} props
- * overlay = home hero (glass, not a heavy black slab)
  */
 export default function Navbar({ variant = "solid" }) {
+  void variant;
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  const isOverlay = variant === "overlay" || location.pathname === "/";
-
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 24);
+    const handleScroll = () => setScrolled(window.scrollY > 12);
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const shellClass = (() => {
-    if (isOverlay && !scrolled) {
-      return "border-b border-white/10 bg-black/35 backdrop-blur-md shadow-none";
-    }
-    if (isOverlay && scrolled) {
-      return "border-b border-red-950/40 bg-black/88 backdrop-blur-lg shadow-[0_4px_24px_rgba(0,0,0,0.35)]";
-    }
-    return scrolled
-      ? "border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md shadow-sm"
-      : "border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md";
-  })();
+  const borderClass = scrolled
+    ? "border-b border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
+    : "border-b border-white/[0.05]";
 
   const closeAndGo = (path) => {
     setOpen(false);
@@ -54,32 +45,40 @@ export default function Navbar({ variant = "solid" }) {
   };
 
   return (
-    <header className={`sticky top-0 z-50 transition-all duration-300 ${shellClass}`}>
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-3 sm:px-4 lg:px-6">
-        {/* Logo */}
+    <header
+      className={`sticky top-0 z-50 transition-[border-color,box-shadow] duration-300 ${NAV_BG} ${borderClass}`}
+    >
+      <motion.div
+        className="mx-auto flex h-12 w-full max-w-[1440px] items-center gap-3 sm:gap-4 pl-3 pr-3 sm:pl-4 sm:pr-5 lg:pl-5 lg:pr-6"
+        layout
+      >
+        {/* Logo — flush left */}
         <motion.button
           type="button"
           onClick={() => closeAndGo("/")}
-          className="shrink-0 flex items-center"
+          className="shrink-0 flex items-center -ml-0.5"
           whileTap={{ scale: 0.98 }}
           aria-label="MovEazy home"
         >
-          <MovEAZYLogo variant="onDark" size="sm" />
+          <MovEAZYLogo size="nav" />
         </motion.button>
 
-        {/* Center nav — desktop */}
-        <nav className="hidden lg:flex flex-1 items-center justify-center gap-0.5 min-w-0" aria-label="Main">
+        {/* Primary links — sit next to logo, not centered in empty space */}
+        <nav
+          className="hidden lg:flex min-w-0 flex-1 items-center gap-0.5 ml-2 xl:ml-6"
+          aria-label="Main"
+        >
           {PRIMARY_NAV_LINKS.map(({ label, path }) => (
-            <NavLink key={path} label={label} onClick={() => closeAndGo(path)} light={isOverlay && !scrolled} />
+            <NavLink key={path} label={label} onClick={() => closeAndGo(path)} />
           ))}
         </nav>
 
-        {/* Right actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto lg:ml-0">
+        {/* Actions */}
+        <motion.div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto">
           <motion.button
             type="button"
             onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
-            className="hidden sm:inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-sm hover:bg-red-500 border border-red-500/80 whitespace-nowrap"
+            className="hidden sm:inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 border border-red-500/70 whitespace-nowrap shadow-[0_2px_12px_rgba(220,38,38,0.35)]"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -87,7 +86,7 @@ export default function Navbar({ variant = "solid" }) {
           </motion.button>
 
           {user ? (
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-1.5">
               {user.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className={chipBtn}>
                   Dashboard
@@ -116,7 +115,7 @@ export default function Navbar({ variant = "solid" }) {
             <motion.button
               type="button"
               onClick={() => closeAndGo("/login")}
-              className="hidden sm:inline-flex rounded-md px-3 py-1.5 text-[11px] sm:text-xs font-bold text-zinc-200 border border-white/20 hover:bg-white/10"
+              className="hidden sm:inline-flex rounded-lg px-3.5 py-2 text-sm font-semibold text-white border border-white/15 hover:bg-white/[0.08]"
               whileTap={{ scale: 0.98 }}
             >
               Sign in
@@ -126,14 +125,14 @@ export default function Navbar({ variant = "solid" }) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/15 bg-black/30 text-zinc-100 text-sm font-bold"
+            className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-zinc-100 text-base font-bold"
             aria-label="Menu"
             aria-expanded={open}
           >
             {open ? "✕" : "☰"}
           </button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <AnimatePresence>
         {open && (
@@ -143,15 +142,15 @@ export default function Navbar({ variant = "solid" }) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="lg:hidden overflow-hidden border-t border-white/10 bg-zinc-950/98 backdrop-blur-lg"
+            className={`lg:hidden overflow-hidden border-t border-white/[0.08] ${NAV_BG}`}
           >
-            <div className="px-4 py-3 grid gap-1 text-sm font-medium text-zinc-200 max-h-[70vh] overflow-y-auto">
+            <motion.div className="px-4 py-3 grid gap-0.5 text-[15px] font-medium text-zinc-100 max-h-[70vh] overflow-y-auto">
               {PRIMARY_NAV_LINKS.map(({ label, path }) => (
                 <button
                   key={path}
                   type="button"
                   onClick={() => closeAndGo(path)}
-                  className="text-left rounded-lg py-2.5 px-2 hover:bg-white/5 hover:text-white"
+                  className="text-left rounded-lg py-2.5 px-2 hover:bg-white/[0.06] hover:text-white"
                 >
                   {label}
                 </button>
@@ -159,34 +158,34 @@ export default function Navbar({ variant = "solid" }) {
               <button
                 type="button"
                 onClick={() => closeAndGo("/map")}
-                className="text-left rounded-lg py-2.5 px-2 hover:bg-white/5 text-zinc-400"
+                className="text-left rounded-lg py-2.5 px-2 hover:bg-white/[0.06] text-zinc-400"
               >
                 Explore map
               </button>
               <button
                 type="button"
                 onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
-                className="mt-1 rounded-lg py-2.5 px-3 bg-red-600 text-white text-center font-bold"
+                className="mt-2 rounded-lg py-3 px-3 bg-red-600 text-white text-center text-sm font-bold"
               >
                 {FLAT_SEARCH_CTA.label}
               </button>
               {user?.role === "customer" && (
-                <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-white/5">
+                <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-white/[0.06]">
                   Customer dashboard
                 </button>
               )}
               {user?.role === "seller" && (
-                <button type="button" onClick={() => closeAndGo("/seller")} className="text-left rounded-lg py-2 px-2 hover:bg-white/5">
+                <button type="button" onClick={() => closeAndGo("/seller")} className="text-left rounded-lg py-2 px-2 hover:bg-white/[0.06]">
                   Seller dashboard
                 </button>
               )}
               {(user?.role === "admin" || user?.role === "sub_admin" || user?.role === "consultant") && (
-                <button type="button" onClick={() => closeAndGo("/crm")} className="text-left rounded-lg py-2 px-2 hover:bg-white/5">
+                <button type="button" onClick={() => closeAndGo("/crm")} className="text-left rounded-lg py-2 px-2 hover:bg-white/[0.06]">
                   Staff CRM
                 </button>
               )}
               {user?.role === "admin" && (
-                <button type="button" onClick={() => closeAndGo("/admin")} className="text-left rounded-lg py-2 px-2 hover:bg-white/5 text-red-300">
+                <button type="button" onClick={() => closeAndGo("/admin")} className="text-left rounded-lg py-2 px-2 hover:bg-white/[0.06] text-red-300">
                   Admin
                 </button>
               )}
@@ -197,13 +196,13 @@ export default function Navbar({ variant = "solid" }) {
               )}
               {user && (
                 <>
-                  <p className="text-[11px] text-zinc-500 px-2 pt-2 break-all">{user.email}</p>
+                  <p className="text-xs text-zinc-500 px-2 pt-2 break-all">{user.email}</p>
                   <button type="button" onClick={handleLogout} className="text-left rounded-lg py-2 px-2 text-red-400 font-semibold">
                     Logout
                   </button>
                 </>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -211,14 +210,12 @@ export default function Navbar({ variant = "solid" }) {
   );
 }
 
-function NavLink({ label, onClick, light }) {
+function NavLink({ label, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap ${
-        light ? "text-white/85 hover:text-white hover:bg-white/10" : "text-zinc-300 hover:text-white hover:bg-white/5"
-      }`}
+      className="rounded-lg px-3 py-2 text-[15px] font-semibold tracking-tight text-zinc-200 hover:text-white hover:bg-white/[0.06] transition-colors whitespace-nowrap"
     >
       {label}
     </button>

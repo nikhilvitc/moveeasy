@@ -787,7 +787,7 @@ export default function MapView() {
               onClick={() => navigate("/")}
               style={{ cursor: "pointer", display: "flex", alignItems: "center", marginRight: "8px" }}
             >
-              <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "lg"} />
+              <MovEAZYLogo size={isMobile ? "sm" : "lg"} />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

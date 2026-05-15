@@ -360,7 +360,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                 onClick={() => onClose()}
                 style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
               >
-                <MovEAZYLogo variant="onDark" size={isMobile ? "sm" : "md"} />
+                <MovEAZYLogo size={isMobile ? "sm" : "md"} />
               </div>
               <div style={{ display: "flex", gap: isMobile ? "10px" : "16px", color: "#cbd5e1", fontWeight: 600, fontSize: isMobile ? "12px" : "14px", flexWrap: "wrap", minWidth: 0 }}>
                 <span onClick={() => scrollTo("overview")} style={{ cursor: "pointer", transition: "color 0.2s" }} onMouseEnter={(e) => e.target.style.color = "#fff"} onMouseLeave={(e) => e.target.style.color = "#cbd5e1"}>Overview</span>
