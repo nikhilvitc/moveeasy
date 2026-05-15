@@ -1,5 +1,5 @@
 import Navbar from "../components/layout/Navbar";
-import PageShell from "../components/layout/PageShell";
+import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
 import Hero from "../components/sections/Hero";
 import Stats from "../components/sections/Stats";
 import Features from "../components/sections/Features";
@@ -10,16 +10,18 @@ import GuaranteePlan from "../components/sections/GuaranteePlan";
 import CityCTA from "../components/sections/CityCTA";
 import Footer from "../components/layout/Footer";
 
+/** Same shell as Services / marketing pages — home hero stays full-bleed dark inside. */
 export default function Home() {
   return (
-    <PageShell fixedBackdrop variant="marketing" overlayOnly className="antialiased text-ink">
-      <Navbar variant="overlay" />
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased text-ink">
+      <PremiumPageBackdrop variant="marketing" overlayOnly />
 
-      <main className="relative">
+      <Navbar />
+
+      <main className="relative z-10">
         <Hero />
 
-        {/* Pull-up overlap only on large screens — negative margin on mobile covered the hero + broker strip */}
-        <div className="relative z-20 mt-8 px-2 sm:mt-10 sm:px-0 lg:-mt-14 lg:z-30">
+        <div className="relative z-20 mt-8 px-4 sm:mt-10 sm:px-6 lg:-mt-14 lg:px-8 lg:z-30">
           <Stats />
         </div>
 
@@ -33,7 +35,9 @@ export default function Home() {
         </div>
       </main>
 
-      <Footer />
-    </PageShell>
+      <div className="relative z-10">
+        <Footer />
+      </div>
+    </div>
   );
 }

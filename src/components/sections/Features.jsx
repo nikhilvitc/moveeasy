@@ -68,10 +68,10 @@ function FeatureCard({ icon, title, desc, gradient, glow }) {
             <div className="flex-shrink-0 w-14 h-14 mt-0.5 opacity-0" aria-hidden="true" />
           )}
           <div className="min-w-0">
-            <h3 className="text-[17px] sm:text-[19px] lg:text-[20px] font-bold text-gray-950 leading-snug">
+            <h3 className="text-[17px] sm:text-[19px] lg:text-[20px] font-bold text-ink leading-snug">
               {title}
             </h3>
-            <p className="mt-2.5 text-[15px] sm:text-[16px] lg:text-[17px] text-gray-500 leading-relaxed">
+            <p className="mt-2.5 text-[15px] sm:text-[16px] lg:text-[17px] text-ink-muted leading-relaxed">
               {desc}
             </p>
           </div>
@@ -95,7 +95,7 @@ export default function Features() {
       >
         {/* Title */}
         <div className="text-center mb-14 sm:mb-16 lg:mb-20" data-gsap-reveal>
-          <h2 className="text-[32px] sm:text-[40px] lg:text-[48px] xl:text-[52px] font-extrabold text-gray-950 leading-[1.12] tracking-tight max-w-[1100px] mx-auto">
+          <h2 className="text-[32px] sm:text-[40px] lg:text-[48px] xl:text-[52px] font-extrabold text-ink leading-[1.12] tracking-tight max-w-[1100px] mx-auto">
             Thousands Are Moving{" "}
             <span className="gradient-text">Smarter</span>{" "}
             with MovEazy
