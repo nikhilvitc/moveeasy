@@ -1442,9 +1442,78 @@
     padding-top: 28px;
   }
 
+  /* ── Hero: stack on phones (fixes cramped 2-col + clipped chaos card) ── */
+  @media (max-width: 900px) {
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      align-items: stretch;
+      min-height: unset;
+      padding: 96px 18px 48px;
+    }
+
+    .hero-body {
+      max-width: none;
+    }
+
+    .hero-right {
+      min-height: unset;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .chaos-card-main {
+      position: relative;
+      top: auto;
+      left: auto;
+      width: 100%;
+      max-width: 100%;
+      padding: 22px 18px;
+      box-sizing: border-box;
+    }
+
+    .chaos-item {
+      flex-wrap: wrap;
+      gap: 10px 12px;
+      padding: 12px 0;
+    }
+
+    .chaos-item-text {
+      flex: 1 1 calc(100% - 46px);
+      min-width: 0;
+    }
+
+    .chaos-item-status {
+      flex: 1 1 100%;
+      margin-left: 46px;
+      align-self: flex-start;
+      white-space: normal;
+      width: auto;
+    }
+
+    .hero-headline {
+      font-size: clamp(26px, 7.5vw, 40px);
+    }
+
+    .hero-cta-group {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .btn-primary {
+      justify-content: center;
+      width: 100%;
+      max-width: 400px;
+    }
+  }
+
   @media (max-width: 900px) {
     html.plan-embed .hero {
-      padding-top: 20px;
+      padding-top: 12px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: 40px;
     }
   }
 </style>
