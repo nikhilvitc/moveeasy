@@ -22,11 +22,13 @@ function mainHeroAmount(page) {
 }
 
 test.describe("MovEazy production — checkout & pay", () => {
-  test("default /checkout shows Razorpay, UPI QR, WhatsApp", async ({ page }) => {
+  test("default /checkout shows Razorpay + WhatsApp (optional business UPI QR)", async ({ page }) => {
     await page.goto("./checkout");
     await expect(page.getByRole("heading", { name: /Checkout/i })).toBeVisible();
     await expectRazorpayHostedLinks(page);
-    await expect(page.getByRole("img", { name: /UPI QR code/i })).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: /UPI QR code/i }).or(page.getByText(/Business checkout/i)),
+    ).toBeVisible();
     await expect(page.getByRole("link", { name: /Share on WhatsApp/i })).toBeVisible();
     await expect(mainHeroAmount(page)).toContainText(/₹1,999/);
   });

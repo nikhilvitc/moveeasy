@@ -7,11 +7,9 @@ import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
 import { getRazorpayHostedPaymentUrl } from "../config/razorpayHosted";
+import { getBusinessUpiCheckoutEnv } from "../config/upiCheckout";
 
 const EASE = [0.22, 1, 0.36, 1];
-
-/** Scannable UPI QR — same VPA; amount varies by product. */
-const UPI_VPA = "9413186425@ybl";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -20,9 +18,25 @@ export default function Checkout() {
 
   const product = useMemo(() => getPaymentProduct(searchParams), [searchParams]);
   const razorpayHostedUrl = useMemo(() => getRazorpayHostedPaymentUrl(product.key), [product.key]);
+  const { businessUpiVpa, checkoutQrImageUrl, whatsappOrderE164, hasDirectUpiFallback } = useMemo(
+    () => getBusinessUpiCheckoutEnv(),
+    [],
+  );
 
-  const upiPayUri = `upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(BRAND_PAYEE_NAME)}&am=${product.amountPaise}&cu=INR`;
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(upiPayUri)}`;
+  const upiPayUri = useMemo(() => {
+    if (!businessUpiVpa) return "";
+    return `upi://pay?pa=${encodeURIComponent(businessUpiVpa)}&pn=${encodeURIComponent(BRAND_PAYEE_NAME)}&am=${product.amountPaise}&cu=INR`;
+  }, [businessUpiVpa, product.amountPaise]);
+
+  const qrSrc = useMemo(() => {
+    if (checkoutQrImageUrl) return checkoutQrImageUrl;
+    if (upiPayUri) {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&ecc=M&data=${encodeURIComponent(upiPayUri)}`;
+    }
+    return "";
+  }, [checkoutQrImageUrl, upiPayUri]);
+
+  const whatsAppReceiptHref = `https://wa.me/${whatsappOrderE164}?text=${product.whatsappPath}`;
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden antialiased">
@@ -48,7 +62,9 @@ export default function Checkout() {
           <p className="mt-2 text-slate-600 font-medium">
             {product.key === "personalized-match"
               ? "Unlock your personalized property pack — pay once, get curated picks and priority."
-              : "Pay on Razorpay (UPI, cards & more) or scan the static UPI QR below."}
+              : hasDirectUpiFallback
+                ? "Pay on Razorpay (UPI, cards & more) or use the business UPI QR below."
+                : "Pay on Razorpay — UPI and cards go through MovEazy’s business Razorpay account (no personal UPI on this page)."}
           </p>
 
           <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
@@ -109,7 +125,9 @@ export default function Checkout() {
             <Tilt3D intensity={7} scale={1.015} className="rounded-2xl [transform-style:preserve-3d]">
               <div className="rounded-2xl border border-white/80 bg-white/95 p-8 shadow-card-lg backdrop-blur-md ring-1 ring-stone-900/[0.04]">
                 <div className="mb-6 flex items-start justify-between gap-3">
-                  <h2 className="text-xl font-bold text-stone-900">Pay on Razorpay or UPI</h2>
+                  <h2 className="text-xl font-bold text-stone-900">
+                    {hasDirectUpiFallback ? "Pay on Razorpay or UPI" : "Pay on Razorpay"}
+                  </h2>
                   <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80">
                     Encrypted
                   </span>
@@ -124,37 +142,90 @@ export default function Checkout() {
                   Razorpay — UPI · debit / credit · more
                 </a>
 
-                <div className="mb-5 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400">or scan QR</div>
+                {!hasDirectUpiFallback ? (
+                  <div className="mb-6 rounded-xl border border-stone-200 bg-stone-50/90 p-4 text-sm text-stone-700 ring-1 ring-stone-900/[0.04]">
+                    <p className="font-semibold text-stone-900">Business checkout</p>
+                    <p className="mt-2 text-slate-600 leading-relaxed">
+                      UPI (Google Pay, PhonePe, BHIM, etc.) and cards are collected on Razorpay’s secure page for MovEazy — open{" "}
+                      <a href={razorpayHostedUrl} className="font-semibold text-rose-700 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                        Pay on Razorpay
+                      </a>{" "}
+                      to complete payment. An optional on-page UPI QR can be enabled later using your Razorpay business UPI or a hosted QR image.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-5 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400">or scan QR</div>
 
-                <div className="mb-6 rounded-2xl bg-gradient-to-r from-rose-400 via-orange-300 to-violet-400 p-[2px] shadow-lg bg-[length:240%_240%] animate-gradient-shift">
-                  <div className="rounded-[14px] bg-gradient-to-b from-stone-50/95 to-white p-6 text-center">
-                    <Tilt3D intensity={5} scale={1.02} className="mx-auto inline-block rounded-xl">
-                      <div className="w-52 h-52 mx-auto bg-white rounded-xl shadow-inner flex items-center justify-center border border-stone-200/80 p-2 ring-2 ring-white">
-                        <img src={qrSrc} alt={product.qrAlt} width={220} height={220} className="max-w-full h-auto rounded-md" decoding="async" />
+                    <div className="mb-6 rounded-2xl bg-gradient-to-r from-rose-400 via-orange-300 to-violet-400 p-[2px] shadow-lg bg-[length:240%_240%] animate-gradient-shift">
+                      <div className="rounded-[14px] bg-gradient-to-b from-stone-50/95 to-white p-6 text-center">
+                        <Tilt3D intensity={5} scale={1.02} className="mx-auto inline-block rounded-xl">
+                          <div className="w-52 h-52 mx-auto bg-white rounded-xl shadow-inner flex items-center justify-center border border-stone-200/80 p-2 ring-2 ring-white">
+                            {qrSrc ? (
+                              <img src={qrSrc} alt={product.qrAlt} width={220} height={220} className="max-w-full h-auto rounded-md" decoding="async" />
+                            ) : null}
+                          </div>
+                        </Tilt3D>
+                        <p className="mt-4 text-sm font-semibold text-stone-800">Scan with any UPI app</p>
+                        <p className="text-xs text-slate-500 mt-1">Google Pay • PhonePe • Paytm • BHIM</p>
                       </div>
-                    </Tilt3D>
-                    <p className="mt-4 text-sm font-semibold text-stone-800">Scan with any UPI app</p>
-                    <p className="text-xs text-slate-500 mt-1">Google Pay • PhonePe • Paytm • BHIM</p>
-                  </div>
-                </div>
-
-                <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
-                  <div className="font-semibold text-sky-950 mb-2">Or pay via bank / UPI id:</div>
-                  <div className="text-sky-900 space-y-1">
-                    <div>
-                      UPI: <span className="font-mono font-bold">{UPI_VPA}</span>
                     </div>
-                    <div>After payment, share screenshot on WhatsApp:</div>
-                    <a
-                      href={`https://wa.me/919413186425?text=${product.whatsappPath}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
-                    >
-                      💬 Share on WhatsApp
-                    </a>
+
+                    {businessUpiVpa ? (
+                      <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
+                        <div className="font-semibold text-sky-950 mb-2">Business UPI ID</div>
+                        <div className="text-sky-900 space-y-1">
+                          <div>
+                            UPI: <span className="font-mono font-bold">{businessUpiVpa}</span>
+                          </div>
+                          <div>After payment, share screenshot on WhatsApp:</div>
+                          <a
+                            href={whatsAppReceiptHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
+                          >
+                            💬 Share on WhatsApp
+                          </a>
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+
+                {hasDirectUpiFallback && !businessUpiVpa ? (
+                  <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
+                    <div className="font-semibold text-sky-950 mb-2">Receipt</div>
+                    <div className="text-sky-900 space-y-1">
+                      <div>After payment, share screenshot on WhatsApp:</div>
+                      <a
+                        href={whatsAppReceiptHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
+                      >
+                        💬 Share on WhatsApp
+                      </a>
+                    </div>
                   </div>
-                </div>
+                ) : null}
+
+                {!hasDirectUpiFallback ? (
+                  <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
+                    <div className="font-semibold text-sky-950 mb-2">After paying on Razorpay</div>
+                    <div className="text-sky-900 space-y-1">
+                      <div>Share your Razorpay receipt or payment screenshot on WhatsApp so we can confirm:</div>
+                      <a
+                        href={whatsAppReceiptHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
+                      >
+                        💬 Share on WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
 
                 {!confirmed ? (
                   <motion.button

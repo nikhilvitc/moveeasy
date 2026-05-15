@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useMemo, useState, useCallback } from "react";
 import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
 import { getRazorpayHostedPaymentUrl } from "../config/razorpayHosted";
+import { getBusinessUpiCheckoutEnv } from "../config/upiCheckout";
 
 const ORDER_FN = import.meta.env.VITE_RAZORPAY_ORDER_URL?.trim();
 const BILLING_EMAIL = import.meta.env.VITE_BILLING_CONTACT_EMAIL?.trim();
@@ -47,6 +48,7 @@ export default function Pay() {
   }, [searchParams]);
 
   const hostedUrl = useMemo(() => getRazorpayHostedPaymentUrl(product.key), [product.key]);
+  const { hasDirectUpiFallback } = useMemo(() => getBusinessUpiCheckoutEnv(), []);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -216,12 +218,20 @@ export default function Pay() {
                 ) : null}
               </div>
 
-              <p className="text-center text-xs text-slate-500 pt-2">
-                Scan static UPI QR instead?{" "}
-                <Link to={`/checkout${checkoutSkuQuery}`} className="font-semibold text-rose-700 underline">
-                  Open UPI checkout
-                </Link>
-              </p>
+              {hasDirectUpiFallback ? (
+                <p className="text-center text-xs text-slate-500 pt-2">
+                  Optional UPI QR on checkout?{" "}
+                  <Link to={`/checkout${checkoutSkuQuery}`} className="font-semibold text-rose-700 underline">
+                    Open checkout with QR
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-center text-xs text-slate-500 pt-2">
+                  <Link to={`/checkout${checkoutSkuQuery}`} className="font-semibold text-rose-700 underline">
+                    Order summary & receipt WhatsApp
+                  </Link>
+                </p>
+              )}
             </div>
           )}
         </motion.div>
