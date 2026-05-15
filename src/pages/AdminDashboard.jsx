@@ -63,6 +63,7 @@ import {
   getDefaultDirectoryAgents,
   saveDirectoryAgents,
 } from "../lib/directoryAgentsSettings";
+import { fetchAgentPrivateMap, saveAgentPrivateBatch } from "../lib/agentPrivate";
 import { AGENT_TABS } from "../data/agentsDirectory";
 
 const DEFAULT_FORM = {
@@ -319,12 +320,15 @@ export default function AdminDashboard() {
           contacts: (sitePub.contacts || []).map((c) => ({ ...c })),
         });
         const agentRows = settled[8].status === "fulfilled" ? settled[8].value : getDefaultDirectoryAgents();
+        const privateMap = await fetchAgentPrivateMap(agentRows.map((a) => a.id));
+        if (!alive) return;
         setAgentsDraft(
           agentRows.map((a) => ({
             ...a,
             specialties: Array.isArray(a.specialties) ? a.specialties.join(", ") : "",
             languages: Array.isArray(a.languages) ? a.languages.join(", ") : "",
             areas: Array.isArray(a.areas) ? a.areas.join(", ") : "",
+            whatsappPrivate: privateMap[a.id] || "",
           })),
         );
       } else {
@@ -455,7 +459,13 @@ export default function AdminDashboard() {
     }
     setAgentsSaveStatus("Saving…");
     try {
-      await saveDirectoryAgents(agentsDraft);
+      const saved = await saveDirectoryAgents(agentsDraft);
+      await saveAgentPrivateBatch(
+        saved.map((a) => ({
+          agentId: a.id,
+          whatsappPrivate: agentsDraft.find((d) => d.id === a.id)?.whatsappPrivate || "",
+        })),
+      );
       setAgentsSaveStatus("Saved. /agents will show this order on refresh.");
       setTimeout(() => setAgentsSaveStatus(""), 5000);
     } catch (e) {
@@ -1166,8 +1176,8 @@ export default function AdminDashboard() {
         <div style={{ ...sectionCard, border: "1px solid #fde68a", background: "#fffbeb", marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: "#78350f" }}>Agents directory</div>
           <p style={{ fontSize: 13, color: "#92400e", marginBottom: 14, lineHeight: 1.5 }}>
-            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/directoryAgents</code>). Order on{" "}
-            <strong>/agents</strong> follows the list — use ↑ ↓ to rearrange. Ratings/reviews are hidden for now.
+            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/directoryAgents</code>). WhatsApp numbers save to{" "}
+            <code style={{ fontSize: 12 }}>agentPrivate</code> only — never on public cards. Order on <strong>/agents</strong> follows the list.
           </p>
           {agentsDraft.map((a, idx) => (
             <div key={a.id || `agent-${idx}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginBottom: 10, background: "#fff" }}>
@@ -1191,6 +1201,7 @@ export default function AdminDashboard() {
                 <input placeholder="Specialties (comma-separated)" value={a.specialties} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, specialties: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
                 <input placeholder="Languages (comma-separated)" value={a.languages} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, languages: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
                 <input placeholder="Areas (comma-separated)" value={a.areas} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, areas: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
+                <input placeholder="WhatsApp number (private — not on /agents)" value={a.whatsappPrivate || ""} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, whatsappPrivate: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
                 <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
                   <input type="checkbox" checked={a.team} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, team: e.target.checked } : r)))} /> Team
                 </label>
@@ -1222,6 +1233,7 @@ export default function AdminDashboard() {
                     specialties: "Rentals",
                     languages: "English, Hindi",
                     areas: "",
+                    whatsappPrivate: "",
                     rentFocus: true,
                     buyFocus: false,
                     budgetTier: 2,

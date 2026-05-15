@@ -43,6 +43,12 @@ jobs:
           echo "VITE_WELCOME_EMAIL_FUNCTION_URL=${{ secrets.VITE_WELCOME_EMAIL_FUNCTION_URL }}" >> .env
           echo "VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}" >> .env
           echo "VITE_APPCHECK_RECAPTCHA_SITE_KEY=${{ secrets.VITE_APPCHECK_RECAPTCHA_SITE_KEY }}" >> .env
+          echo "VITE_RAZORPAY_PAYMENT_LINK=${{ secrets.VITE_RAZORPAY_PAYMENT_LINK }}" >> .env
+          echo "VITE_RAZORPAY_PAYMENT_LINK_FLAT=${{ secrets.VITE_RAZORPAY_PAYMENT_LINK_FLAT }}" >> .env
+          echo "VITE_RAZORPAY_PAYMENT_LINK_DEPOSIT=${{ secrets.VITE_RAZORPAY_PAYMENT_LINK_DEPOSIT }}" >> .env
+          echo "VITE_BUSINESS_UPI_VPA=${{ secrets.VITE_BUSINESS_UPI_VPA }}" >> .env
+          echo "VITE_WHATSAPP_ORDER_E164=${{ secrets.VITE_WHATSAPP_ORDER_E164 }}" >> .env
+          echo "VITE_BILLING_CONTACT_EMAIL=${{ secrets.VITE_BILLING_CONTACT_EMAIL }}" >> .env
 
       - name: Lint + unit tests
         run: |

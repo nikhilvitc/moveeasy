@@ -248,3 +248,121 @@ export const createRazorpayOrder = onRequest(
     }
   },
 );
+
+function normalizeWaDigits(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 10) d = `91${d}`;
+  if (d.startsWith("0")) d = d.replace(/^0+/, "");
+  return d;
+}
+
+function buildAgentIntroMessage({ agentName, customerName, customerEmail, customerPhone, profile }) {
+  const p = profile || {};
+  const areas = Array.isArray(p.preferredAreas) ? p.preferredAreas.join(", ") : "";
+  const budget =
+    p.budgetMin != null && p.budgetMax != null
+      ? `₹${p.budgetMin} – ₹${p.budgetMax} / month`
+      : p.budgetMin != null
+        ? `from ₹${p.budgetMin} / month`
+        : p.budgetMax != null
+          ? `up to ₹${p.budgetMax} / month`
+          : "Not specified";
+  const lines = [
+    `Hi ${agentName || "there"},`,
+    "",
+    `I'm ${customerName || "a tenant"} from MovEazy (referral: MovEazy).`,
+    "",
+    "My flat search details:",
+    areas ? `• Areas: ${areas}` : null,
+    `• Budget: ${budget}`,
+    p.bhk ? `• BHK / layout: ${p.bhk}` : null,
+    p.propertyType ? `• Type: ${p.propertyType}` : null,
+    p.furnishing ? `• Furnishing: ${p.furnishing}` : null,
+    p.moveInDate ? `• Move-in: ${p.moveInDate}` : null,
+    p.commuteTo ? `• Commute: ${p.commuteTo}${p.maxCommuteMins ? ` (≤${p.maxCommuteMins} min)` : ""}` : null,
+    p.mustHaves ? `• Must-haves: ${p.mustHaves}` : null,
+    p.dealBreakers ? `• Deal-breakers: ${p.dealBreakers}` : null,
+    p.pets ? `• Pets: ${p.pets}` : null,
+    p.parking ? `• Parking: ${p.parking}` : null,
+    p.notes ? `• Notes: ${p.notes}` : null,
+    "",
+    `My contact: ${customerPhone || "—"} · ${customerEmail || "—"}`,
+    "",
+    "Please share matching options. Thank you!",
+    "",
+    "— Sent via MovEazy · moveasy-30eed.web.app",
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
+/** Private agent WhatsApp connect + analytics (customers never read agentPrivate). */
+export const createAgentWhatsAppConnect = onCall({ cors: true, region: "us-central1" }, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Sign in to connect on WhatsApp.");
+  }
+  const agentId = String(request.data?.agentId || "").trim();
+  if (!agentId) {
+    throw new HttpsError("invalid-argument", "agentId is required.");
+  }
+
+  const db = getFirestore();
+  const uid = request.auth.uid;
+  const authEmail = String(request.auth.token.email || "").toLowerCase();
+
+  const [privSnap, profileSnap, userSnap, agentsSnap] = await Promise.all([
+    db.collection("agentPrivate").doc(agentId).get(),
+    db.collection("customerSearchProfiles").doc(uid).get(),
+    db.collection("userProfiles").doc(uid).get(),
+    db.collection("siteSettings").doc("directoryAgents").get(),
+  ]);
+
+  const wa = normalizeWaDigits(privSnap.exists ? privSnap.data()?.whatsappE164 : "");
+  if (!wa) {
+    throw new HttpsError("failed-precondition", "This agent is not available for WhatsApp connect yet.");
+  }
+
+  let agentName = agentId;
+  if (agentsSnap.exists) {
+    const list = agentsSnap.data()?.agents;
+    if (Array.isArray(list)) {
+      const row = list.find((a) => String(a?.id) === agentId);
+      if (row?.name) agentName = String(row.name);
+    }
+  }
+
+  const profile = profileSnap.exists ? profileSnap.data() : {};
+  const user = userSnap.exists ? userSnap.data() : {};
+  const customerName = String(user.name || request.auth.token.name || authEmail.split("@")[0] || "Customer");
+  const customerPhone = String(user.phone || "");
+  const customerEmail = authEmail;
+
+  const hasArea = Array.isArray(profile.preferredAreas) && profile.preferredAreas.length > 0;
+  const hasBudget = profile.budgetMin != null || profile.budgetMax != null;
+  const hasBrief = Boolean(profile.bhk || profile.propertyType || profile.mustHaves || profile.notes);
+  const profileComplete = hasArea && (hasBudget || hasBrief);
+  if (!profileComplete) {
+    throw new HttpsError("failed-precondition", "Complete your search profile at /my-search before connecting.");
+  }
+
+  const text = buildAgentIntroMessage({
+    agentName,
+    customerName,
+    customerEmail,
+    customerPhone,
+    profile,
+  });
+  const waUrl = `https://wa.me/${wa}?text=${encodeURIComponent(text)}`;
+
+  await db.collection("agentConnectEvents").add({
+    uid,
+    customerEmail,
+    customerName,
+    agentId,
+    agentName,
+    source: "agents_directory",
+    profileComplete: true,
+    createdAt: new Date().toISOString(),
+  });
+
+  return { waUrl };
+});

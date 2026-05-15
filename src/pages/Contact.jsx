@@ -1,6 +1,8 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import PageShell from "../components/layout/PageShell";
+import { FLAT_SEARCH_CTA } from "../config/navLinks";
+import { getBusinessUpiCheckoutEnv } from "../config/upiCheckout";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
@@ -28,7 +30,11 @@ const WHY_ITEMS = [
 
 export default function Contact() {
   const navigate = useNavigate();
+  const { whatsappOrderE164 } = getBusinessUpiCheckoutEnv();
   const { sitePublic, loading } = useSitePublicSettings();
+  const waTeam = `https://wa.me/${whatsappOrderE164}?text=${encodeURIComponent(
+    "Hi — I'm interested in MovEazy Flat Search (₹1,499). Please share next steps.",
+  )}`;
   const contacts = sitePublic.contacts?.length ? sitePublic.contacts : [];
 
   const gridCols =
@@ -109,7 +115,7 @@ export default function Contact() {
               className="font-semibold text-sm tracking-widest uppercase mb-4"
               style={{ color: "#ff8a7a" }}
             >
-              Paid · personalized match
+              MovEazy Flat Search
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -120,7 +126,7 @@ export default function Contact() {
               Your shortlist,{" "}
               <span className="gradient-text">built for you</span>
               <span className="block sm:inline sm:ml-3 text-3xl sm:text-4xl lg:text-5xl mt-2 sm:mt-0 font-extrabold text-white/95">
-                — ₹1,999
+                — ₹1,499
               </span>
             </motion.h1>
             <motion.p
@@ -130,10 +136,9 @@ export default function Contact() {
               className="mt-5 text-lg max-w-2xl mx-auto"
               style={{ color: "rgba(255,255,255,0.60)" }}
             >
-              We no longer offer open-ended free consults. Instead, for <strong className="text-white/90">₹1,999</strong> you unlock a{" "}
-              <strong className="text-white/90">personalized property recommendation pack</strong>: a consultant reviews your requirements, curates matching homes
-              (including sharper picks as inventory moves), flags exclusive or fast-closing deals, and <strong className="text-white/90">prioritizes</strong> your visits
-              and callbacks when you are ready to move in.
+              We no longer offer open-ended free consults. For <strong className="text-white/90">₹1,499</strong> you get{" "}
+              <strong className="text-white/90">MovEazy Flat Search</strong>: a dedicated area guide, neighbourhood-fit shortlist, visit scheduling, and WhatsApp updates
+              through your search. Need deposit protection? See <Link to="/guarantee" className="text-[#ff8a7a] underline font-semibold">Deposit Saver (₹1,999)</Link>.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -142,14 +147,14 @@ export default function Contact() {
               className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
             >
               <Link
-                to="/checkout?sku=personalized-match"
+                to={FLAT_SEARCH_CTA.path}
                 className="inline-flex px-10 py-4 rounded-full font-bold text-base text-white btn-glow-pulse text-center"
                 style={{ background: "linear-gradient(135deg, #e85a4f, #f97316)" }}
               >
-                Pay ₹1,999 — start my match
+                {FLAT_SEARCH_CTA.label} — ₹1,499
               </Link>
               <a
-                href="https://wa.me/919413186425?text=Hi%2C%20I%27ve%20paid%20or%20want%20to%20pay%20%E2%82%B91999%20for%20MovEazy%20personalized%20property%20match.%20Please%20share%20next%20steps."
+                href={waTeam}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
@@ -246,7 +251,7 @@ export default function Contact() {
                         </motion.a>
                         <motion.a
                           href={`https://wa.me/${c.phoneRaw}?text=${encodeURIComponent(
-                            "Hi — I'm interested in MovEazy's ₹1,999 personalized property match (curated shortlist + priority). Please confirm next steps."
+                            "Hi — I'm interested in MovEazy Flat Search (₹1,499). Please confirm next steps."
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { motion } from "framer-motion";
@@ -11,6 +11,9 @@ import {
 } from "../data/agentsDirectory";
 import { fetchDirectoryAgents } from "../lib/directoryAgentsSettings";
 import { FLAT_SEARCH_CTA } from "../config/navLinks";
+import { useAuth } from "../context/AuthContext";
+import { fetchCustomerSearchProfile, isSearchProfileComplete } from "../lib/customerSearchProfile";
+import { requestAgentWhatsAppConnect } from "../lib/agentWhatsAppConnect";
 
 const EASE = [0.22, 1, 0.36, 1];
 
@@ -24,8 +27,12 @@ function matchesBudget(tier, budgetLabel) {
 }
 
 export default function AgentsDirectory() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [connectingId, setConnectingId] = useState("");
+  const [connectError, setConnectError] = useState("");
   const [tab, setTab] = useState("experts");
   const [locationQ, setLocationQ] = useState("");
   const [nameQ, setNameQ] = useState("");
@@ -75,6 +82,29 @@ export default function AgentsDirectory() {
       return true;
     });
   }, [agents, tab, locationQ, nameQ, rentAdvisory, buyAdvisory, specialty, language, budget]);
+
+  const handleConnectWhatsApp = async (agent) => {
+    setConnectError("");
+    if (!user) {
+      navigate(`/login?next=${encodeURIComponent("/agents")}`);
+      return;
+    }
+    const profile = await fetchCustomerSearchProfile(user.uid);
+    if (!isSearchProfileComplete(profile)) {
+      navigate("/my-search?next=agents");
+      return;
+    }
+    setConnectingId(agent.id);
+    try {
+      const waUrl = await requestAgentWhatsAppConnect(agent.id);
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      const msg = String(e?.message || e || "Could not connect");
+      setConnectError(msg);
+    } finally {
+      setConnectingId("");
+    }
+  };
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-zinc-50 antialiased text-stone-900">
@@ -257,9 +287,28 @@ export default function AgentsDirectory() {
                     </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  disabled={connectingId === a.id}
+                  onClick={() => handleConnectWhatsApp(a)}
+                  className="mt-4 w-full rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#1fb855] disabled:opacity-60 transition-colors"
+                >
+                  {connectingId === a.id ? "Opening WhatsApp…" : "Connect on WhatsApp"}
+                </button>
               </motion.article>
             ))}
           </div>
+
+          {connectError ? (
+            <p className="mt-4 text-center text-sm text-red-600 font-medium">{connectError}</p>
+          ) : null}
+          <p className="mt-3 text-center text-xs text-zinc-500">
+            Sign in and complete your{" "}
+            <Link to="/my-search" className="text-rose-700 font-semibold underline">
+              search profile
+            </Link>{" "}
+            before connecting. Broker numbers are never shown on this page.
+          </p>
 
           {filtered.length === 0 ? (
             <p className="mt-10 text-center text-sm text-zinc-500">No profiles match these filters — try widening search or toggling filters.</p>

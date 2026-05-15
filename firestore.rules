@@ -189,6 +189,23 @@ service cloud.firestore {
       allow write: if isAdmin() && (docId == "public" || docId == "directoryAgents");
     }
 
+    // Agent WhatsApp — never readable by customers (Connect uses Cloud Function).
+    match /agentPrivate/{agentId} {
+      allow read, write: if isAdmin() || isSubAdmin();
+    }
+
+    // Customer flat-search brief for broker intros.
+    match /customerSearchProfiles/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isAdmin() || isSubAdmin() || isConsultant();
+    }
+
+    // WhatsApp connect analytics — server writes only (no client access).
+    match /agentConnectEvents/{id} {
+      allow read: if isAdmin() || isSubAdmin();
+      allow write: if false;
+    }
+
     // Staff CRM — customers/sellers have no access. Admins see all; sub-admins & consultants only rows where they are assignee.
     match /crmLeads/{id} {
       allow read: if isAdmin()

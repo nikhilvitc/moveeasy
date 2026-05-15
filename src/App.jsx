@@ -18,6 +18,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import MoveazyPlanPage from "./pages/MoveazyPlanPage";
 import AgentsDirectory from "./pages/AgentsDirectory";
+import MySearchProfile from "./pages/MySearchProfile";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 function OnboardingEmailWarning() {
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/plan" element={<MoveazyPlanPage />} />
       <Route path="/agents" element={<AgentsDirectory />} />
+      <Route path="/my-search" element={<MySearchProfile />} />
       <Route path="/support" element={<Navigate to="/contact" replace />} />
       <Route path="/crm" element={<StaffRoute roles={["admin", "sub_admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />

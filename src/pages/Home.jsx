@@ -13,7 +13,7 @@ import Footer from "../components/layout/Footer";
 export default function Home() {
   return (
     <PageShell fixedBackdrop variant="marketing" overlayOnly className="antialiased text-ink">
-      <Navbar />
+      <Navbar variant="overlay" />
 
       <main className="relative">
         <Hero />

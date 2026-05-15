@@ -69,7 +69,7 @@ export function getPaymentProduct(searchParamsOrSku) {
       ? searchParamsOrSku
       : searchParamsOrSku?.get?.("sku") || "";
   const sku = String(raw || "").trim().toLowerCase();
-  if (sku === "personalized-match") return PAYMENT_SKUS["personalized-match"];
+  if (sku === "personalized-match") return PAYMENT_SKUS["flat-search"];
   if (sku === "flat-search") return PAYMENT_SKUS["flat-search"];
   if (sku === "deposit-saver") return PAYMENT_SKUS.guarantee;
   return PAYMENT_SKUS.guarantee;
