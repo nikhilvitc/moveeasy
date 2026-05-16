@@ -1442,8 +1442,56 @@
     padding-top: 28px;
   }
 
-  /* ── Hero: stack on phones (fixes cramped 2-col + clipped chaos card) ── */
+  html.plan-embed,
+  html.plan-embed body {
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+  }
+
+  html.plan-embed .hero {
+    min-height: unset;
+  }
+
+  html.plan-embed .finale-section {
+    padding-bottom: 32px;
+  }
+
+  /* In /plan iframe: show content immediately (no scroll-reveal hide) */
+  html.plan-embed .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  /* ── Mobile / phone (≤900px) — full-page responsive pass ── */
   @media (max-width: 900px) {
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+      width: 100%;
+    }
+
+    .how-section,
+    .included-section,
+    .included-inner,
+    .trust-section,
+    .finale-section {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .included-grid > * {
+      min-width: 0;
+    }
+
+    html.plan-embed body {
+      overflow-x: hidden;
+    }
+
+    /* Hero */
     .hero {
       grid-template-columns: 1fr;
       gap: 28px;
@@ -1452,9 +1500,14 @@
       padding: 96px 18px 48px;
     }
 
-    .hero-body {
-      max-width: none;
+    html.plan-embed .hero {
+      padding-top: 12px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: 40px;
     }
+
+    .hero-body { max-width: none; }
 
     .hero-right {
       min-height: unset;
@@ -1492,9 +1545,7 @@
       width: auto;
     }
 
-    .hero-headline {
-      font-size: clamp(26px, 7.5vw, 40px);
-    }
+    .hero-headline { font-size: clamp(26px, 7.5vw, 40px); }
 
     .hero-cta-group {
       flex-direction: column;
@@ -1504,17 +1555,161 @@
     .btn-primary {
       justify-content: center;
       width: 100%;
-      max-width: 400px;
+      max-width: none;
     }
-  }
 
-  @media (max-width: 900px) {
-    html.plan-embed .hero {
-      padding-top: 12px;
-      padding-left: max(16px, env(safe-area-inset-left));
-      padding-right: max(16px, env(safe-area-inset-right));
-      padding-bottom: 40px;
+    /* Chaos problems */
+    .chaos-section { padding: 56px 18px; }
+    .chaos-problems { grid-template-columns: 1fr; max-width: none; }
+    .problem-item:first-child,
+    .problem-item:nth-child(2) { border-radius: 14px; }
+
+    /* How it works — vertical steps (no horizontal scroll) */
+    .how-section { padding: 56px 18px; }
+
+    .how-header {
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 32px;
+      gap: 12px;
     }
+
+    .section-note {
+      text-align: left;
+      max-width: none;
+    }
+
+    .steps-timeline {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .steps-timeline::before { display: none; }
+
+    .step-item {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      grid-template-rows: auto auto;
+      gap: 4px 16px;
+      padding: 0;
+      align-items: start;
+    }
+
+    .step-node {
+      grid-row: 1 / span 2;
+      width: 72px;
+      height: 72px;
+      font-size: 24px;
+      margin-bottom: 0;
+    }
+
+    .step-title {
+      grid-column: 2;
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      grid-column: 2;
+    }
+
+    /* Pricing + included — single column */
+    .included-section { padding: 56px 18px; }
+
+    .included-inner { padding: 0; }
+
+    .included-grid {
+      grid-template-columns: 1fr;
+      gap: 28px;
+      margin-top: 32px;
+    }
+
+    .pricing-sticky {
+      position: static;
+      top: auto;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .pricing-card {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 28px 22px;
+    }
+
+    .pricing-number { font-size: 44px; }
+
+    .pricing-feature span { word-break: break-word; }
+
+    /* Testimonials — stack cards */
+    .trust-section {
+      padding: 56px 18px;
+      max-width: none;
+    }
+
+    .trust-grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .trust-card { padding: 24px 20px; }
+
+    .trust-quote { font-size: 15px; }
+
+    /* Finale CTA — stack, full-width button */
+    .finale-section {
+      padding: 0 max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left));
+    }
+
+    .finale-inner {
+      grid-template-columns: 1fr;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 36px 22px;
+      gap: 24px;
+      border-radius: 24px;
+      overflow: visible;
+    }
+
+    .finale-body { max-width: none; }
+
+    .finale-cta {
+      width: 100%;
+      align-items: stretch;
+    }
+
+    .btn-finale {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      white-space: normal;
+      text-align: center;
+      justify-content: center;
+      padding: 16px 20px;
+      font-size: 16px;
+    }
+
+    /* Flat search */
+    .flat-search-inner { padding: 0 16px 40px; }
+    .flat-search-bar { padding: 18px 16px 20px; }
+    .flat-search-form { flex-direction: column; align-items: stretch; }
+    .flat-search-field-wrap,
+    .flat-search-field input { min-width: 0; width: 100%; }
+    .btn-zillow-find { width: 100%; }
+    .flat-agent-grid { grid-template-columns: 1fr; }
+
+    /* Footer */
+    footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 24px 18px;
+      text-align: left;
+    }
+
+    .footer-note { font-size: 12px; line-height: 1.5; }
   }
 </style>
 </head>
@@ -1717,6 +1912,7 @@
         <div class="step-num-badge">3</div>
       </div>
       <div class="step-title">Get handpicked options</div>
+      <div class="step-desc">3–5 verified flats that match your budget — no fake listings.</div>
     </div>
     <div class="step-item reveal reveal-delay-3">
       <div class="step-node">
@@ -1724,6 +1920,7 @@
         <div class="step-num-badge">4</div>
       </div>
       <div class="step-title">Visits booked, flat locked</div>
+      <div class="step-desc">We schedule visits and help you close without broker drama.</div>
     </div>
   </div>
 </section>
@@ -2136,6 +2333,60 @@
     });
 
     applyFilter(false);
+  })();
+
+  /* Tell parent React /plan iframe how tall we are (embed=1 only) */
+  (function () {
+    if (!/\bembed=1\b/.test(location.search)) return;
+
+    function reportHeight() {
+      var footer = document.querySelector("footer");
+      var h;
+      if (footer) {
+        var rect = footer.getBoundingClientRect();
+        h = Math.ceil(rect.bottom + (window.scrollY || 0));
+      } else {
+        h = Math.max(
+          document.documentElement.scrollHeight,
+          document.body ? document.body.scrollHeight : 0
+        );
+      }
+      try {
+        window.parent.postMessage({ type: "moveazy-plan-iframe-height", height: h }, "*");
+      } catch (_) {}
+    }
+
+    function schedule() {
+      requestAnimationFrame(reportHeight);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", schedule);
+    } else {
+      schedule();
+    }
+    window.addEventListener("load", schedule);
+    window.addEventListener("resize", schedule);
+
+    if (typeof ResizeObserver !== "undefined") {
+      try {
+        new ResizeObserver(schedule).observe(document.documentElement);
+      } catch (_) {}
+    }
+
+    [100, 400, 1000, 2500].forEach(function (ms) {
+      setTimeout(schedule, ms);
+    });
+
+    window.addEventListener("message", function (event) {
+      if (event.data && event.data.type === "moveazy-plan-request-height") schedule();
+    });
+
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      if (typeof MutationObserver === "undefined") return;
+      var mo = new MutationObserver(schedule);
+      mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+    });
   })();
 </script>
 </body>

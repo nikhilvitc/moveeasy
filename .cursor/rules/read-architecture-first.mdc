@@ -1,0 +1,13 @@
+---
+description: Require reading repo architecture before structural or nav changes
+globs:
+alwaysApply: true
+---
+
+Before editing routes, navigation, Firestore collections, payments, or deploy config:
+
+1. Read `AGENTS.md` at the repo root.
+2. Read `docs/MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md` (especially § Public routes, § Navigation, § Changelog).
+3. Header/footer nav links must come from `src/config/navLinks.js` only — do not hardcode duplicate menus in components.
+4. Keep `/agents` in `PRIMARY_NAV_LINKS` and `App.jsx` routes unless the user explicitly removes it.
+5. After your change, update the architecture doc changelog with date + one-line summary.

@@ -52,7 +52,15 @@ export async function createProfileAfterSignup({ firebaseUser, name, role, phone
 export async function getProfileForUser(firebaseUser) {
   const email = firebaseUser.email.toLowerCase().trim();
   if (ADMIN_EMAILS.includes(email)) {
-    return { email, name: "MovEazy Admin", role: "admin", sellerBadgeStatus: null, phone: "", uid: firebaseUser.uid };
+    return {
+      email,
+      name: "MovEazy Admin",
+      role: "admin",
+      sellerBadgeStatus: null,
+      phone: "",
+      uid: firebaseUser.uid,
+      profileComplete: true,
+    };
   }
 
   const [profileSnap, roleSnap, emailRoleSnap] = await Promise.all([
@@ -69,7 +77,15 @@ export async function getProfileForUser(firebaseUser) {
   const name = profile.name || firebaseUser.displayName || email.split("@")[0];
   const phone = profile.phone || firebaseUser.phoneNumber || "";
 
-  return { uid: firebaseUser.uid, email, name, role, phone, sellerBadgeStatus: profile.sellerBadgeStatus ?? null };
+  return {
+    uid: firebaseUser.uid,
+    email,
+    name,
+    role,
+    phone,
+    sellerBadgeStatus: profile.sellerBadgeStatus ?? null,
+    profileComplete: profile.profileComplete === true,
+  };
 }
 
 /**
@@ -160,17 +176,25 @@ export async function ensureUserProfileDocuments(firebaseUser) {
     );
   }
 
-  writes.push(
-    setDoc(
-      doc(db, "emailRoles", email),
-      {
-        email,
-        role,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    )
-  );
+  const emailRoleSnap = await getDoc(doc(db, "emailRoles", email));
+  const existingEmailRole = emailRoleSnap.exists() ? emailRoleSnap.data().role : null;
+  const staffRoles = ["admin", "sub_admin", "consultant"];
+  const mayWriteEmailRole =
+    !existingEmailRole || !staffRoles.includes(existingEmailRole) || role === existingEmailRole;
+
+  if (mayWriteEmailRole) {
+    writes.push(
+      setDoc(
+        doc(db, "emailRoles", email),
+        {
+          email,
+          role,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    );
+  }
 
   if (writes.length) await Promise.all(writes);
 }

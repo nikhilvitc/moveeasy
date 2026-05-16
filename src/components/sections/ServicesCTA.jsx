@@ -69,6 +69,7 @@ export default function ServicesCTA() {
               className="mt-10 flex flex-wrap justify-center gap-4"
             >
               <button
+                type="button"
                 onClick={() => navigate("/contact")}
                 className="
                 px-8 py-[13px] text-[14.5px] font-semibold
@@ -76,10 +77,23 @@ export default function ServicesCTA() {
                 hover:bg-gray-50 active:scale-[0.975]
                 transition-all duration-200
               ">
-                See Open Positions
+                Book a consultation
               </button>
 
               <button
+                type="button"
+                onClick={() => navigate("/plan")}
+                className="
+                px-8 py-[13px] text-[14.5px] font-semibold
+                text-white rounded-full border border-white/50
+                hover:bg-white/10 active:scale-[0.975]
+                transition-all duration-200
+              ">
+                View Flat Plan — ₹1,499
+              </button>
+
+              <button
+                type="button"
                 onClick={() => navigate("/map")}
                 className="
                 px-8 py-[13px] text-[14.5px] font-semibold
@@ -87,7 +101,7 @@ export default function ServicesCTA() {
                 hover:bg-white/10 active:scale-[0.975]
                 transition-all duration-200
               ">
-                Explore Full Map
+                Explore listings
               </button>
             </motion.div>
 

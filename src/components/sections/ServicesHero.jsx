@@ -193,6 +193,21 @@ export default function ServicesHero() {
               </button>
 
               <button
+                type="button"
+                onClick={() => navigate("/plan")}
+                className="
+                  rounded-full px-7 py-3
+                  text-[14px] font-semibold
+                  text-[#EF4444] bg-[#FDECEA]
+                  hover:bg-[#fbd9d7]
+                  transition-all duration-200
+                "
+              >
+                Flat Plan — ₹1,499
+              </button>
+
+              <button
+                type="button"
                 onClick={() => navigate("/contact")}
                 className="
                   rounded-full px-7 py-3
@@ -202,7 +217,7 @@ export default function ServicesHero() {
                   transition-all duration-200
                 "
               >
-                Meet the Team
+                Contact &amp; support
               </button>
             </motion.div>
           </div>

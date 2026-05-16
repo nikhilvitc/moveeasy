@@ -26,7 +26,7 @@ export const PAYMENT_SKUS = {
     key: "guarantee",
     amountRupee: 1999,
     amountPaise: "1999",
-    title: "MovEazy Deposit Saver",
+    title: "MovEazy Guarantee",
     subtitle: "Legal verification + escrow-style deposit protection",
     bullets: [
       "Binding contract verification",
@@ -40,7 +40,7 @@ export const PAYMENT_SKUS = {
     confirmTitle: "Deposit Saver enrollment",
     confirmBody:
       "Our team will verify your payment and activate your plan within 2 hours. You'll receive a confirmation on WhatsApp.",
-    qrAlt: "UPI QR code for ₹1,999 MovEazy Deposit Saver",
+    qrAlt: "UPI QR code for ₹1,999 MovEazy Guarantee",
   },
   "personalized-match": {
     key: "personalized-match",

@@ -131,6 +131,7 @@ export function AuthProvider({ children }) {
           phone: profile.phone || "",
           uid: profile.uid || firebaseUser.uid,
           authProvider: getProviderLabel(firebaseUser),
+          profileComplete: profile.profileComplete === true,
         });
         if (profile.role === "admin") loadPendingSellerBadgeApplications();
       } catch {
@@ -188,6 +189,7 @@ export function AuthProvider({ children }) {
         phone: profile.phone || "",
         uid: profile.uid || cred.user.uid,
         authProvider: getProviderLabel(cred.user),
+        profileComplete: profile.profileComplete === true,
       };
       setUser(u);
       const onboardingEmail = await triggerVerifiedOnboardingEmails({ firebaseUser: cred.user, profile });
@@ -239,6 +241,7 @@ export function AuthProvider({ children }) {
         phone: profile.phone || "",
         uid: profile.uid || cred.user.uid,
         authProvider: getProviderLabel(cred.user),
+        profileComplete: profile.profileComplete === true,
       };
       setUser(u);
       if (u.role === "admin") loadPendingSellerBadgeApplications();

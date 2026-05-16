@@ -1,105 +1,64 @@
 # MovEazy
 
-A modern rental and moving platform built with React. MovEazy helps users find apartments, compare moving services, and access a deposit-free guarantee — all in one place.
+A rental and relocation platform: flat search, listing map, deposit **Guarantee**, agent directory, and role-based admin/seller/customer dashboards. Built with React + Firebase.
 
-## Tech Stack
+## For developers & AI agents
 
-- **React 19** with React Router v7
-- **Vite** — fast dev server and build tool
-- **Tailwind CSS** — utility-first styling
-- **Framer Motion** — animations
-- **Leaflet / React-Leaflet** — interactive maps
-- **Lucide React** — icons
+**Read before changing code:**
 
-## Prerequisites
+1. **[AGENTS.md](./AGENTS.md)** — mandatory rules for Cursor, Antigravity, and collaborators  
+2. **[docs/MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md](./docs/MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md)** — routes, nav, data model, deploy (update changelog when you change structure)
 
-- [Node.js](https://nodejs.org/) v18 or higher
-- npm (comes with Node.js)
+## Tech stack
 
-## Getting Started
+- React 19, React Router 7, Vite 8, Tailwind CSS  
+- Firebase (Auth, Firestore, Storage, Hosting, Functions)  
+- Leaflet (map), GSAP / Framer Motion (marketing)
 
-### 1. Clone the repo
+## Quick start
 
 ```bash
-git clone https://github.com/navyagurugubelli/moveazy.git
-cd moveazy
-```
-
-### 2. Install dependencies
-
-```bash
+git clone https://github.com/jiyanshud22/MOVEASY-WEBSITE.git
+cd MOVEASY-WEBSITE
+copy .env.collaborator.example .env   # Windows; use cp on macOS/Linux
 npm install
-```
-
-### 3. Start the development server
-
-```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173` (default Vite port).
+See [docs/COLLABORATOR_SETUP.md](./docs/COLLABORATOR_SETUP.md) for env vars and admin access.
 
-## Available Scripts
+## Key public routes
 
-| Command             | Description                                |
-| ------------------- | ------------------------------------------ |
-| `npm run dev`       | Start the development server with HMR      |
-| `npm run build`     | Build for production (outputs to `dist/`)  |
-| `npm run preview`   | Preview the production build locally       |
-| `npm run lint`      | Run ESLint across the project              |
-| `npm run test`      | Run unit tests (Vitest)                    |
+| Route | Description |
+|-------|-------------|
+| `/` | Home |
+| `/services` | Services |
+| `/guarantee` | Guarantee (₹1,999 deposit protection) |
+| `/listings` → `/map` | Property map |
+| `/plan` | Flat Plan (₹1,499 flat search) |
+| **`/agents`** | **Agent directory** (Firestore-backed, Admin-editable) |
+| `/contact` | Sales + support |
+| `/checkout`, `/pay` | Payments |
 
-## Project Structure
+Header nav is defined only in **`src/config/navLinks.js`** (includes **Agents**).
 
-```
-src/
-├── assets/            # Images, icons, logos
-├── components/
-│   ├── layout/        # Navbar, Footer
-│   └── sections/      # Reusable page sections (Hero, Features, Stats, etc.)
-├── hooks/             # Custom React hooks (useScrollAnimation)
-├── pages/             # Route-level pages
-│   ├── Home.jsx
-│   ├── Services.jsx
-│   ├── Listings.jsx
-│   └── Guarantee.jsx
-├── App.jsx            # Router setup
-├── main.jsx           # Entry point
-└── index.css          # Global styles + Tailwind directives
-```
+## Scripts
 
-## Pages
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build → `dist/` |
+| `npm run deploy:hosting` | Build + deploy to Firebase `moveasy-30eed` |
+| `npm run test` | Vitest |
+| `npm run e2e` | Playwright |
 
-| Route         | Page        | Description                              |
-| ------------- | ----------- | ---------------------------------------- |
-| `/`           | Home        | Landing page with hero, features, stats  |
-| `/services`   | Services    | Moving services overview and comparison  |
-| `/listings`   | Listings    | Apartment listings with smart matching   |
-| `/guarantee`  | Guarantee   | Deposit-free guarantee plans and FAQ     |
+## Production
 
-## Building for Production
-
-```bash
-npm run build
-```
-
-The optimized output will be in the `dist/` directory. You can deploy this to any static hosting provider (Vercel, Netlify, GitHub Pages, etc.).
-
-To preview the build locally:
-
-```bash
-npm run preview
-```
-
-## Production Setup Docs
-
-- Email verification + welcome email function setup:
-  - `docs/EMAIL_VERIFICATION_AND_WELCOME_SETUP.md`
-- Go-live checklist:
-  - `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`
-- Deployment (deterministic CI/CD + rollback):
-  - `docs/DEPLOYMENT.md`
+- **Site:** https://moveeazy.in  
+- **Hosting:** https://moveasy-30eed.web.app  
+- **Deploy:** [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)  
+- **Antigravity tasks:** [docs/ANTIGRAVITY_BROWSER_TASKS.md](./docs/ANTIGRAVITY_BROWSER_TASKS.md)
 
 ## License
 
-This project is private.
+Private.

@@ -1,13 +1,26 @@
 # MovEazy — Architecture, Workflow & Operations Guide
 
-**Document version:** 1.0 (February 2026)  
-**Repository:** MOVEASY-WEBSITE (React SPA + Firebase)
+**Document version:** 2.0 (May 2026)  
+**Repository:** [MOVEASY-WEBSITE](https://github.com/jiyanshud22/MOVEASY-WEBSITE)  
+**For AI agents:** Read [AGENTS.md](../AGENTS.md) at repo root **before** any code or Firebase change.
+
+---
+
+## Changelog (maintainers: append every structural change)
+
+| Date | Change | Author / tool |
+|------|--------|----------------|
+| 2026-05 | Onboarding route, App Check / collaborator permission notes in COLLABORATOR_SETUP | Cursor |
+| 2026-05 | v2.0: Public routes table, nav canonical config, Agents directory, Contact/Support merge, Guarantee naming, collaborator notes | Cursor |
+| 2026-02 | v1.0: Initial architecture (SPA + Firebase) | — |
 
 ---
 
 ## 1. Executive summary
 
-MovEazy is a **single-page application (SPA)** served as static files. The **browser** runs the UI; **Firebase** provides authentication, a document database (Firestore), file storage, optional Cloud Functions, and hosting. There is **no traditional Node/Express API server** in the main user path—data access is **direct from the client to Firestore** under **security rules**, which is the critical control plane for who can read or write what.
+MovEazy is a **single-page application (SPA)** served as static files. The **browser** runs the UI; **Firebase** provides authentication, Firestore, Storage, Cloud Functions, and Hosting. There is **no traditional Node/Express API** for the main user path—data access is **client → Firestore** under **security rules**.
+
+**Brand:** User-facing name is **MovEazy**. Firebase project id remains `moveasy-30eed` (legacy).
 
 ---
 
@@ -15,146 +28,199 @@ MovEazy is a **single-page application (SPA)** served as static files. The **bro
 
 | Layer | Technology | Role |
 |--------|------------|------|
-| **Language (UI)** | JavaScript (ES modules) + JSX | All React components and business logic in the browser |
-| **UI framework** | React 19 | Components, state, effects |
-| **Routing** | React Router v7 (`BrowserRouter`) | Public pages, role-gated `/admin`, `/seller`, `/customer`, staff `/crm` |
-| **Build / dev** | Vite 8 | Dev server, HMR, production bundle to `dist/` |
-| **Styling** | Tailwind CSS 3 + some inline styles (e.g. CRM) | Layout, marketing pages |
-| **Maps** | Leaflet + React-Leaflet | Interactive listing map |
-| **Animation** | GSAP, Framer Motion | Marketing motion |
-| **Auth & data** | Firebase JS SDK v12 | `auth`, `firestore`, `storage`, `functions` |
-| **Error reporting (client)** | Sentry (`@sentry/react`) | Optional client-side error capture |
-| **Backend (optional)** | Firebase Cloud Functions (Node 20) | Callable/HTTP triggers, admin SDK (e.g. email, imports)—deploy separate from hosting |
-| **Infrastructure** | Firebase Hosting | Serves `dist/`; SPA rewrite to `index.html` |
-| **Data rules** | `firestore.rules`, `storage.rules` | **Authorization** for Firestore/Storage (not optional in production) |
-| **CI** | GitHub Actions | Build/test/deploy pipelines (see `.github/workflows/`) |
-| **Tests** | Vitest (unit), Playwright (e2e) | Quality gates |
+| **UI** | React 19 + JSX | Components, state |
+| **Routing** | React Router v7 | Public + role-gated dashboards |
+| **Build** | Vite 8 | `dist/` for Hosting |
+| **Styling** | Tailwind CSS 3 | Marketing + dashboards |
+| **Maps** | Leaflet + React-Leaflet | `/map`, `/listings` |
+| **Animation** | GSAP, Framer Motion | Marketing |
+| **Backend** | Firebase (Auth, Firestore, Storage, Functions) | Data + optional callables |
+| **Hosting** | Firebase Hosting | SPA rewrite → `index.html` |
+| **Rules** | `firestore.rules`, `storage.rules` | **Authorization** |
+| **Tests** | Vitest, Playwright | Unit + production smoke |
 
 ---
 
-## 3. End-to-end workflow (how the site “works”)
+## 3. Public routes (marketing & product)
 
-### 3.1 First visit → marketing
-
-1. User opens the hosted URL (e.g. Firebase Hosting).
-2. **Firebase Hosting** returns `index.html` and static assets (`/assets/*`).
-3. React boots from `src/main.jsx`, mounts `App.jsx`, and **React Router** renders routes like `/`, `/services`, `/map`, `/guarantee`, etc.
-4. **No login required** for most marketing and map discovery flows.
-
-### 3.2 Sign-up / sign-in
-
-1. `AuthContext` wraps the app and subscribes to **Firebase Auth** (`onAuthStateChanged`).
-2. Users can sign in with **email/password** or **Google** (per implementation in `AuthContext.jsx`).
-3. After auth, profile and role data are loaded/created via **Firestore** (`userProfiles`, `userRoles`, etc.) and helpers in `profileService` / `firestoreStore`.
-4. **Admin emails** can be elevated via env `VITE_ADMIN_EMAILS` (comma-separated) in addition to Firestore role docs.
-
-### 3.3 Role-based areas
-
-- **`/customer`**, **`/seller`**, **`/admin`**: wrapped in `RoleRoute` — UI checks **role** from context; mismatches redirect.
-- **`/crm`**: `StaffRoute` for `admin`, `sub_admin`, `consultant` — staff CRM (leads, tasks, notifications).
-- **Firestore rules** must align with these roles (e.g. `crmLeads` readable only by assigned staff or admins)—the **server-side** enforcement is rules, not the React wrapper alone.
-
-### 3.4 Map & listings
-
-1. **`/map`** loads **`MapView`** (Leaflet).
-2. Listings are read from **Firestore** (and related collections) per app logic; **public** fields are safe to expose; **private** fields (e.g. broker phones) rely on **rules** and client helpers like `sanitizePublicListing` / `accessControl.js`.
-3. Deep links and filters are handled via URL/query params as implemented in the map component.
-
-### 3.5 Staff CRM (operational)
-
-1. Staff opens **`/crm`** after sign-in.
-2. **Leads** (`crmLeads`) and **tasks** (`crmTasks`) are read/written through **`firestoreStore.js`**.
-3. **Sub-admins** and **consultants** are scoped to rows where **`assigneeEmail`** matches their account (rules + queries).
-4. **Admins** see all leads and can reassign via staff picker; **bulk import** can paste TSV from Excel; **`extraFields`** preserves unknown columns.
-5. **Notifications** collection drives in-app alerts for staff.
-
-### 3.6 Deploy pipeline (typical)
-
-1. `npm run build` → outputs static files to **`dist/`**.
-2. **`firebase deploy --only hosting`** (often with `firestore:rules`) publishes the SPA and updates rules.
-3. **Cloud Functions** are a **separate** deploy (`firebase deploy --only functions`); failures there do not roll back Hosting but leave features (e.g. callables) unavailable.
+| Route | Page / asset | Notes |
+|-------|----------------|-------|
+| `/` | Home | Hero, features, links to plan/guarantee |
+| `/services` | Services | Links to `/plan`, `/guarantee` |
+| `/guarantee` | Guarantee | Deposit protection product (₹1,999) |
+| `/listings` | Redirect → `/map` | Listings discovery |
+| `/map` | MapView | Firestore listings |
+| `/plan` | MoveazyPlanPage | Iframe → `public/moveazy-plan-page.html?embed=1` |
+| **`/agents`** | **AgentsDirectory** | **Editable via Admin → Agents; Firestore `siteSettings/directoryAgents`** |
+| `/contact` | Contact | Sales (WhatsApp) + Support (`#support`) |
+| `/support` | Redirect → `/contact#support` | Do not add separate Support nav tab |
+| `/terms`, `/privacy` | Legal | |
+| `/checkout`, `/pay` | Payments | SKUs in `src/config/paymentProducts.js` |
+| `/login` | Auth | Email/password + Google |
+| `/onboarding` | Onboarding | Writes `userProfiles/{uid}` (+ `userRoles` if missing); requires Auth + App Check when enforced |
+| `/my-search` | Customer search profile | Required before agent WhatsApp connect |
+| `/customer`, `/seller`, `/admin`, `/crm` | Role dashboards | Gated by `RoleRoute` / `StaffRoute` |
 
 ---
 
-## 4. Repository layout (conceptual)
+## 4. Navigation (canonical — do not duplicate)
+
+**Single source of truth:** `src/config/navLinks.js`
+
+### 4.1 Primary header links (desktop + mobile hamburger)
+
+Both `Navbar.jsx` desktop and mobile menus map **`PRIMARY_NAV_LINKS`** — same list, same order:
+
+1. Services → `/services`  
+2. **Guarantee** → `/guarantee` (not “Deposit Saver” in nav)  
+3. Listings → `/listings` (active on `/map` too)  
+4. **Flat Plan** → `/plan`  
+5. **Agents** → `/agents`  
+6. Contact → `/contact`  
+7. Terms → `/terms`  
+8. Privacy → `/privacy`  
+
+### 4.2 CTAs (also in `navLinks.js`)
+
+| Export | Label | Target |
+|--------|--------|--------|
+| `HEADER_CTA` | Book a Free Consultation Now. | `/contact` |
+| `FLAT_SEARCH_CTA` | Start my flat search | `/checkout?sku=flat-search` (₹1,499) |
+
+Footer links: `src/components/layout/Footer.jsx` (`FOOTER_LINKS`) — keep in sync with product intent; includes Agents, Flat Plan, Guarantee.
+
+### 4.3 Stale UI warning
+
+If the mobile menu shows **Deposit Saver**, **Start my flat search** as the only red CTA, or **no Agents / Guarantee / Contact**, the user has a **cached bundle**. Fix: deploy latest hosting, then hard-refresh (Ctrl+Shift+R).
+
+---
+
+## 5. Agents directory
+
+| Concern | Location |
+|---------|----------|
+| Public UI | `src/pages/AgentsDirectory.jsx` |
+| Seed data | `src/data/agentsDirectory.js` |
+| Firestore doc | `siteSettings/directoryAgents` |
+| Admin CRUD + reorder | Admin dashboard → **Agents** tab (`src/lib/directoryAgentsSettings.js`) |
+| WhatsApp connect (no public phone) | Callable `createAgentWhatsAppConnect` + `src/lib/agentWhatsAppConnect.js` |
+| Prerequisite | Customer completes `/my-search` profile |
+
+**Do not remove** `/agents` route or **Agents** nav label without explicit product approval.
+
+---
+
+## 6. Contact & public settings
+
+| Concern | Location |
+|---------|----------|
+| Contact page | `src/pages/Contact.jsx` — `#sales`, `#support` |
+| Default team | `src/lib/sitePublicSettings.js` — Kuldeep Meena, Suresh Meena (Sales, WhatsApp) |
+| Firestore | `siteSettings/public` (Admin can edit; app merges defaults by phone) |
+| WhatsApp helpers | `src/config/contactChannels.js` |
+| Seed script (optional) | `scripts/seed-site-public.mjs` (run from `functions/` with firebase-admin) |
+
+---
+
+## 7. Payments & naming
+
+| SKU key (URL) | Customer-facing name | Price |
+|---------------|----------------------|-------|
+| `flat-search` | MovEazy Flat Search | ₹1,499 |
+| `deposit-saver` / `guarantee` | **MovEazy Guarantee** | ₹1,999 |
+
+Config: `src/config/paymentProducts.js`. Internal alias `deposit-saver` → `guarantee` product object is intentional for old links.
+
+---
+
+## 8. End-to-end workflows
+
+### 8.1 First visit → marketing
+
+Hosting serves `index.html` → React Router renders public routes (no auth).
+
+### 8.2 Sign-in
+
+`AuthContext` → Firebase Auth → `userProfiles` / `userRoles` / `emailRoles` (admin promotion by email).
+
+### 8.3 Listings map
+
+`/map` reads Firestore `listings` (published); rules + `sanitizePublicListing` hide private fields.
+
+### 8.4 Staff CRM
+
+`/crm` — `crmLeads`, `crmTasks`, assignee scoping for sub_admin/consultant.
+
+### 8.5 Deploy
+
+```bash
+npm run deploy:hosting   # build + hosting + firestore rules
+```
+
+Functions: separate `firebase deploy --only functions`. See [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+---
+
+## 9. Repository layout
 
 ```
+AGENTS.md                          # AI agents: read first
 src/
-  App.jsx              # Routes, RoleRoute, StaffRoute
-  main.jsx             # Entry, legacy hash migration
-  context/AuthContext.jsx
+  App.jsx                          # All routes
+  config/
+    navLinks.js                    # ★ Header nav + CTAs
+    paymentProducts.js
+    contactChannels.js
+  pages/
+    AgentsDirectory.jsx
+    Contact.jsx
+    MoveazyPlanPage.jsx
+    ...
   lib/
-    firebase.js        # Firebase app, auth, db, storage, functions, App Check
-    firestoreStore.js  # Firestore CRUD helpers
-    accessControl.js   # Role helpers aligned with rules intent
-    crmSheetMapping.js # Excel → CRM payload + extraFields
-  pages/               # Home, MapView, dashboards, CRM, etc.
-  components/          # Map, layout, sections
-firestore.rules        # Security: who can read/write which collections
-storage.rules          # Storage access
-functions/             # Cloud Functions (Node 20, firebase-functions)
-firebase.json          # Hosting, Firestore, Storage, Functions config
+    sitePublicSettings.js
+    directoryAgentsSettings.js
+    firestoreStore.js
+public/
+  moveazy-plan-page.html           # Flat Plan iframe content
+firestore.rules
+storage.rules
+functions/src/index.js             # Razorpay, WhatsApp connect, etc.
+docs/
+  MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md  # ★ This file
+  COLLABORATOR_SETUP.md
+  ANTIGRAVITY_BROWSER_TASKS.md
 ```
 
 ---
 
-## 5. Security model (short)
+## 10. Collaborators (Antigravity / Nikhil)
 
-- **Authentication:** Firebase Auth (identity).
-- **Authorization:** Primarily **Firestore Security Rules** and **Storage Rules** — must match product intent (staff vs customer vs seller).
-- **App Check:** Optional reCAPTCHA v3 provider in `firebase.js` to reduce abuse of Firebase APIs.
-- **Client-side role checks** (React) improve UX but **do not replace** rules.
-
----
-
-## 6. Observability & quality
-
-- **Sentry** can report client errors (configuration-dependent).
-- **`clientLog` / reporting helpers** may warn on non-fatal issues (e.g. App Check init).
-- **Vitest / Playwright** support regression testing; **ESLint** is configured but the full-repo lint may surface legacy debt—run scoped lint on changed files when iterating quickly.
+- **Goal:** Shared understanding of nav, routes, and Firebase—avoid parallel navbar experiments.
+- **Onboarding:** [COLLABORATOR_SETUP.md](./COLLABORATOR_SETUP.md) — clone, `.env.collaborator.example`, no secrets in git.
+- **Antigravity:** Use [ANTIGRAVITY_BROWSER_TASKS.md](./ANTIGRAVITY_BROWSER_TASKS.md) for Console/DNS/Razorpay; for **app structure**, follow this doc + `navLinks.js`.
+- **Admin access:** `VITE_ADMIN_EMAILS`, `bootstrapAdmins/{email}`, sign-in → `/admin`.
+- **After any agent-driven change:** Update § Changelog above and mention in PR/commit.
 
 ---
 
-## 7. Skills for building and maintaining this stack (2026)
+## 11. Security model (short)
 
-**Core (must-have)**
-
-- **Modern JavaScript + React** — hooks, router, async data loading, error boundaries.
-- **Firebase Auth + Firestore** — security rules, indexes, query patterns, offline/cache behavior.
-- **Git + CI** — branching, review, automated build/deploy.
-
-**Strongly recommended**
-
-- **Threat modeling for SPAs** — never trust the client; rules are the contract.
-- **Basic performance** — bundle size, map performance, lazy loading where appropriate.
-- **Testing** — smoke e2e for auth and critical paths; unit tests for pure logic (e.g. CRM mapping).
+- **Auth:** Firebase Auth  
+- **Authorization:** Firestore + Storage rules (required)  
+- **Client role checks:** UX only  
 
 ---
 
-## 8. “Vibe coding” and common failure modes
+## 12. Related docs
 
-Rapid AI-assisted development often ships UIs quickly but **under-invests** in the boring parts. For **this** architecture, the highest-risk gaps are:
-
-| Area | Risk | Mitigation mindset |
-|------|------|-------------------|
-| **Authorization** | UI hides buttons but **Firestore rules** stay wide open | Rules review per collection; test with non-admin accounts |
-| **Authentication** | Wrong session handling, missing email verification flows | Align `AuthContext` with product rules; test Google vs password |
-| **API / data layer** | Treating Firestore like a REST API without handling **permissions errors** | User-visible errors, retries, and logging for `permission-denied` |
-| **Error logging** | Silent catches; no Sentry DSN in prod | Centralize reporting; never swallow errors without telemetry |
-| **Cloud Functions** | Deploy drift: hosting works, **callables 404/timeout** | Separate health checks; monitor function logs |
-| **Environment** | Missing `VITE_*` vars in build | Document required env; validate at build time where possible |
-| **Indexes** | New compound queries fail until **indexes** are created | Watch Firestore console links from error messages |
-
-**Bottom line:** The “skill” that separates production-grade work from vibe-coded demos is **verification**: read the rules, test as each role, and assume the client is hostile. AI can draft components; **humans** (or disciplined checklists) must validate security and failure paths.
+| Doc | Use |
+|-----|-----|
+| [AGENTS.md](../AGENTS.md) | Mandatory agent preamble |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | CI/CD, rollback |
+| [PAYMENTS_PRODUCTION.md](./PAYMENTS_PRODUCTION.md) | Razorpay |
+| [ANTIGRAVITY_BROWSER_TASKS.md](./ANTIGRAVITY_BROWSER_TASKS.md) | Production browser checklist |
+| [PRODUCTION_GO_LIVE_CHECKLIST.md](./PRODUCTION_GO_LIVE_CHECKLIST.md) | Go-live |
 
 ---
 
-## 9. Reference URLs & artifacts
-
-- **Hosting:** Configured in `firebase.json` (SPA rewrites, cache headers).
-- **Header exports for CRM sheets:** `docs/crm-all-header-rows.txt` and related `.tsv` files.
-- **Deployment notes:** `docs/DEPLOYMENT.md`, `docs/PRODUCTION_GO_LIVE_CHECKLIST.md`.
-
----
-
-*End of document.*
+*When in doubt: read AGENTS.md → this file → edit `navLinks.js` for nav → update changelog.*

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc, Timestamp, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { doc, getDoc, setDoc, Timestamp, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { reportClientError } from "../lib/clientLog";
 import logoSvg from "../assets/logo/moveasy.svg";
@@ -85,28 +85,71 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
-      const now = Timestamp.now();
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser?.uid) {
+        setErrors({ submit: "Session expired. Please sign in again." });
+        setLoading(false);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      const uid = firebaseUser.uid;
+      const email = (firebaseUser.email || user.email || "").toLowerCase().trim();
       const phoneE164 = `+91${phone}`;
-      // Keep Admin "User Management" in sync (same collection as login-created profiles).
-      await setDoc(
-        doc(db, "userProfiles", user.uid),
-        {
-          uid: user.uid,
-          email: (user.email || "").toLowerCase().trim(),
-          name: name.trim(),
-          phone: phoneE164,
-          customerFlatTypes: flatTypes,
-          customerOfficeLocation: officeLocation,
-          customerMoveInDate: Timestamp.fromDate(new Date(moveInDate)),
-          profileComplete: true,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+
+      const writes = [
+        setDoc(
+          doc(db, "userProfiles", uid),
+          {
+            uid,
+            email,
+            name: name.trim(),
+            phone: phoneE164,
+            customerFlatTypes: flatTypes,
+            customerOfficeLocation: officeLocation,
+            customerMoveInDate: Timestamp.fromDate(new Date(moveInDate)),
+            profileComplete: true,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+      ];
+
+      const roleSnap = await getDoc(doc(db, "userRoles", uid));
+      if (!roleSnap.exists()) {
+        writes.push(
+          setDoc(
+            doc(db, "userRoles", uid),
+            { uid, email, role: "customer", updatedAt: serverTimestamp() },
+            { merge: true }
+          )
+        );
+      }
+
+      const emailRoleSnap = await getDoc(doc(db, "emailRoles", email));
+      if (!emailRoleSnap.exists()) {
+        writes.push(
+          setDoc(
+            doc(db, "emailRoles", email),
+            { email, role: "customer", updatedAt: serverTimestamp() },
+            { merge: true }
+          )
+        );
+      }
+
+      await Promise.all(writes);
+
       navigate("/", { replace: true });
     } catch (err) {
       reportClientError("onboarding_save", err);
-      setErrors({ submit: "Failed to save. Please try again." });
+      const code = err?.code || "";
+      let submit =
+        "Failed to save. Please try again.";
+      if (code === "permission-denied") {
+        submit =
+          "Firestore blocked this save (permission denied). Sign in with Google on this app, then ask the project owner to: (1) add your App Check debug token for localhost, or (2) add your email to VITE_ADMIN_EMAILS + bootstrapAdmins in Firebase.";
+      }
+      setErrors({ submit });
       setLoading(false);
     }
   };

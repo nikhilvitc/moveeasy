@@ -40,9 +40,9 @@ test.describe("MovEazy production — checkout & pay", () => {
     await expectRazorpayHostedLinks(page);
   });
 
-  test("/checkout?sku=deposit-saver shows Deposit Saver ₹1,999", async ({ page }) => {
+  test("/checkout?sku=deposit-saver shows Guarantee ₹1,999", async ({ page }) => {
     await page.goto("./checkout?sku=deposit-saver");
-    await expect(page.getByRole("main").getByText(/MovEazy Deposit Saver/i)).toBeVisible();
+    await expect(page.getByRole("main").getByText(/MovEazy Guarantee/i)).toBeVisible();
     await expect(mainHeroAmount(page)).toContainText(/₹1,999/);
     await expectRazorpayHostedLinks(page);
   });
@@ -59,7 +59,7 @@ test.describe("MovEazy production — checkout & pay", () => {
 
   test("/pay?sku=deposit-saver — primary Razorpay CTA", async ({ page }) => {
     await page.goto("./pay?sku=deposit-saver");
-    await expect(page.getByRole("main").getByText(/MovEazy Deposit Saver/i)).toBeVisible();
+    await expect(page.getByRole("main").getByText(/MovEazy Guarantee/i)).toBeVisible();
     await expect(mainHeroAmount(page)).toContainText(/₹1,999/);
     const primary = page.getByRole("link", { name: /Pay on Razorpay/i });
     await expect(primary).toBeVisible();

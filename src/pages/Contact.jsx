@@ -1,8 +1,16 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import PageShell from "../components/layout/PageShell";
-import { FLAT_SEARCH_CTA } from "../config/navLinks";
-import { getBusinessUpiCheckoutEnv } from "../config/upiCheckout";
+import { FLAT_SEARCH_CTA, HEADER_CTA } from "../config/navLinks";
+import {
+  buildContactWhatsAppUrl,
+  contactRoleLabel,
+  formatContactDisplayName,
+  formatTelHref,
+  SALES_WA_GREETING,
+  whatsAppLabelForContact,
+} from "../config/contactChannels";
+import { DEFAULT_CONTACT_TEAM } from "../lib/sitePublicSettings";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
@@ -28,14 +36,115 @@ const WHY_ITEMS = [
   },
 ];
 
+function TeamContactCard({ contact, index, waMessage }) {
+  const telHref = formatTelHref(contact.phoneRaw);
+  const waHref = buildContactWhatsAppUrl(contact, waMessage) || "#";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.1 + index * 0.08, ease: EASE }}
+    >
+      <Tilt3D intensity={5} scale={1.02} className="h-full">
+        <motion.div
+          className="h-full rounded-2xl p-7 flex flex-col gap-5 relative overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.30)",
+            transition: "box-shadow 0.3s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow =
+              "0 20px 60px rgba(0,0,0,0.40), 0 0 60px rgba(232,90,79,0.20)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.30)";
+          }}
+        >
+          <div
+            className={`absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl pointer-events-none bg-gradient-to-r ${contact.gradient || "from-[#e85a4f] to-[#f97316]"}`}
+            aria-hidden="true"
+          />
+
+          <div className="flex items-center gap-4">
+            <motion.div
+              className={`w-14 h-14 rounded-full bg-gradient-to-br ${contact.gradient || "from-[#e85a4f] to-[#f97316]"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
+            >
+              {contact.avatar}
+            </motion.div>
+            <div className="min-w-0">
+              <p
+                className="text-[11px] font-semibold uppercase tracking-wider mb-1"
+                style={{ color: "#ff8a7a" }}
+              >
+                {contactRoleLabel(contact)}
+              </p>
+              <div className="font-bold text-[17px] text-white leading-snug">
+                {formatContactDisplayName(contact)}
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[14px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true">📞</span>
+              <a
+                href={telHref}
+                className="font-medium transition-colors"
+                style={{ color: "rgba(255,255,255,0.70)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#ff8a7a")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.70)")}
+              >
+                {contact.phone}
+              </a>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-auto">
+            <motion.a
+              href={telHref}
+              className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.16)",
+              }}
+              whileHover={{ scale: 1.03, backgroundColor: "rgba(255,255,255,0.20)" }}
+              whileTap={{ scale: 0.97 }}
+            >
+              📞 Call Now
+            </motion.a>
+            <motion.a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
+              style={{
+                background: "linear-gradient(135deg, #16a34a, #15803d)",
+                boxShadow: "0 4px 16px rgba(22,163,74,0.35)",
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              💬 WhatsApp
+            </motion.a>
+          </div>
+        </motion.div>
+      </Tilt3D>
+    </motion.div>
+  );
+}
+
 export default function Contact() {
   const navigate = useNavigate();
-  const { whatsappOrderE164 } = getBusinessUpiCheckoutEnv();
   const { sitePublic, loading } = useSitePublicSettings();
-  const waTeam = `https://wa.me/${whatsappOrderE164}?text=${encodeURIComponent(
-    "Hi — I'm interested in MovEazy Flat Search (₹1,499). Please share next steps.",
-  )}`;
-  const contacts = sitePublic.contacts?.length ? sitePublic.contacts : [];
+  const contacts = sitePublic.contacts?.length ? sitePublic.contacts : DEFAULT_CONTACT_TEAM;
+  const supportEmail = sitePublic.supportEmail || "support@moveazy.in";
+  const supportPhone = sitePublic.legalPhoneDisplay || "+91 70559 54373";
+  const supportTel = sitePublic.legalPhoneTel || formatTelHref("917055954373");
 
   const gridCols =
     contacts.length >= 3
@@ -115,7 +224,7 @@ export default function Contact() {
               className="font-semibold text-sm tracking-widest uppercase mb-4"
               style={{ color: "#ff8a7a" }}
             >
-              MovEazy Flat Search
+              Sales &amp; Support
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -123,11 +232,8 @@ export default function Contact() {
               transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
               className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight"
             >
-              Your shortlist,{" "}
-              <span className="gradient-text">built for you</span>
-              <span className="block sm:inline sm:ml-3 text-3xl sm:text-4xl lg:text-5xl mt-2 sm:mt-0 font-extrabold text-white/95">
-                — ₹1,499
-              </span>
+              Contact{" "}
+              <span className="gradient-text">MovEazy</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -136,36 +242,56 @@ export default function Contact() {
               className="mt-5 text-lg max-w-2xl mx-auto"
               style={{ color: "rgba(255,255,255,0.60)" }}
             >
-              We no longer offer open-ended free consults. For <strong className="text-white/90">₹1,499</strong> you get{" "}
-              <strong className="text-white/90">MovEazy Flat Search</strong>: a dedicated area guide, neighbourhood-fit shortlist, visit scheduling, and WhatsApp updates
-              through your search. Need deposit protection? See <Link to="/guarantee" className="text-[#ff8a7a] underline font-semibold">Deposit Saver (₹1,999)</Link>.
+              <strong className="text-white/90">Sales</strong> — WhatsApp Kuldeep or Suresh for flat search (₹1,499), guarantee (₹1,999), and visits.{" "}
+              <strong className="text-white/90">Support</strong> — email{" "}
+              <a href={`mailto:${supportEmail}`} className="text-[#ff8a7a] underline font-semibold">
+                {supportEmail}
+              </a>{" "}
+              for account and listing help. See our{" "}
+              <Link to="/plan" className="text-[#ff8a7a] underline font-semibold">
+                Flat Plan
+              </Link>{" "}
+              for how matching works.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.24, ease: EASE }}
-              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4"
             >
               <Link
-                to={FLAT_SEARCH_CTA.path}
+                to={HEADER_CTA.path}
                 className="inline-flex px-10 py-4 rounded-full font-bold text-base text-white btn-glow-pulse text-center"
                 style={{ background: "linear-gradient(135deg, #e85a4f, #f97316)" }}
               >
-                {FLAT_SEARCH_CTA.label} — ₹1,499
+                {HEADER_CTA.label}
               </Link>
-              <a
-                href={waTeam}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={FLAT_SEARCH_CTA.path}
                 className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
               >
-                WhatsApp the team
-              </a>
+                {FLAT_SEARCH_CTA.label} — ₹1,499
+              </Link>
+              {contacts.map((c) => {
+                const href = buildContactWhatsAppUrl(c, SALES_WA_GREETING);
+                if (!href) return null;
+                return (
+                  <a
+                    key={c.phoneRaw}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex px-6 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
+                  >
+                    {whatsAppLabelForContact(c)}
+                  </a>
+                );
+              })}
             </motion.div>
           </div>
         </section>
 
-        {/* Contact Cards */}
+        {/* Sales & Support */}
         <section className="max-w-6xl mx-auto px-6 -mt-12 relative z-20 pb-20">
           {loading ? (
             <div
@@ -175,103 +301,89 @@ export default function Contact() {
               Loading contact team…
             </div>
           ) : (
-            <div className={`grid gap-8 ${gridCols}`}>
-              {contacts.map((c, i) => (
-                <motion.div
-                  key={`${c.name}-${c.phoneRaw}-${i}`}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 + i * 0.08, ease: EASE }}
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: EASE }}
+                className="mb-6"
+                id="sales"
+              >
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Sales team</h2>
+                <p className="mt-2 text-sm max-w-2xl" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Flat search, guarantee plans, and visit scheduling — call or WhatsApp directly.
+                </p>
+              </motion.div>
+              <div className={`grid gap-8 ${gridCols}`}>
+                {contacts.map((c, i) => (
+                  <TeamContactCard
+                    key={`${c.name}-${c.phoneRaw}-${i}`}
+                    contact={c}
+                    index={i}
+                    waMessage={SALES_WA_GREETING}
+                  />
+                ))}
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.2, ease: EASE }}
+                className="mt-14"
+                id="support"
+              >
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Customer support</h2>
+                <p className="mt-2 text-sm max-w-2xl mb-6" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Account access, payments, guarantee claims, and listing issues — we aim to reply within one business day.
+                </p>
+                <div
+                  className="max-w-xl rounded-2xl p-7 flex flex-col sm:flex-row sm:items-center gap-5"
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    backdropFilter: "blur(16px)",
+                  }}
                 >
-                  <Tilt3D intensity={5} scale={1.02} className="h-full">
-                    <div
-                      className="h-full rounded-2xl p-7 flex flex-col gap-5 relative overflow-hidden"
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-[11px] font-semibold uppercase tracking-wider mb-2"
+                      style={{ color: "#ff8a7a" }}
+                    >
+                      Support
+                    </p>
+                    <p className="font-bold text-lg text-white">MovEazy customer support</p>
+                    <p className="mt-2 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
+                      Email us for non-urgent help; use sales WhatsApp above for flat search and visits.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:shrink-0">
+                    <a
+                      href={`mailto:${supportEmail}`}
+                      className="text-center py-3 px-5 rounded-xl font-semibold text-[14px] text-white"
                       style={{
-                        background: "rgba(255,255,255,0.05)",
-                        backdropFilter: "blur(20px)",
-                        WebkitBackdropFilter: "blur(20px)",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        boxShadow: "0 12px 40px rgba(0,0,0,0.30)",
-                        transition: "box-shadow 0.3s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = "0 20px 60px rgba(0,0,0,0.40), 0 0 60px rgba(232,90,79,0.20)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.30)";
+                        background: "linear-gradient(135deg, #e85a4f, #f97316)",
+                        boxShadow: "0 4px 16px rgba(232,90,79,0.35)",
                       }}
                     >
-                      {/* Top gradient line */}
-                      <div
-                        className={`absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl pointer-events-none bg-gradient-to-r ${c.gradient || "from-[#e85a4f] to-[#f97316]"}`}
-                        aria-hidden="true"
-                      />
-
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-14 h-14 rounded-full bg-gradient-to-br ${c.gradient || "from-[#e85a4f] to-[#f97316]"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
-                        >
-                          {c.avatar}
-                        </div>
-                        <div>
-                          <div className="font-bold text-[17px] text-white">{c.name}</div>
-                          <div className="text-[13px]" style={{ color: "rgba(255,255,255,0.50)" }}>
-                            {c.title}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-[14px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                        <div className="flex items-center gap-2">
-                          <span>📞</span>
-                          <a
-                            href={`tel:${c.phoneRaw}`}
-                            className="font-medium transition-colors"
-                            style={{ color: "rgba(255,255,255,0.70)" }}
-                            onMouseEnter={(e) => (e.target.style.color = "#ff8a7a")}
-                            onMouseLeave={(e) => (e.target.style.color = "rgba(255,255,255,0.70)")}
-                          >
-                            {c.phone}
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 mt-auto">
-                        <motion.a
-                          href={`tel:${c.phoneRaw}`}
-                          className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
-                          style={{
-                            background: "rgba(255,255,255,0.12)",
-                            border: "1px solid rgba(255,255,255,0.16)",
-                          }}
-                          whileHover={{ scale: 1.03, backgroundColor: "rgba(255,255,255,0.20)" }}
-                          whileTap={{ scale: 0.97 }}
-                        >
-                          📞 Call Now
-                        </motion.a>
-                        <motion.a
-                          href={`https://wa.me/${c.phoneRaw}?text=${encodeURIComponent(
-                            "Hi — I'm interested in MovEazy Flat Search (₹1,499). Please confirm next steps."
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
-                          style={{
-                            background: "linear-gradient(135deg, #16a34a, #15803d)",
-                            boxShadow: "0 4px 16px rgba(22,163,74,0.35)",
-                          }}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                        >
-                          💬 WhatsApp
-                        </motion.a>
-                      </div>
-                    </div>
-                  </Tilt3D>
-                </motion.div>
-              ))}
-            </div>
+                      ✉️ {supportEmail}
+                    </a>
+                    <a
+                      href={supportTel}
+                      className="text-center py-3 px-5 rounded-xl font-semibold text-[14px] text-white"
+                      style={{
+                        background: "rgba(255,255,255,0.12)",
+                        border: "1px solid rgba(255,255,255,0.16)",
+                      }}
+                    >
+                      📞 {supportPhone}
+                    </a>
+                  </div>
+                </div>
+              </motion.div>
+            </>
           )}
+
+          {/* Why talk to us */}
 
           {/* Why talk to us */}
           <motion.div

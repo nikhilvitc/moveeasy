@@ -19,6 +19,7 @@ import Privacy from "./pages/Privacy";
 import MoveazyPlanPage from "./pages/MoveazyPlanPage";
 import AgentsDirectory from "./pages/AgentsDirectory";
 import MySearchProfile from "./pages/MySearchProfile";
+import Onboarding from "./pages/Onboarding";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 function OnboardingEmailWarning() {
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/v2" element={<HomeV2 />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/map" element={<MapView />} />
       <Route path="/services" element={<Services />} />
       <Route path="/guarantee" element={<Guarantee />} />
@@ -62,7 +64,7 @@ function AppRoutes() {
       <Route path="/plan" element={<MoveazyPlanPage />} />
       <Route path="/agents" element={<AgentsDirectory />} />
       <Route path="/my-search" element={<MySearchProfile />} />
-      <Route path="/support" element={<Navigate to="/contact" replace />} />
+      <Route path="/support" element={<Navigate to="/contact#support" replace />} />
       <Route path="/crm" element={<StaffRoute roles={["admin", "sub_admin", "consultant"]}><CrmDashboard /></StaffRoute>} />
       <Route path="/admin" element={<RoleRoute role="admin"><AdminDashboard /></RoleRoute>} />
       <Route path="/seller" element={<RoleRoute role="seller"><SellerDashboard /></RoleRoute>} />

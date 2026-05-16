@@ -1,12 +1,14 @@
 # Antigravity — browser & console tasks (MovEazy production)
 
-Copy everything below into Antigravity. **Do not change app code** unless a step fails verification — most work is in Firebase, Razorpay, DNS, and GitHub.
+**Before any task:** read [AGENTS.md](../AGENTS.md) and [MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md](./MOVEAZY_ARCHITECTURE_AND_WORKFLOW.md) (nav, routes, Agents page, Contact/Support). Update the architecture changelog if you change structure.
+
+Copy everything below into Antigravity. **Do not change app code** unless a step fails verification — most work is in Firebase, Razorpay, DNS, and GitHub. **Do not edit navbar link lists in components** — nav is defined in `src/config/navLinks.js` only.
 
 **Repo:** https://github.com/jiyanshud22/MOVEASY-WEBSITE  
-**Live:** https://moveasy-30eed.web.app  
+**Live:** https://moveeazy.in · https://moveasy-30eed.web.app  
 **Firebase project:** `moveasy-30eed`
 
-Code already includes: `/my-search` profile, `/agents` Connect on WhatsApp (needs Function deploy), `agentPrivate` admin phones, Contact → Flat Search ₹1,499.
+Code includes: `/agents` (public directory + Admin edit), `/my-search` profile, agent WhatsApp connect (Function deploy), Contact sales/support, Flat Plan `/plan`, Guarantee `/guarantee` (nav label **Guarantee**, not Deposit Saver).
 
 ---
 

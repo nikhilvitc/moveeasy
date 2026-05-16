@@ -1,9 +1,13 @@
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MovEAZYLogo from "../branding/MovEAZYLogo";
-import { FLAT_SEARCH_CTA, PRIMARY_NAV_LINKS } from "../../config/navLinks";
+import {
+  HEADER_CTA,
+  PRIMARY_NAV_LINKS,
+  isNavLinkActive,
+} from "../../config/navLinks";
 
 const NAV_BG = "bg-[#000000]";
 
@@ -19,6 +23,7 @@ export default function Navbar({ variant = "solid" }) {
   void variant;
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -49,10 +54,9 @@ export default function Navbar({ variant = "solid" }) {
       className={`sticky top-0 z-50 transition-[border-color,box-shadow] duration-300 ${NAV_BG} ${borderClass}`}
     >
       <motion.div
-        className="mx-auto flex h-12 w-full max-w-[1440px] items-center gap-3 sm:gap-4 pl-3 pr-3 sm:pl-4 sm:pr-5 lg:pl-5 lg:pr-6"
+        className="mx-auto flex h-12 w-full max-w-[1440px] items-center gap-2 sm:gap-3 pl-3 pr-3 sm:pl-4 sm:pr-5 lg:pl-5 lg:pr-6"
         layout
       >
-        {/* Logo — flush left */}
         <motion.button
           type="button"
           onClick={() => closeAndGo("/")}
@@ -63,30 +67,33 @@ export default function Navbar({ variant = "solid" }) {
           <MovEAZYLogo size="nav" />
         </motion.button>
 
-        {/* Primary links — sit next to logo, not centered in empty space */}
         <nav
-          className="hidden lg:flex min-w-0 flex-1 items-center gap-0.5 ml-2 xl:ml-6"
+          className="hidden lg:flex min-w-0 flex-1 items-center gap-0 ml-1 xl:ml-3 overflow-x-auto scrollbar-none"
           aria-label="Main"
         >
           {PRIMARY_NAV_LINKS.map(({ label, path }) => (
-            <NavLink key={path} label={label} onClick={() => closeAndGo(path)} />
+            <NavLink
+              key={path}
+              label={label}
+              active={isNavLinkActive(pathname, path)}
+              onClick={() => closeAndGo(path)}
+            />
           ))}
         </nav>
 
-        {/* Actions */}
         <motion.div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto">
           <motion.button
             type="button"
-            onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
-            className="hidden sm:inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 border border-red-500/70 whitespace-nowrap shadow-[0_2px_12px_rgba(220,38,38,0.35)]"
+            onClick={() => closeAndGo(HEADER_CTA.path)}
+            className="hidden md:inline-flex items-center rounded-lg bg-red-600 px-3 py-2 text-xs lg:text-sm font-bold text-white hover:bg-red-500 border border-red-500/70 whitespace-nowrap shadow-[0_2px_12px_rgba(220,38,38,0.35)] max-w-[min(100%,280px)]"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            {FLAT_SEARCH_CTA.label}
+            {HEADER_CTA.label}
           </motion.button>
 
           {user ? (
-            <div className="hidden lg:flex items-center gap-1.5">
+            <motion.div className="hidden lg:flex items-center gap-1.5">
               {user.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className={chipBtn}>
                   Dashboard
@@ -110,12 +117,12 @@ export default function Navbar({ variant = "solid" }) {
               <button type="button" onClick={handleLogout} className={chipBtn}>
                 Logout
               </button>
-            </div>
+            </motion.div>
           ) : (
             <motion.button
               type="button"
               onClick={() => closeAndGo("/login")}
-              className="hidden sm:inline-flex rounded-lg px-3.5 py-2 text-sm font-semibold text-white border border-white/15 hover:bg-white/[0.08]"
+              className="hidden lg:inline-flex rounded-lg px-3.5 py-2 text-sm font-semibold text-white border border-white/15 hover:bg-white/[0.08]"
               whileTap={{ scale: 0.98 }}
             >
               Sign in
@@ -145,29 +152,30 @@ export default function Navbar({ variant = "solid" }) {
             className={`lg:hidden overflow-hidden border-t border-white/[0.08] ${NAV_BG}`}
           >
             <motion.div className="px-4 py-3 grid gap-0.5 text-[15px] font-medium text-zinc-100 max-h-[70vh] overflow-y-auto">
-              {PRIMARY_NAV_LINKS.map(({ label, path }) => (
-                <button
-                  key={path}
-                  type="button"
-                  onClick={() => closeAndGo(path)}
-                  className="text-left rounded-lg py-2.5 px-2 hover:bg-white/[0.06] hover:text-white"
-                >
-                  {label}
-                </button>
-              ))}
+              {PRIMARY_NAV_LINKS.map(({ label, path }) => {
+                const active = isNavLinkActive(pathname, path);
+                return (
+                  <button
+                    key={path}
+                    type="button"
+                    onClick={() => closeAndGo(path)}
+                    className={`text-left rounded-lg py-2.5 px-2 border-l-2 transition-colors ${
+                      active
+                        ? "border-red-500 bg-white/[0.08] text-white font-semibold"
+                        : "border-transparent hover:bg-white/[0.06] hover:text-white"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
               <button
                 type="button"
-                onClick={() => closeAndGo("/map")}
-                className="text-left rounded-lg py-2.5 px-2 hover:bg-white/[0.06] text-zinc-400"
-              >
-                Explore map
-              </button>
-              <button
-                type="button"
-                onClick={() => closeAndGo(FLAT_SEARCH_CTA.path)}
+                onClick={() => closeAndGo(HEADER_CTA.path)}
                 className="mt-2 rounded-lg py-3 px-3 bg-red-600 text-white text-center text-sm font-bold"
               >
-                {FLAT_SEARCH_CTA.label}
+                {HEADER_CTA.label}
               </button>
               {user?.role === "customer" && (
                 <button type="button" onClick={() => closeAndGo("/customer")} className="text-left rounded-lg py-2 px-2 hover:bg-white/[0.06]">
@@ -210,12 +218,17 @@ export default function Navbar({ variant = "solid" }) {
   );
 }
 
-function NavLink({ label, onClick }) {
+function NavLink({ label, onClick, active }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg px-3 py-2 text-[15px] font-semibold tracking-tight text-zinc-200 hover:text-white hover:bg-white/[0.06] transition-colors whitespace-nowrap"
+      aria-current={active ? "page" : undefined}
+      className={`relative shrink-0 rounded-lg px-2 py-2 text-[13px] xl:text-[15px] font-semibold tracking-tight transition-colors whitespace-nowrap ${
+        active
+          ? "text-white after:absolute after:bottom-0.5 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-red-500"
+          : "text-zinc-200 hover:text-white hover:bg-white/[0.06]"
+      }`}
     >
       {label}
     </button>

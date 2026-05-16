@@ -13,17 +13,21 @@ export const CONTACT_GRADIENTS = [
 export const DEFAULT_CONTACT_TEAM = [
   {
     name: "Kuldeep Meena",
-    title: "Sales Lead — IITK BS Physics",
+    title: "IITK BS Physics",
+    role: "Sales",
     phone: "+91 70559 54373",
     phoneRaw: "917055954373",
+    whatsappUrl: "https://wa.me/917055954373",
     avatar: "KM",
     gradient: CONTACT_GRADIENTS[0],
   },
   {
     name: "Suresh Meena",
-    title: "Sales Lead — IITK Electrical",
+    title: "IITK Electrical",
+    role: "Sales",
     phone: "+91 78179 40441",
     phoneRaw: "917817940441",
+    whatsappUrl: "https://wa.me/917817940441",
     avatar: "SM",
     gradient: CONTACT_GRADIENTS[1],
   },
@@ -68,6 +72,9 @@ function normalizeContactEntry(c, index) {
   const title = String(c?.title || "")
     .trim()
     .slice(0, 140);
+  const role = String(c?.role || "Sales")
+    .trim()
+    .slice(0, 24);
   const phone = String(c?.phone || "")
     .trim()
     .slice(0, 48);
@@ -78,7 +85,20 @@ function normalizeContactEntry(c, index) {
     .toUpperCase() || initials(name);
   const g = String(c?.gradient || "").trim();
   const gradient = CONTACT_GRADIENTS.includes(g) ? g : CONTACT_GRADIENTS[index % CONTACT_GRADIENTS.length];
-  return { name, title, phone: phone || formatPhoneDisplay(phoneRaw), phoneRaw, avatar, gradient };
+  const whatsappBase = String(c?.whatsappUrl || "")
+    .trim()
+    .split("?")[0];
+  const whatsappUrl = whatsappBase.startsWith("https://wa.me/") ? whatsappBase : undefined;
+  return {
+    name,
+    title,
+    role: role || "Sales",
+    phone: phone || formatPhoneDisplay(phoneRaw),
+    phoneRaw,
+    ...(whatsappUrl ? { whatsappUrl } : {}),
+    avatar,
+    gradient,
+  };
 }
 
 function formatPhoneDisplay(phoneRaw) {
@@ -97,12 +117,25 @@ function normalizeContactsArray(arr) {
   return out.filter((c) => c.name && c.phoneRaw.length >= 10);
 }
 
+/** Ensure Kuldeep / Suresh (and other defaults) stay on the public contact list. */
+export function mergeDefaultContacts(contacts) {
+  const list = Array.isArray(contacts) ? [...contacts] : [];
+  const seen = new Set(list.map((c) => c.phoneRaw));
+  for (const seed of DEFAULT_CONTACT_TEAM) {
+    if (!seen.has(seed.phoneRaw)) {
+      list.push({ ...seed });
+      seen.add(seed.phoneRaw);
+    }
+  }
+  return list.slice(0, MAX_CONTACTS);
+}
+
 function mergeSitePublic(data) {
   const base = { ...DEFAULT_SITE_PUBLIC, contacts: [...DEFAULT_CONTACT_TEAM] };
   if (!data || typeof data !== "object") return base;
   const contacts = normalizeContactsArray(data.contacts);
   return {
-    contacts: contacts?.length ? contacts : base.contacts,
+    contacts: mergeDefaultContacts(contacts?.length ? contacts : base.contacts),
     supportEmail: String(data.supportEmail || base.supportEmail)
       .trim()
       .slice(0, 120),
@@ -135,7 +168,9 @@ export async function fetchSitePublicSettings() {
 
 export function normalizeSitePublicForSave(draft) {
   const normalized = normalizeContactsArray(draft?.contacts);
-  const contacts = normalized?.length ? normalized : [...DEFAULT_CONTACT_TEAM];
+  const contacts = mergeDefaultContacts(
+    normalized?.length ? normalized : [...DEFAULT_CONTACT_TEAM],
+  );
   return {
     contacts,
     supportEmail: String(draft?.supportEmail || DEFAULT_SITE_PUBLIC.supportEmail)

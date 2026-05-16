@@ -951,7 +951,7 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
                   <div style={{ marginTop: "20px", display: "flex", gap: "12px", alignItems: "flex-start", background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
                     <div style={{ fontSize: "20px" }}>💡</div>
                     <div style={{ fontSize: "12px", color: "#475569", lineHeight: "1.5" }}>
-                      <strong>MovEazy Deposit Saver available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
+                      <strong>MovEazy Guarantee available.</strong> Avoid unfair deductions and secure your deposit with our legal support.
                     </div>
                   </div>
                 </div>

@@ -363,12 +363,21 @@ export default function Hero() {
               </motion.button>
               <motion.button
                 type="button"
+                onClick={() => navigate("/plan")}
+                className="min-h-11 w-full rounded-full border-2 border-white/70 bg-white/10 px-6 py-2.5 text-center text-[15px] font-semibold text-white backdrop-blur-sm sm:w-auto sm:py-3 sm:text-sm"
+                whileHover={{ backgroundColor: "rgba(255,255,255,0.22)" }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Flat Plan — ₹1,499
+              </motion.button>
+              <motion.button
+                type="button"
                 onClick={() => navigate("/guarantee")}
                 className="min-h-11 w-full rounded-full border-2 border-white/70 bg-white/10 px-6 py-2.5 text-center text-[15px] font-semibold text-white backdrop-blur-sm sm:w-auto sm:py-3 sm:text-sm"
                 whileHover={{ backgroundColor: "rgba(255,255,255,0.22)" }}
                 whileTap={{ scale: 0.97 }}
               >
-                Deposit Saver
+                Guarantee — ₹1,999
               </motion.button>
             </motion.div>
           </motion.div>
