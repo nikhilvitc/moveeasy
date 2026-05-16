@@ -4,6 +4,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# FirebaseExtended/action-hosting-deploy needs write access for check-runs / deployment status.
+permissions:
+  contents: read
+  checks: write
+  deployments: write
+  pull-requests: write
+  id-token: write
+
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -58,11 +66,13 @@ jobs:
       - run: npm run build
       
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        id: hosting
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}'
           channelId: live
           projectId: moveasy-30eed
+          firebaseToolsVersion: '13'
 
       # Hosting action does not deploy Firestore rules; keep DB rules in sync with the repo.
       - uses: google-github-actions/auth@v2
@@ -70,4 +80,4 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}
 
       - name: Deploy Firestore + Storage rules
-        run: npx --yes firebase-tools@13 deploy --only firestore,storage --project moveasy-30eed --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules,storage --project moveasy-30eed --non-interactive
