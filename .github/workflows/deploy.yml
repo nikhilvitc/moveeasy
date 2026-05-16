@@ -4,12 +4,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# FirebaseExtended/action-hosting-deploy needs write access for check-runs / deployment status.
 permissions:
   contents: read
-  checks: write
-  deployments: write
-  pull-requests: write
   id-token: write
 
 jobs:
@@ -20,13 +16,22 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          
+
       - run: npm ci
-      
+
+      - name: Verify Firebase service account secret
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}
+        run: |
+          if [ -z "$FIREBASE_SA" ]; then
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED"
+            exit 1
+          fi
+
       # Inject ALL secrets from GitHub into .env for Vite production build
       - name: Create .env for production build
         run: |
@@ -64,20 +69,13 @@ jobs:
           npm run test
 
       - run: npm run build
-      
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        id: hosting
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}'
-          channelId: live
-          projectId: moveasy-30eed
-          firebaseToolsVersion: '13'
 
-      # Hosting action does not deploy Firestore rules; keep DB rules in sync with the repo.
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED }}
+
+      - name: Deploy Firebase Hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting --project moveasy-30eed --non-interactive
 
       - name: Deploy Firestore + Storage rules
         run: npx --yes firebase-tools@13 deploy --only firestore:rules,storage --project moveasy-30eed --non-interactive

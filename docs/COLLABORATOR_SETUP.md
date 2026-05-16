@@ -105,7 +105,7 @@ If `firebase deploy --only firestore:rules` fails on `firebaserules.googleapis.c
 ### GitHub Actions: CI green but “Deploy to Firebase Hosting” red
 
 1. Open **Actions** → failed run → expand the failed step log.
-2. **`Resource not accessible by integration`** — fixed in repo via workflow `permissions` (checks/deployments write). Re-run workflow after pulling latest `main`.
+2. **`Resource not accessible by integration`** — deploy workflow uses `firebase-tools` + service account directly (no `action-hosting-deploy`). Re-run workflow after pulling latest `main`.
 3. **`firebaseServiceAccount` / permission denied** — repo secret `FIREBASE_SERVICE_ACCOUNT_MOVEASY_30EED` must be valid JSON for a service account with **Firebase Hosting Admin** (and rules deploy if that step runs).
 4. **Lint/test failed** — run locally: `npm run lint && npm run test && npm run build`.
 5. Collaborators still get latest **code** from `git pull origin main` even when deploy is red; live site updates only after deploy succeeds.
