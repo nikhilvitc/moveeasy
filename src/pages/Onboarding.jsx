@@ -28,7 +28,6 @@ export default function Onboarding() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
-  // Pre-fill name from Google account if available
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [flatTypes, setFlatTypes] = useState([]);
@@ -37,12 +36,7 @@ export default function Onboarding() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // Pre-fill name from Google profile
-  useEffect(() => {
-    if (user?.displayName && !name) {
-      setName(user.displayName);
-    }
-  }, [user]);
+  const displayName = name || user?.displayName || "";
 
   // Redirect if already onboarded
   useEffect(() => {
@@ -68,7 +62,7 @@ export default function Onboarding() {
 
   const validate = () => {
     const errs = {};
-    if (!name.trim()) errs.name = "Name is required";
+    if (!displayName.trim()) errs.name = "Name is required";
     if (!isPhoneValid) errs.phone = "Enter a valid 10-digit phone number";
     if (flatTypes.length === 0)
       errs.flatTypes = "Select at least one flat type";
@@ -103,7 +97,7 @@ export default function Onboarding() {
           {
             uid,
             email,
-            name: name.trim(),
+            name: displayName.trim(),
             phone: phoneE164,
             customerFlatTypes: flatTypes,
             customerOfficeLocation: officeLocation,
@@ -184,7 +178,7 @@ export default function Onboarding() {
               </label>
               <input
                 type="text"
-                value={name}
+                value={displayName}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
                 className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#EF4444]/20 focus:border-[#EF4444] transition-colors ${

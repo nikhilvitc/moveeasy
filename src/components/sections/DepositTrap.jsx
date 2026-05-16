@@ -59,10 +59,10 @@ export default function DepositTrap() {
 
             {/* White card — METRIC 01 */}
             <motion.div
-              initial={​{ opacity: 0, x: 28 }}
-              whileInView={​{ opacity: 1, x: 0 }}
-              viewport={​{ once: true, amount: 0.15 }}
-              transition={​{ duration: 0.6, delay: 0, ease: EASE }}
+              initial={{ opacity: 0, x: 28 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.6, delay: 0, ease: EASE }}
               className="
                 bg-white rounded-2xl px-7 py-6
                 shadow-[0_4px_32px_rgba(0,0,0,0.18)]
@@ -79,10 +79,10 @@ export default function DepositTrap() {
 
             {/* Red card — METRIC 02 */}
             <motion.div
-              initial={​{ opacity: 0, x: 28 }}
-              whileInView={​{ opacity: 1, x: 0 }}
-              viewport={​{ once: true, amount: 0.15 }}
-              transition={​{ duration: 0.6, delay: 0.12, ease: EASE }}
+              initial={{ opacity: 0, x: 28 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.6, delay: 0.12, ease: EASE }}
               className="
                 rounded-2xl px-7 py-6
                 shadow-[0_4px_32px_rgba(239,68,68,0.25)]

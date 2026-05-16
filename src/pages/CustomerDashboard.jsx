@@ -46,7 +46,7 @@ export default function CustomerDashboard() {
         const rows = isFirebaseConfigured ? await getListingsData({ limitCount: 500 }) : getListings();
         if (!alive) return;
         setListings(rows.filter(isListingPubliclyVisible));
-      } catch (e) {
+      } catch {
         if (!alive) return;
         setListings(getListings());
       }

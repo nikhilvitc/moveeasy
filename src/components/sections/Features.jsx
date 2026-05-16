@@ -104,7 +104,7 @@ export default function Features() {
 
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-6 lg:gap-x-8">
-          {FEATURES.map(({ icon, title, desc, gradient, glow }, i) => (
+          {FEATURES.map(({ icon, title, desc, gradient, glow }) => (
             <FeatureCard
               key={title}
               icon={icon}

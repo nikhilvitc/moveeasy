@@ -28,10 +28,10 @@ export default function GuaranteeHowItWorks() {
 
         {/* Header */}
         <motion.div
-          initial={​{ opacity: 0, y: 24 }}
-          whileInView={​{ opacity: 1, y: 0 }}
-          viewport={​{ once: true, amount: 0.25 }}
-          transition={​{ duration: 0.6, ease: EASE }}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.25 }}
+          transition={{ duration: 0.6, ease: EASE }}
           className="mb-14 sm:mb-16"
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400 mb-3">
@@ -53,10 +53,10 @@ export default function GuaranteeHowItWorks() {
           {STEPS.map((step, i) => (
             <motion.div
               key={step.number}
-              initial={​{ opacity: 0, y: 28 }}
-              whileInView={​{ opacity: 1, y: 0 }}
-              viewport={​{ once: true, amount: 0.15 }}
-              transition={​{ duration: 0.6, delay: i * 0.1, ease: EASE }}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.6, delay: i * 0.1, ease: EASE }}
               className="flex flex-col"
             >
               {/* Number */}

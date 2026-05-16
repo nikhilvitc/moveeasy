@@ -97,10 +97,10 @@ export default function GuaranteeFAQ() {
           {/* ── LEFT PANEL ──────────────────────────────────────────── */}
           <div className="flex flex-col gap-8">
             <motion.h2
-              initial={​{ opacity: 0, y: 24 }}
-              whileInView={​{ opacity: 1, y: 0 }}
-              viewport={​{ once: true, amount: 0.2 }}
-              transition={​{ duration: 0.6, ease: EASE }}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, ease: EASE }}
               className="
                 text-[26px] sm:text-[30px] lg:text-[34px]
                 font-extrabold text-[#1E2A3A]
@@ -112,10 +112,10 @@ export default function GuaranteeFAQ() {
 
             {/* Book-a-call card */}
             <motion.div
-              initial={​{ opacity: 0, y: 20 }}
-              whileInView={​{ opacity: 1, y: 0 }}
-              viewport={​{ once: true, amount: 0.2 }}
-              transition={​{ duration: 0.6, delay: 0.12, ease: EASE }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.12, ease: EASE }}
               className="
                 rounded-xl border border-gray-200 bg-white
                 px-5 py-5 shadow-sm
@@ -157,10 +157,10 @@ export default function GuaranteeFAQ() {
 
           {/* ── RIGHT: Accordion ─────────────────────────────────────── */}
           <motion.div
-            initial={​{ opacity: 0, y: 20 }}
-            whileInView={​{ opacity: 1, y: 0 }}
-            viewport={​{ once: true, amount: 0.15 }}
-            transition={​{ duration: 0.65, ease: EASE }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 0.65, ease: EASE }}
           >
             {FAQS.map((item, i) => (
               <AccordionItem

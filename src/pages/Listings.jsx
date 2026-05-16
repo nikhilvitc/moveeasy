@@ -637,6 +637,7 @@ export default function Listings() {
   const FilterDropdown = ({ label, value, onChange }) => (
     <div className="relative">
       <select
+        aria-label={label}
         className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-semibold pl-3 pr-7 py-2.5 rounded-xl cursor-pointer hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300 transition-all"
         value={value}
         onChange={(e) => onChange(e.target.value)}

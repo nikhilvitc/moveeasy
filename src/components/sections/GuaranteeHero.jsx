@@ -131,10 +131,10 @@ export default function GuaranteeHero() {
 
           {/* ── RIGHT VISUAL ─────────────────────────────────────────── */}
           <motion.div
-            initial={​{ opacity: 0, x: 28 }}
-            whileInView={​{ opacity: 1, x: 0 }}
-            viewport={​{ once: true, amount: 0.1 }}
-            transition={​{ duration: 0.8, ease: EASE }}
+            initial={{ opacity: 0, x: 28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.1 }}
+            transition={{ duration: 0.8, ease: EASE }}
             className="flex justify-center lg:justify-end w-full"
           >
             {/*
@@ -147,10 +147,10 @@ export default function GuaranteeHero() {
 
               {/* Row 1: img1 pushed to the right */}
               <motion.div
-                initial={​{ opacity: 0, y: -12 }}
-                whileInView={​{ opacity: 1, y: 0 }}
-                viewport={​{ once: true }}
-                transition={​{ duration: 0.6, delay: 0.1, ease: EASE }}
+                initial={{ opacity: 0, y: -12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
                 className="flex justify-end"
               >
                 <div className="w-[55%] rounded-[16px] overflow-hidden shadow-[0_12px_36px_rgba(0,0,0,0.12)] bg-[#f5f0eb]">
@@ -183,13 +183,13 @@ export default function GuaranteeHero() {
 
               {/* Row 2: badge — offset left to match Figma zigzag */}
               <motion.div
-                initial={​{ opacity: 0, scale: 0.8 }}
-                whileInView={​{ opacity: 1, scale: 1 }}
-                viewport={​{ once: true }}
-                transition={​{ duration: 0.5, delay: 0.3, ease: EASE }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.3, ease: EASE }}
                 className="flex justify-center -translate-x-[14%]"
               >
-                <div className="drop-shadow-xl" style={​{ width: "100px" }}>
+                <div className="drop-shadow-xl" style={{ width: "100px" }}>
                   <img
                     src={depositImg}
                     alt="100% Deposit Return Guarantee"
@@ -219,10 +219,10 @@ export default function GuaranteeHero() {
 
               {/* Row 3: img3 pushed to the left — wider, more left-shifted than img1 */}
               <motion.div
-                initial={​{ opacity: 0, y: 12 }}
-                whileInView={​{ opacity: 1, y: 0 }}
-                viewport={​{ once: true }}
-                transition={​{ duration: 0.65, delay: 0.5, ease: EASE }}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.65, delay: 0.5, ease: EASE }}
                 className="flex justify-start -translate-x-[14%]"
               >
                 <div className="w-[90%] rounded-[16px] overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.14)]">

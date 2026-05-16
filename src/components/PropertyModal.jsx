@@ -148,14 +148,8 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
     .filter((u) => u.length > 0 && u !== "undefined" && u !== "null");
   const uniqueMedia = [...new Set(cleaned)];
   const images = uniqueMedia.length > 0 ? uniqueMedia : [PLACEHOLDER_IMAGE];
-  // Robust background image for media gallery (especially for videos)
-  const firstImageUrl = useMemo(() => {
-    const isVid = (u) => String(u).match(/\.(mp4|webm|ogg|mov)$/i) || String(u).includes("video");
-    // Find the first non-video image
-    const found = images.find(u => !isVid(u));
-    // If no static image found, use a placeholder instead of a video URL for the background img tag
-    return found || PLACEHOLDER_IMAGE;
-  }, [images, PLACEHOLDER_IMAGE]);
+  const isVideoUrl = (u) => String(u).match(/\.(mp4|webm|ogg|mov)$/i) || String(u).includes("video");
+  const firstImageUrl = images.find((u) => !isVideoUrl(u)) || PLACEHOLDER_IMAGE;
 
   const numericRent = Number(String(property.monthlyRent || property.rent || "0").replace(/[^0-9.]/g, "")) || 0;
   const parseMoney = (raw) => {
@@ -344,7 +338,6 @@ export default function PropertyModal({ property, onClose, listings = [], onSele
           <div
             style={{
               padding: isMobile ? "12px 14px" : "16px 24px",
-              borderBottom: "1px solid #e2e8f0",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",

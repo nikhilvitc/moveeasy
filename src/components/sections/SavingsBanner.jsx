@@ -60,10 +60,10 @@ export default function SavingsBanner() {
 
           {/* Headline */}
           <motion.h2
-            initial={​{ opacity: 0, y: 28 }}
-            whileInView={​{ opacity: 1, y: 0 }}
-            viewport={​{ once: true, amount: 0.2 }}
-            transition={​{ duration: 0.65, ease: EASE }}
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.65, ease: EASE }}
             className="
               text-[40px] sm:text-[56px] lg:text-[72px]
               font-extrabold text-white
@@ -75,10 +75,10 @@ export default function SavingsBanner() {
 
           {/* Subtext */}
           <motion.p
-            initial={​{ opacity: 0, y: 20 }}
-            whileInView={​{ opacity: 1, y: 0 }}
-            viewport={​{ once: true, amount: 0.2 }}
-            transition={​{ duration: 0.6, delay: 0.1, ease: EASE }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: EASE }}
             className="mt-3 text-[14.5px] sm:text-[15.5px] text-white/70"
           >
             Average savings realized per move-out through MovEazy intervention.
@@ -86,10 +86,10 @@ export default function SavingsBanner() {
 
           {/* Chips */}
           <motion.div
-            initial={​{ opacity: 0, y: 22 }}
-            whileInView={​{ opacity: 1, y: 0 }}
-            viewport={​{ once: true, amount: 0.2 }}
-            transition={​{ duration: 0.65, delay: 0.2, ease: EASE }}
+            initial={{ opacity: 0, y: 22 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.65, delay: 0.2, ease: EASE }}
             className="mt-10 grid sm:grid-cols-3 gap-4 text-left"
           >
             {CHIPS.map((chip) => (
