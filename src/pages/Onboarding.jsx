@@ -87,17 +87,6 @@ export default function Onboarding() {
     try {
       const now = Timestamp.now();
       const phoneE164 = `+91${phone}`;
-      await setDoc(doc(db, "users", user.uid), {
-        name: name.trim(),
-        email: user.email || "",
-        phone: phoneE164,
-        flatTypes,
-        officeLocation,
-        moveInDate: Timestamp.fromDate(new Date(moveInDate)),
-        profileComplete: true,
-        createdAt: now,
-        updatedAt: now,
-      });
       // Keep Admin "User Management" in sync (same collection as login-created profiles).
       await setDoc(
         doc(db, "userProfiles", user.uid),
