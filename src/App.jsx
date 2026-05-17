@@ -20,6 +20,7 @@ import MoveazyPlanPage from "./pages/MoveazyPlanPage";
 import AgentsDirectory from "./pages/AgentsDirectory";
 import MySearchProfile from "./pages/MySearchProfile";
 import Onboarding from "./pages/Onboarding";
+import About from "./pages/About";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 function OnboardingEmailWarning() {
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/map" element={<MapView />} />
+      <Route path="/about" element={<About />} />
       <Route path="/services" element={<Services />} />
       <Route path="/guarantee" element={<Guarantee />} />
       <Route path="/listings" element={<Navigate to="/map?openFilters=1" replace />} />
