@@ -795,7 +795,6 @@ export default function About() {
       {/* ══ 7. TESTIMONIALS ══════════════════════════════════════ */}
       <section className="abt-testimonials">
         <div className="abt-testi-inner">
-
           {/* Header row */}
           <div className="abt-testi-hrow">
             <FadeUp>
@@ -803,7 +802,6 @@ export default function About() {
               <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our users<br /><em>say.</em></h2>
             </FadeUp>
           </div>
-
           {/* Spread deck — cards stack in center, fly to 6 positions on click */}
           <div className="abt-spread-wrap">
             {TESTIMONIALS.map((t, i) => (
@@ -820,7 +818,6 @@ export default function About() {
                 <TestiCard t={t} expanded={tcExpanded} />
               </motion.div>
             ))}
-
             {/* Star button lives in the center of the deck */}
             <motion.button
               className="abt-star-btn"
