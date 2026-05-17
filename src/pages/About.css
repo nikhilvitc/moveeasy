@@ -894,7 +894,7 @@
 /* Spread container — cards stack here, fly apart on click */
 .abt-spread-wrap {
   position: relative;
-  height: 420px;
+  height: 800px;
   display: flex;
   align-items: center;
   justify-content: center;
