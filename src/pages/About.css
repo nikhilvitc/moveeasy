@@ -495,7 +495,7 @@
 .abt-curtain-wrap {
   height: 200vh;
   position: relative;
-  background: #0C0C0C;
+  background: #e5e7eb;
 }
 
 .abt-curtain-sticky {
@@ -505,6 +505,7 @@
   width: 100%;
   overflow: hidden;
   display: flex;
+  z-index: 20;
 }
 
 .abt-curtain-panel {
@@ -543,7 +544,7 @@
   border-top: 1px solid rgba(0,0,0,.08);
   border-bottom: 1px solid rgba(0,0,0,.08);
   margin-top: -100vh;
-  z-index: 10;
+  z-index: 1;
 }
 
 /* Paper vignette — darker edges like aged paper */
