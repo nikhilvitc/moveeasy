@@ -803,7 +803,7 @@ export default function About() {
             </FadeUp>
           </div>
           {/* Spread deck — cards stack in center, fly to 6 positions on click */}
-          <div className="abt-spread-wrap">
+          <div className="abt-spread-wrap" style={{ height: tcExpanded ? '800px' : '420px', transition: 'height 0.6s ease' }}>
             {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={i}
