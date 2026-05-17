@@ -87,6 +87,15 @@ const CHAPTERS = [
   },
 ];
 
+const TESTIMONIALS = [
+  { init: 'R', name: 'Rohan Mehta', role: 'SWE @ Zepto', college: 'IIT Bombay · 2024', text: 'Got my flat in Koramangala in 8 days. My rep WhatsApped me shortlists every morning based on my commute. Zero chaos, zero brokerage drama. 10/10.', stars: 5 },
+  { init: 'P', name: 'Priya Sharma', role: 'Analyst @ McKinsey', college: 'IIT Delhi · 2024', text: 'I was in Delhi, moving to Bangalore in 3 weeks with zero local knowledge. My rep did 12 virtual tours before I even landed. Moved in on Day 2.', stars: 5 },
+  { init: 'A', name: 'Arjun Nair', role: 'PM @ Swiggy', college: 'NIT Trichy · 2023', text: "The honesty got me. My rep told me straight up when a landlord was unreliable. That saves weeks of pain. Feel like I have a senior actually looking out for me.", stars: 5 },
+  { init: 'S', name: 'Sneha Iyer', role: 'Consultant @ Deloitte', college: 'IIT Madras · 2024', text: 'Yatharth personally explained HSR vs Indiranagar vs Whitefield for my commute to Bellandur. No other platform does that. This is what I needed.', stars: 5 },
+  { init: 'K', name: 'Karan Gupta', role: 'Engineer @ Google', college: 'IIT Kanpur · 2023', text: 'Only platform where someone picked up at 11pm to answer my panicked question about a rental agreement clause. Absolute legends.', stars: 5 },
+  { init: 'N', name: 'Nidhi Rao', role: 'FAANG SDE', college: 'NIT Surathkal · 2024', text: 'Moved from Hyderabad with no Bangalore network. My rep shortlisted, negotiated rent down ₹3k/month, and told me exactly what to check during inspection.', stars: 5 },
+];
+
 /* ─── Shared helpers ──────────────────────────────────────────────────── */
 
 function TiltCard({ children, className = '' }) {
@@ -467,6 +476,18 @@ function StorySection() {
   );
 }
 
+/* Cards spread to 6 positions (2×3 grid) — x gap must exceed card width (340px) */
+const SPREAD_POS = [
+  { x: -390, y: -285 }, // top-left
+  { x:    0, y: -335 }, // top-center
+  { x:  390, y: -285 }, // top-right
+  { x: -390, y:  285 }, // bottom-left
+  { x:    0, y:  335 }, // bottom-center
+  { x:  390, y:  285 }, // bottom-right
+];
+const CARD_ROTS  = [-1, 0, 1, 1, 0, -1];
+const DECK_ROTS  = [9, -6, 3, -11, 7, -4];
+
 const SOLUTION_ITEMS = [
   { num: '01', heading: <>Your rep. Not a broker's.</>, desc: "One dedicated person handles your entire search — shortlisting, visits, negotiations. They work for you, not for a commission from the landlord.", tag: 'Assigned Day 1' },
   { num: '02', heading: <>Every listing <em>vetted</em> before you see it.</>, desc: "No fake photos, no token traps. We physically verify each flat and confirm availability — so you never waste a Sunday on a ghost listing.", tag: '₹0 Token Losses' },
@@ -570,6 +591,54 @@ function SolutionSection() {
   );
 }
 
+/* ─── Testimonial card ───────────────────────────────────────────────── */
+function TestiCard({ t, expanded = false }) {
+  const [firstName, ...rest] = t.name.split(' ');
+  const lastName = rest.join(' ');
+  return (
+    <motion.div
+      className="abt-tcard"
+      animate={{
+        backgroundColor: expanded ? '#ffffff' : '#1C1C1E',
+        borderColor:     expanded ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
+      }}
+      transition={{ duration: 0.4 }}
+    >
+      <div className="abt-tcard-toprow">
+        <span className="abt-tcard-dot"
+          style={{ background: expanded ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.25)' }} />
+        <span className="abt-tcard-arrowbtn">↗</span>
+      </div>
+      <div className="abt-tcard-namewrap">
+        <motion.span className="abt-tcard-fname"
+          animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.4)' }}
+          transition={{ duration: 0.35 }}>{firstName}</motion.span>
+        <motion.span className="abt-tcard-lname"
+          animate={{ color: expanded ? '#0C0C0C' : '#ffffff' }}
+          transition={{ duration: 0.35 }}>{lastName}</motion.span>
+      </div>
+      <motion.p className="abt-tcard-review"
+        animate={{
+          color:     expanded ? 'rgba(12,12,12,0.6)' : 'rgba(255,255,255,0.38)',
+          maxHeight: expanded ? 300 : 72,
+        }}
+        transition={{ duration: 0.45 }}
+        style={{ overflow: 'hidden', margin: 0 }}
+      >"{t.text}"</motion.p>
+      <motion.span className="abt-tcard-roletxt"
+        animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.32)' }}
+        transition={{ duration: 0.35 }}>{t.role}</motion.span>
+      <div className="abt-tcard-pills">
+        <motion.span className="abt-tcard-pill"
+          animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
+          transition={{ duration: 0.35 }}>{t.college.split('·')[0].trim()}</motion.span>
+        <motion.span className="abt-tcard-pill"
+          animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
+          transition={{ duration: 0.35 }}>{'★'.repeat(t.stars)}</motion.span>
+      </div>
+    </motion.div>
+  );
+}
 
 /* ─── Page ───────────────────────────────────────────────────────────── */
 export default function About() {
@@ -583,6 +652,7 @@ export default function About() {
 
   const { scrollYProgress: chartScroll } = useScroll({ target: chartRef, offset: ['start end', 'end start'] });
   const chartY = useTransform(chartScroll, [0, 1], ['40px', '-40px']);
+  const [tcExpanded, setTcExpanded] = useState(false);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = 0.6;
@@ -721,6 +791,71 @@ export default function About() {
       {/* ══ 6b. CURTAIN OPENER → STORY ══════════════════════════ */}
       <CurtainOpener />
       <StorySection />
+
+      {/* ══ 7. TESTIMONIALS ══════════════════════════════════════ */}
+      <section className="abt-testimonials">
+        <div className="abt-testi-inner">
+
+          {/* Header row */}
+          <div className="abt-testi-hrow">
+            <FadeUp>
+              <span className="abt-eye">What movers say</span>
+              <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>Real people.<br /><em>Real moves.</em></h2>
+            </FadeUp>
+          </div>
+
+          {/* Feedback box — above cards */}
+          <motion.div
+            className="abt-fb-box"
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2, duration: 0.55, ease: EASE }}
+          >
+            <div className="abt-fb-left">
+              <span className="abt-fb-score">5.0</span>
+              <div>
+                <div className="abt-fb-stars">★★★★★</div>
+                <div className="abt-fb-label">6 verified movers</div>
+              </div>
+            </div>
+            <div className="abt-fb-divider" />
+            <p className="abt-fb-line">Every review is from a real person we helped find their home.</p>
+          </motion.div>
+
+          {/* Spread deck — cards stack in center, fly to 6 positions on click */}
+          <div className="abt-spread-wrap">
+            {TESTIMONIALS.map((t, i) => (
+              <motion.div
+                key={i}
+                className="abt-spread-card"
+                animate={tcExpanded
+                  ? { x: SPREAD_POS[i].x, y: SPREAD_POS[i].y, rotate: CARD_ROTS[i] }
+                  : { x: 0, y: 0, rotate: DECK_ROTS[i] }
+                }
+                transition={{ duration: 0.65, delay: i * 0.06, ease: [0.34, 1.56, 0.64, 1] }}
+                style={{ zIndex: tcExpanded ? 1 : 6 - i }}
+              >
+                <TestiCard t={t} expanded={tcExpanded} />
+              </motion.div>
+            ))}
+
+            {/* Star button lives in the center of the deck */}
+            <motion.button
+              className="abt-star-btn"
+              animate={{ scale: tcExpanded ? 0.8 : 1, rotate: tcExpanded ? 135 : 0 }}
+              transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+              onClick={() => setTcExpanded(v => !v)}
+              aria-label="Toggle reviews"
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                <path d="M12 1 L14.2 9.8 L23 12 L14.2 14.2 L12 23 L9.8 14.2 L1 12 L9.8 9.8 Z" />
+              </svg>
+            </motion.button>
+          </div>
+
+        </div>
+      </section>
 
       {/* ══ 8. FOUNDERS — editorial photo spread ════════════════ */}
       <section className="abt-founders">
