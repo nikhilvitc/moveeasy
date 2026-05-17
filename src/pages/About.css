@@ -543,11 +543,12 @@
 .abt-curtain-panel img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   display: block;
   user-select: none;
   pointer-events: none;
+  transform: scale(1.15);
 }
 
 /* Subtle seam between the two panels */
