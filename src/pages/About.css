@@ -548,7 +548,7 @@
   display: block;
   user-select: none;
   pointer-events: none;
-  transform: scale(1.15);
+  transform: scale(1.5);
 }
 
 /* Subtle seam between the two panels */
