@@ -799,11 +799,11 @@ export default function About() {
           <div className="abt-testi-hrow">
             <FadeUp>
               <span className="abt-eye">User feedback</span>
-              <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our users<br /><em>say.</em></h2>
+              <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our user <em>say.</em></h2>
             </FadeUp>
           </div>
           {/* Spread deck — cards stack in center, fly to 6 positions on click */}
-          <div className="abt-spread-wrap" style={{ height: tcExpanded ? '800px' : '420px', transition: 'height 0.6s ease' }}>
+          <div className="abt-spread-wrap" style={{ height: tcExpanded ? '1000px' : '420px', transition: 'height 0.6s ease' }}>
             {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={i}
