@@ -399,16 +399,6 @@ function StorySection() {
         }
       }
 
-      if (ch === 0) {
-        const el0 = spacerRefs.current[0];
-        if (el0) {
-          const r0 = el0.getBoundingClientRect();
-          if (r0.top > mid) {
-            prog = Math.max(0, 1 - (r0.top - mid) / (window.innerHeight - mid));
-          }
-        }
-      }
-
       if (ch !== prevChRef.current) {
         dirRef.current = ch > prevChRef.current ? 1 : -1;
         prevChRef.current = ch;
