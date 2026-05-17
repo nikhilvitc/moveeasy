@@ -361,10 +361,10 @@ function CurtainOpener() {
   return (
     <div ref={wrapRef} className="abt-curtain-wrap">
       <div className="abt-curtain-sticky">
-        <motion.div className="abt-curtain-panel abt-curtain-left" style={{ x: leftX }}>
+        <motion.div className="abt-curtain-panel abt-curtain-left" style={{ x: leftX, y: 0 }}>
           <img src="/opener1.png" alt="" draggable={false} />
         </motion.div>
-        <motion.div className="abt-curtain-panel abt-curtain-right" style={{ x: rightX }}>
+        <motion.div className="abt-curtain-panel abt-curtain-right" style={{ x: rightX, y: 0 }}>
           <img src="/opener2.jpg" alt="" draggable={false} />
         </motion.div>
       </div>
