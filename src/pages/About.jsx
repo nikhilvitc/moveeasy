@@ -405,7 +405,12 @@ function StorySection() {
       }
 
       setActiveChapter(ch);
-      setChapterProgress(prog);
+      // Only set progress if we're past chapter 0, or if it's chapter 0 and significantly into the spacer
+      if (ch > 0 || (ch === 0 && prog > 0.5)) {
+        setChapterProgress(prog);
+      } else {
+        setChapterProgress(0);
+      }
 
       const wrap = wrapRef.current;
       if (wrap) {
