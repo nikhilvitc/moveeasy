@@ -357,15 +357,14 @@ function CurtainOpener() {
 
   const leftX  = useTransform(scrollYProgress, [0, 1], ['0%', '-100%']);
   const rightX = useTransform(scrollYProgress, [0, 1], ['0%',  '100%']);
-  const opacity = useTransform(scrollYProgress, [0, 0.8, 1], [1, 0.5, 0]);
 
   return (
     <div ref={wrapRef} className="abt-curtain-wrap">
       <div className="abt-curtain-sticky">
-        <motion.div className="abt-curtain-panel abt-curtain-left" style={{ x: leftX, opacity }}>
+        <motion.div className="abt-curtain-panel abt-curtain-left" style={{ x: leftX, y: 0 }}>
           <img src="/opener1.png" alt="" draggable={false} />
         </motion.div>
-        <motion.div className="abt-curtain-panel abt-curtain-right" style={{ x: rightX, opacity }}>
+        <motion.div className="abt-curtain-panel abt-curtain-right" style={{ x: rightX, y: 0 }}>
           <img src="/opener2.jpg" alt="" draggable={false} />
         </motion.div>
       </div>
