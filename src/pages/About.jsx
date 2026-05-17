@@ -847,10 +847,11 @@ export default function About() {
         <motion.div className="abt-team-carousel" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
           <motion.div
             className="abt-team-track"
-            animate={{ x: [0, -340*6, -340*12] }}
-            transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
+            animate={{ x: -340*12 }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear", repeatType: "loop" }}
+            onAnimationComplete={() => {}}
           >
-            {Array.from({ length: 12 }).map((_, i) => {
+            {Array.from({ length: 24 }).map((_, i) => {
               const member = i % 2 === 0
                 ? { photo: yatharthImg, name: 'Yatharth', role: 'Co-Founder' }
                 : { photo: amanImg, name: 'Aman', role: 'Co-Founder' };
