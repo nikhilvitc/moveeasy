@@ -775,7 +775,12 @@ export default function About() {
           Your flat-finding journey — visualised.
         </motion.p>
 
-        <motion.div ref={chartRef} style={{ y: chartY }}>
+        <motion.div ref={chartRef} style={{ y: chartY }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, ease: EASE }}
+        >
           <JourneyChart />
         </motion.div>
       </section>
