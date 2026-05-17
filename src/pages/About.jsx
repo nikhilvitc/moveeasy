@@ -835,46 +835,37 @@ export default function About() {
         </div>
       </section>
 
-      {/* ══ 8. FOUNDERS — editorial photo spread ════════════════ */}
+      {/* ══ 8. TEAM CAROUSEL ════════════════════════════════════ */}
       <section className="abt-founders">
         <div className="abt-founders-header">
           <FadeUp>
-            <span className="abt-eye">The faces behind it</span>
-            <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>Meet your <em>seniors.</em></h2>
+            <span className="abt-eye">The team</span>
+            <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>Our <em>team.</em></h2>
           </FadeUp>
-          <motion.p
-            className="abt-founders-sub"
-            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
-            viewport={{ once: true }} transition={{ delay: 0.3 }}
-          >
-            IIT Kanpur · Class of 2024
-          </motion.p>
         </div>
 
-        <div className="abt-fs-spread">
-          {[
-            { photo: yatharthImg, name: 'Yatharth', role: 'Co-Founder', badge: 'ex-BCG', bio: "Analysed markets at BCG by day, couldn't stop thinking about broken rentals at night. Eventually chose to fix it. Strategy, growth — and his DM is genuinely open.", size: 'lg' },
-            { photo: amanImg,    name: 'Aman',      role: 'Co-Founder', badge: 'ex-Startup', bio: "Startup operator who knows what it means to move fast without a map. Built the systems that make the promise real — right flat, right time, no chaos.", size: 'sm' },
-          ].map((f, i) => (
-            <motion.div
-              key={i}
-              className={`abt-fs-card abt-fs-${f.size}`}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: 0.75, delay: i * 0.18, ease: EASE }}
-            >
-              <img src={f.photo} alt={f.name} className="abt-fs-photo" />
-              <div className="abt-fs-overlay">
-                <span className="abt-fs-badge">{f.badge}</span>
-                <h3 className="abt-fs-name">{f.name}</h3>
-                <p className="abt-fs-role">{f.role}</p>
-                <p className="abt-fs-bio">{f.bio}</p>
-                <span className="abt-fs-dm">DM open →</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <motion.div className="abt-team-carousel" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
+          <motion.div
+            className="abt-team-track"
+            animate={{ x: [0, -340*6, -340*12] }}
+            transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
+          >
+            {Array.from({ length: 12 }).map((_, i) => {
+              const member = i % 2 === 0
+                ? { photo: yatharthImg, name: 'Yatharth', role: 'Co-Founder' }
+                : { photo: amanImg, name: 'Aman', role: 'Co-Founder' };
+              return (
+                <div key={i} className="abt-team-card">
+                  <img src={member.photo} alt={member.name} />
+                  <div className="abt-team-info">
+                    <h3>{member.name}</h3>
+                    <p>{member.role}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* ══ 9. CTA ═══════════════════════════════════════════════ */}
