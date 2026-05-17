@@ -799,29 +799,10 @@ export default function About() {
           {/* Header row */}
           <div className="abt-testi-hrow">
             <FadeUp>
-              <span className="abt-eye">What movers say</span>
-              <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>Real people.<br /><em>Real moves.</em></h2>
+              <span className="abt-eye">User feedback</span>
+              <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our users<br /><em>say.</em></h2>
             </FadeUp>
           </div>
-
-          {/* Feedback box — above cards */}
-          <motion.div
-            className="abt-fb-box"
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2, duration: 0.55, ease: EASE }}
-          >
-            <div className="abt-fb-left">
-              <span className="abt-fb-score">5.0</span>
-              <div>
-                <div className="abt-fb-stars">★★★★★</div>
-                <div className="abt-fb-label">6 verified movers</div>
-              </div>
-            </div>
-            <div className="abt-fb-divider" />
-            <p className="abt-fb-line">Every review is from a real person we helped find their home.</p>
-          </motion.div>
 
           {/* Spread deck — cards stack in center, fly to 6 positions on click */}
           <div className="abt-spread-wrap">
