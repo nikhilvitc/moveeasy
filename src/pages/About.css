@@ -788,7 +788,10 @@
 /* ══ 7. TESTIMONIALS — glassmorphism + tilt ═══════════════════════ */
 .abt-testimonials {
   padding: 6rem 2rem;
-  background: #07070f;
+  background:
+    radial-gradient(circle at top left, rgba(80,70,255,0.1), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(80,70,255,0.12), transparent 35%),
+    #050816;
   border-top: 1px solid rgba(255,255,255,.05);
   position: relative;
   overflow: hidden;
