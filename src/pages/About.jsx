@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform, animate } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, animate } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -159,30 +159,37 @@ function FadeUp({ children, delay = 0, className = '' }) {
 /* ─── Journey chart ─────────────────────────────────────────────────── */
 const GREEN = '#22C55E';
 const VIEWW = 1000;
-const VIEWH = 415;
-const LW = 126; // label card width
+const VIEWH = 420;
+const LW = 130; // label card width
 const LH = 33;  // label card height
-const LC = 40;  // connector length
+const LC = 38;  // connector length
 
 const WITH_PTS = [
-  { x: 100, y: 148, label: 'Rep assigned, Day 1', above: true,  showLabel: true  },
-  { x: 268, y: 125, label: 'Shortlist in 2 days',  above: true,  showLabel: false },
-  { x: 440, y: 106, label: '3 curated visits',      above: true,  showLabel: false },
-  { x: 610, y: 94,  label: 'Offer accepted',         above: true,  showLabel: true  },
-  { x: 775, y: 86,  label: 'Move-in day ✓',          above: true,  showLabel: false },
-  { x: 900, y: 82,  label: 'Home sweet home',        above: true,  showLabel: true  },
+  { x: 60,  y: 200, label: 'Day 1: Sign up',         above: true,  showLabel: true  },
+  { x: 150, y: 172, label: 'Rep assigned',            above: true,  showLabel: true  },
+  { x: 240, y: 150, label: 'Shortlist ready',         above: true,  showLabel: false },
+  { x: 330, y: 132, label: 'First visits lined up',   above: true,  showLabel: false },
+  { x: 425, y: 116, label: 'Rent negotiated',         above: true,  showLabel: true  },
+  { x: 520, y: 103, label: 'Docs verified',           above: true,  showLabel: false },
+  { x: 615, y: 93,  label: 'Offer accepted',          above: true,  showLabel: true  },
+  { x: 730, y: 85,  label: 'Move-in day ✓',           above: true,  showLabel: true  },
+  { x: 830, y: 80,  label: 'Keys in hand',            above: true,  showLabel: false },
+  { x: 940, y: 76,  label: 'Home sweet home',         above: true,  showLabel: true  },
 ];
 
 const WITHOUT_PTS = [
-  { x: 100, y: 230, label: 'Start searching...',    above: false, showLabel: true  },
-  { x: 210, y: 258, label: 'Find a broker...',       above: false, showLabel: false },
-  { x: 335, y: 148, label: 'Found something!',       above: true,  showLabel: false },
-  { x: 460, y: 328, label: 'Token scam. Ghosted.',   above: false, showLabel: true  },
-  { x: 555, y: 232, label: 'New broker...',           above: false, showLabel: false },
-  { x: 658, y: 272, label: 'Fake listing',            above: false, showLabel: true  },
-  { x: 756, y: 162, label: 'Okay, this time!',       above: true,  showLabel: false },
-  { x: 852, y: 308, label: 'Hidden charges...',      above: false, showLabel: false },
-  { x: 900, y: 328, label: 'And, still searching',   above: false, showLabel: true  },
+  { x: 60,  y: 238, label: 'Start searching...',      above: false, showLabel: true  },
+  { x: 140, y: 264, label: 'Broker #1 found',         above: false, showLabel: false },
+  { x: 215, y: 172, label: 'Found something!',         above: true,  showLabel: false },
+  { x: 290, y: 338, label: 'Fake listing. Ghosted.',   above: false, showLabel: true  },
+  { x: 365, y: 230, label: 'New broker...',            above: false, showLabel: false },
+  { x: 438, y: 336, label: 'Token scam. Ghosted.',     above: false, showLabel: true  },
+  { x: 515, y: 185, label: 'Okay, this time!',         above: true,  showLabel: false },
+  { x: 590, y: 320, label: 'Hidden charges',           above: false, showLabel: true  },
+  { x: 665, y: 255, label: 'Back to square 1',         above: false, showLabel: false },
+  { x: 740, y: 340, label: 'Fake photos again',        above: false, showLabel: true  },
+  { x: 825, y: 292, label: 'Broker #5...',             above: false, showLabel: false },
+  { x: 940, y: 348, label: 'Still searching...',       above: false, showLabel: true  },
 ];
 
 function makeSmoothPath(pts) {
@@ -202,13 +209,14 @@ function makeSmoothPath(pts) {
   return d;
 }
 
-function ChartLabel({ pt, color, delay, inView, textFill = 'rgba(20,20,20,0.75)' }) {
+function ChartLabel({ pt, color, frac, pathProgress, textFill = 'rgba(20,20,20,0.75)' }) {
+  const opacity = useTransform(pathProgress, [Math.max(0, frac - 0.06), frac + 0.04], [0, 1]);
   const rx  = Math.max(8, Math.min(pt.x - LW / 2, VIEWW - LW - 8));
   const ry  = pt.above ? pt.y - LC - LH : pt.y + LC;
   const cy1 = pt.above ? ry + LH + 2 : pt.y + 5;
   const cy2 = pt.above ? pt.y - 5    : ry - 2;
   return (
-    <motion.g initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay, duration: 0.38 }}>
+    <motion.g style={{ opacity }}>
       <line x1={pt.x} y1={cy1} x2={pt.x} y2={cy2} stroke={color} strokeWidth="1.5" strokeDasharray="3 2.5" opacity="0.45" />
       <rect x={rx} y={ry} width={LW} height={LH} rx="8" fill="#fff" stroke={`${color}50`} strokeWidth="1"
         style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.08))' }} />
@@ -220,24 +228,26 @@ function ChartLabel({ pt, color, delay, inView, textFill = 'rgba(20,20,20,0.75)'
   );
 }
 
-function ChartDot({ pt, color, delay, inView }) {
-  return (
-    <motion.circle cx={pt.x} cy={pt.y} r={5.5} fill={color}
-      initial={{ opacity: 0 }} animate={inView ? { opacity: 0.9 } : {}}
-      transition={{ delay, duration: 0.3 }} />
-  );
+function ChartDot({ pt, color, frac, pathProgress }) {
+  const opacity = useTransform(pathProgress, [Math.max(0, frac - 0.04), frac + 0.03], [0, 0.9]);
+  return <motion.circle cx={pt.x} cy={pt.y} r={5.5} fill={color} style={{ opacity }} />;
 }
 
-function JourneyChart() {
-  const [ref, inView] = useInView({ threshold: 0.18, triggerOnce: true });
-  const DD = 10;
+const WITH_END  = WITH_PTS[WITH_PTS.length - 1];
+
+const WITHOUT_END = WITHOUT_PTS[WITHOUT_PTS.length - 1];
+
+function JourneyChart({ scrollProgress }) {
+  const pathProgress = useTransform(scrollProgress, [0.04, 0.62], [0, 1]);
+  const fillOpacity  = useTransform(scrollProgress, [0.04, 0.32], [0, 1]);
+  const photoOpacity = useTransform(scrollProgress, [0.60, 0.76], [0, 1]);
 
   return (
-    <div ref={ref} className="abt-jc-wrap">
+    <div className="abt-jc-wrap">
       <svg viewBox={`0 0 ${VIEWW} ${VIEWH}`} preserveAspectRatio="xMidYMid meet" className="abt-jc-svg">
           <defs>
-            <clipPath id="jc-cy"><circle cx={900} cy={82}  r={30} /></clipPath>
-            <clipPath id="jc-ca"><circle cx={900} cy={328} r={30} /></clipPath>
+            <clipPath id="jc-cy"><circle cx={WITH_END.x} cy={WITH_END.y} r={30} /></clipPath>
+            <clipPath id="jc-ca"><circle cx={WITHOUT_END.x} cy={WITHOUT_END.y} r={30} /></clipPath>
             <linearGradient id="jc-gfill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor={GREEN} stopOpacity="0.14" />
               <stop offset="100%" stopColor={GREEN} stopOpacity="0.02" />
@@ -246,60 +256,65 @@ function JourneyChart() {
 
           {/* Grid */}
           {[80, 160, 240, 320].map(y => (
-            <line key={y} x1="60" y1={y} x2="960" y2={y} stroke="rgba(0,0,0,0.055)" strokeWidth="1" />
+            <line key={y} x1="40" y1={y} x2="970" y2={y} stroke="rgba(0,0,0,0.055)" strokeWidth="1" />
           ))}
 
-          {/* Green fill area */}
+          {/* Green fill — scroll-driven opacity */}
           <motion.path
-            d={`${makeSmoothPath(WITH_PTS)} L 900 ${VIEWH} L 100 ${VIEWH} Z`}
+            d={`${makeSmoothPath(WITH_PTS)} L ${WITH_END.x} ${VIEWH} L ${WITH_PTS[0].x} ${VIEWH} Z`}
             fill="url(#jc-gfill)"
-            initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}}
-            transition={{ delay: 0.5, duration: 2 }}
+            style={{ opacity: fillOpacity }}
           />
 
-          {/* With MovEazy line */}
+          {/* With MovEazy line — scroll-driven pathLength */}
           <motion.path d={makeSmoothPath(WITH_PTS)} stroke={GREEN} strokeWidth="2.8" fill="none"
             strokeLinecap="round" strokeLinejoin="round"
-            initial={{ pathLength: 0 }} animate={inView ? { pathLength: 1 } : {}}
-            transition={{ duration: DD, ease: [0.4, 0, 0.2, 1], delay: 0.2 }} />
+            style={{ pathLength: pathProgress }} />
 
-          {/* Without MovEazy line */}
+          {/* Without MovEazy line — scroll-driven pathLength */}
           <motion.path d={makeSmoothPath(WITHOUT_PTS)} stroke="#E8321A" strokeWidth="2.8" fill="none"
             strokeLinecap="round" strokeLinejoin="round"
-            initial={{ pathLength: 0 }} animate={inView ? { pathLength: 1 } : {}}
-            transition={{ duration: DD, ease: [0.4, 0, 0.2, 1], delay: 0.55 }} />
+            style={{ pathLength: pathProgress }} />
 
-          {/* Dots — only on labelled points */}
+          {/* Dots — appear as path reaches each point */}
           {WITH_PTS.filter(pt => pt.showLabel).map((pt, i) => (
             <ChartDot key={i} pt={pt} color={GREEN}
-              delay={0.2 + (WITH_PTS.indexOf(pt) / (WITH_PTS.length - 1)) * DD} inView={inView} />
+              frac={WITH_PTS.indexOf(pt) / (WITH_PTS.length - 1)}
+              pathProgress={pathProgress} />
           ))}
           {WITHOUT_PTS.filter(pt => pt.showLabel).map((pt, i) => (
             <ChartDot key={i} pt={pt} color="#E8321A"
-              delay={0.55 + (WITHOUT_PTS.indexOf(pt) / (WITHOUT_PTS.length - 1)) * DD} inView={inView} />
+              frac={WITHOUT_PTS.indexOf(pt) / (WITHOUT_PTS.length - 1)}
+              pathProgress={pathProgress} />
           ))}
 
-          {/* Labels — reduced to key moments */}
+          {/* Labels — appear as path reaches each point */}
           {WITH_PTS.filter(pt => pt.showLabel).map((pt, i) => (
             <ChartLabel key={i} pt={pt} color={GREEN}
-              delay={0.35 + (WITH_PTS.indexOf(pt) / (WITH_PTS.length - 1)) * DD} inView={inView} />
+              frac={WITH_PTS.indexOf(pt) / (WITH_PTS.length - 1)}
+              pathProgress={pathProgress} />
           ))}
           {WITHOUT_PTS.filter(pt => pt.showLabel).map((pt, i) => (
             <ChartLabel key={i} pt={pt} color="#E8321A"
-              delay={0.75 + (WITHOUT_PTS.indexOf(pt) / (WITHOUT_PTS.length - 1)) * DD} inView={inView} />
+              frac={WITHOUT_PTS.indexOf(pt) / (WITHOUT_PTS.length - 1)}
+              pathProgress={pathProgress} />
           ))}
 
           {/* Yatharth photo — happy end */}
-          <motion.g initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: DD + 0.3, duration: 0.5 }}>
-            <circle cx={900} cy={82} r={33} fill="#111" stroke={GREEN} strokeWidth="2.5" />
-            <image href={yatharthImg} x={870} y={52} width="60" height="60" clipPath="url(#jc-cy)" preserveAspectRatio="xMidYMid slice" />
+          <motion.g style={{ opacity: photoOpacity }}>
+            <circle cx={WITH_END.x} cy={WITH_END.y} r={33} fill="#111" stroke={GREEN} strokeWidth="2.5" />
+            <image href={yatharthImg}
+              x={WITH_END.x - 30} y={WITH_END.y - 30} width="60" height="60"
+              clipPath="url(#jc-cy)" preserveAspectRatio="xMidYMid slice" />
           </motion.g>
 
           {/* Aman photo — stressed end */}
-          <motion.g initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ delay: DD + 0.5, duration: 0.5 }}>
-            <circle cx={900} cy={328} r={33} fill="#111" stroke="#E8321A" strokeWidth="2.5" />
-            <image href={amanImg} x={870} y={298} width="60" height="60" clipPath="url(#jc-ca)" preserveAspectRatio="xMidYMid slice" />
-            <circle cx={900} cy={328} r={33} fill="rgba(232,50,26,0.22)" />
+          <motion.g style={{ opacity: photoOpacity }}>
+            <circle cx={WITHOUT_END.x} cy={WITHOUT_END.y} r={33} fill="#111" stroke="#E8321A" strokeWidth="2.5" />
+            <image href={amanImg}
+              x={WITHOUT_END.x - 30} y={WITHOUT_END.y - 30} width="60" height="60"
+              clipPath="url(#jc-ca)" preserveAspectRatio="xMidYMid slice" />
+            <circle cx={WITHOUT_END.x} cy={WITHOUT_END.y} r={33} fill="rgba(232,50,26,0.22)" />
           </motion.g>
         </svg>
     </div>
@@ -347,46 +362,26 @@ function WordReveal({ text, progress }) {
   );
 }
 
-/* ─── Curtain opener ─────────────────────────────────────────────── */
-function CurtainOpener() {
-  const wrapRef = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: wrapRef,
-    offset: ['start start', 'end start'],
-  });
-
-  const leftX  = useTransform(scrollYProgress, [0, 1], ['0%', '-100%']);
-  const rightX = useTransform(scrollYProgress, [0, 1], ['0%',  '100%']);
-
-  return (
-    <div ref={wrapRef} className="abt-curtain-wrap">
-      <div className="abt-curtain-sticky">
-        <motion.div className="abt-curtain-panel abt-curtain-left" style={{ x: leftX, y: 0 }}>
-          <img src="/opener1.png" alt="" draggable={false} />
-        </motion.div>
-        <motion.div className="abt-curtain-panel abt-curtain-right" style={{ x: rightX, y: 0 }}>
-          <img src="/opener2.jpg" alt="" draggable={false} />
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Story section (sticky scroll) ─────────────────────────────── */
-function StorySection() {
+/* ─── Story + curtain (merged) ───────────────────── */
+function StoryWithCurtain() {
   const wrapRef = useRef(null);
   const spacerRefs = useRef([]);
   const [activeChapter, setActiveChapter] = useState(0);
   const [chapterProgress, setChapterProgress] = useState(0);
   const [pbWidth, setPbWidth] = useState(0);
-  const dirRef = useRef(1);    // 1 = scrolling forward, -1 = scrolling back
+  const [hasEntered, setHasEntered] = useState(false);
+  const dirRef = useRef(1);
   const prevChRef = useRef(0);
+  const hasEnteredRef = useRef(false);
+
+  // curtainState derived directly — no separate state, no race conditions
 
   useEffect(() => {
     const tick = () => {
       const mid = window.innerHeight * 0.5;
       let ch = 0;
       let prog = 0;
+      let spacerFound = false;
 
       for (let i = CHAPTERS.length - 1; i >= 0; i--) {
         const el = spacerRefs.current[i];
@@ -395,6 +390,7 @@ function StorySection() {
         if (r.top <= mid) {
           ch = i;
           prog = Math.max(0, Math.min(1, (mid - r.top) / r.height));
+          spacerFound = true;
           break;
         }
       }
@@ -405,11 +401,15 @@ function StorySection() {
       }
 
       setActiveChapter(ch);
-      // Only set progress if we're past chapter 0, or if it's chapter 0 and significantly into the spacer
       if (ch > 0 || (ch === 0 && prog > 0.5)) {
         setChapterProgress(prog);
       } else {
         setChapterProgress(0);
+      }
+
+      if (spacerFound && !hasEnteredRef.current) {
+        hasEnteredRef.current = true;
+        setHasEntered(true);
       }
 
       const wrap = wrapRef.current;
@@ -427,14 +427,34 @@ function StorySection() {
 
   const ch = CHAPTERS[activeChapter];
   const dir = dirRef.current;
+  const curtainState = !hasEntered ? 'closed' : activeChapter >= 4 ? 'full' : 'partial';
+  const leftX  = curtainState === 'full' ? '-100%' : curtainState === 'partial' ? '-70%' : '0%';
+  const rightX = curtainState === 'full' ?  '100%' : curtainState === 'partial' ?  '70%' : '0%';
 
   return (
-    <div className="abt-story-wrap" ref={wrapRef}>
+    <div className="abt-story-curtain-wrap" ref={wrapRef}>
+      {/* Curtain: closed → 80% at ch1 → 100% as section exits */}
+      <div className="abt-curtain-sticky">
+        <motion.div
+          className="abt-curtain-panel abt-curtain-left"
+          animate={{ x: leftX }}
+          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/opener1.png" alt="" draggable={false} />
+        </motion.div>
+        <motion.div
+          className="abt-curtain-panel abt-curtain-right"
+          animate={{ x: rightX }}
+          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <img src="/opener2.jpg" alt="" draggable={false} />
+        </motion.div>
+      </div>
+
       <div className="abt-story-pb" style={{ width: `${pbWidth}%` }} />
 
       <div className="abt-sticky-stage">
         <div className="abt-story-col">
-          {/* Giant faded chapter number watermark */}
           <motion.span
             key={`wm-${activeChapter}`}
             className="abt-story-watermark"
@@ -446,7 +466,6 @@ function StorySection() {
             {ch.num}
           </motion.span>
 
-          {/* Heading — slides in from below (forward) or above (back) */}
           <motion.div
             key={activeChapter}
             initial={{ opacity: 0, y: dir * 30 }}
@@ -458,7 +477,6 @@ function StorySection() {
             <h2 className="abt-sh">{ch.heading}</h2>
           </motion.div>
 
-          {/* Body — word-by-word colour reveal on scroll */}
           <WordReveal text={ch.body} progress={chapterProgress} />
           <span className="abt-ch-tag" style={{ position: 'relative', zIndex: 1 }}>{ch.tag}</span>
         </div>
@@ -470,7 +488,6 @@ function StorySection() {
     </div>
   );
 }
-
 /* Cards spread to 6 positions (2×3 grid) — x gap must exceed card width (340px) */
 const SPREAD_POS = [
   { x: -390, y: -285 }, // top-left
@@ -508,14 +525,14 @@ function AnimatedCheckbox({ inView, delay }) {
 }
 
 /* ─── Solution row ───────────────────────────────────────────────────── */
-function SolutionRow({ item, i, inView }) {
+function SolutionRow({ item, i, inView, baseDelay = 0 }) {
   return (
     <div className="abt-sol-row-wrap">
       <motion.div
         className="abt-sol-row"
         initial={{ opacity: 0, y: 28 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, delay: i * 0.13 + 0.25, ease: EASE }}
+        transition={{ duration: 0.6, delay: i * 0.13 + 0.25 + baseDelay, ease: EASE }}
       >
         <span className="abt-sol-num">{item.num}</span>
         <div className="abt-sol-content">
@@ -529,7 +546,7 @@ function SolutionRow({ item, i, inView }) {
         initial={{ scaleX: 0 }}
         animate={inView ? { scaleX: 1 } : {}}
         style={{ transformOrigin: 'left' }}
-        transition={{ duration: 0.55, delay: i * 0.13 + 0.2, ease: EASE }}
+        transition={{ duration: 0.55, delay: i * 0.13 + 0.2 + baseDelay, ease: EASE }}
       />
     </div>
   );
@@ -537,14 +554,49 @@ function SolutionRow({ item, i, inView }) {
 
 /* ─── Solution section ───────────────────────────────────────────────── */
 function SolutionSection() {
-  const [ref, inView] = useInView({ threshold: 0.05, triggerOnce: true });
+  const [curtainOpen, setCurtainOpen] = useState(false);
+  const sectionEl = useRef(null);
   const solVideoRef = useRef(null);
+
   useEffect(() => {
     if (solVideoRef.current) solVideoRef.current.playbackRate = 1.5;
   }, []);
 
+  // Open curtain when section's vertical center crosses viewport center
+  useEffect(() => {
+    const el = sectionEl.current;
+    if (!el) return;
+    const check = () => {
+      if (curtainOpen) return;
+      const { top, height } = el.getBoundingClientRect();
+      if (top <= window.innerHeight * 0.25) setCurtainOpen(true);
+    };
+    window.addEventListener('scroll', check, { passive: true });
+    check();
+    return () => window.removeEventListener('scroll', check);
+  }, [curtainOpen]);
+
   return (
-    <section className="abt-solution" ref={ref}>
+    <section className="abt-solution" ref={sectionEl}>
+      {/* Curtain top — covers upper half, slides up on enter */}
+      <motion.div
+        className="abt-sol-curtain abt-sol-curtain-top"
+        animate={{ y: curtainOpen ? '-100%' : '0%' }}
+        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <img src="/curtain_1.jpg" alt="" draggable={false} />
+      </motion.div>
+
+      {/* Curtain bottom — covers lower half, slides down on enter */}
+      <motion.div
+        className="abt-sol-curtain abt-sol-curtain-bot"
+        animate={{ y: curtainOpen ? '100%' : '0%' }}
+        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <img src="/curtain_2.jpg" alt="" draggable={false} />
+      </motion.div>
+
+
       <video
         ref={solVideoRef}
         className="abt-sol-video"
@@ -560,8 +612,8 @@ function SolutionSection() {
         <motion.div
           className="abt-sol-head"
           initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, ease: EASE }}
+          animate={curtainOpen ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.45, delay: 0, ease: EASE }}
         >
           <span className="abt-eye abt-sol-eye">What we actually do</span>
           <h2 className="abt-sol-main-h">Everything broken about rentals? <em>Fixed.</em></h2>
@@ -570,17 +622,16 @@ function SolutionSection() {
         <motion.div
           className="abt-sol-top-divider"
           initial={{ scaleX: 0 }}
-          animate={inView ? { scaleX: 1 } : {}}
+          animate={curtainOpen ? { scaleX: 1 } : {}}
           style={{ transformOrigin: 'left' }}
-          transition={{ duration: 0.55, delay: 0.15, ease: EASE }}
+          transition={{ duration: 0.4, delay: 0.08, ease: EASE }}
         />
 
         <div className="abt-sol-list">
           {SOLUTION_ITEMS.map((item, i) => (
-            <SolutionRow key={i} item={item} i={i} inView={inView} />
+            <SolutionRow key={i} item={item} i={i} inView={curtainOpen} baseDelay={0} />
           ))}
         </div>
-
       </div>
     </section>
   );
@@ -639,18 +690,90 @@ function TestiCard({ t, expanded = false }) {
 export default function About() {
   const heroRef = useRef(null);
   const videoRef = useRef(null);
-  const chartRef = useRef(null);
+  const jcScrollRef = useRef(null);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '14%']);
   const heroOp = useTransform(scrollYProgress, [0, 0.65], [1, 0]);
 
-  const { scrollYProgress: chartScroll } = useScroll({ target: chartRef, offset: ['start end', 'end start'] });
-  const chartY = useTransform(chartScroll, [0, 1], ['40px', '-40px']);
+  const { scrollYProgress: jcRawProgress } = useScroll({
+    target: jcScrollRef,
+    offset: ['start start', 'end end'],
+  });
+  // Ratchet: only ever increases so the graph never un-draws on scroll-back
+  const jcScrollProgress = useMotionValue(0);
+  useEffect(() => {
+    return jcRawProgress.on('change', v => {
+      if (v > jcScrollProgress.get()) jcScrollProgress.set(v);
+    });
+  }, [jcRawProgress, jcScrollProgress]);
+
+  // Skip through chart dead-zone in both directions
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let jumping = false;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const up = y < lastY;
+      lastY = y;
+      if (jumping || !jcScrollRef.current) return;
+      const el = jcScrollRef.current;
+      const top = el.offsetTop;
+      const end = top + el.offsetHeight - window.innerHeight;
+      if (up) {
+        // Scrolling up: jump to section top so user isn't stuck in dead zone
+        if (y > top + 50 && y <= end) {
+          jumping = true;
+          window.scrollTo({ top, behavior: 'smooth' });
+          setTimeout(() => { jumping = false; }, 700);
+        }
+      } else {
+        // Scrolling down: once graph is fully drawn, jump past remaining buffer
+        if (jcScrollProgress.get() >= 0.78 && y > top + 20 && y < end) {
+          jumping = true;
+          window.scrollTo({ top: end + 2, behavior: 'smooth' });
+          setTimeout(() => { jumping = false; }, 700);
+        }
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [jcScrollProgress]);
+
   const [tcExpanded, setTcExpanded] = useState(false);
+  const testiEl = useRef(null);
+  const [typedCount, setTypedCount] = useState(0);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = 0.6;
+  }, []);
+
+  // Expand cards when testimonials section center reaches viewport center
+  useEffect(() => {
+    const el = testiEl.current;
+    if (!el) return;
+    const check = () => {
+      if (tcExpanded) return;
+      const { top, height } = el.getBoundingClientRect();
+      if (top + height / 2 <= window.innerHeight * 0.35) setTcExpanded(true);
+    };
+    window.addEventListener('scroll', check, { passive: true });
+    check();
+    return () => window.removeEventListener('scroll', check);
+  }, [tcExpanded]);
+
+  // "We didn't"(9) + "build this"(10) + "for "(4) + "everyone."(9) = 32
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const iv = setInterval(() => {
+        setTypedCount(c => {
+          if (c >= 32) { clearInterval(iv); return c; }
+          return c + 1;
+        });
+      }, 72);
+      return () => clearInterval(iv);
+    }, 350);
+    return () => clearTimeout(t);
   }, []);
 
   return (
@@ -675,20 +798,20 @@ export default function About() {
 
         {/* Content */}
         <motion.div className="abt-hero-content" style={{ y: heroY, opacity: heroOp }}>
-          <motion.h1 className="abt-hero-h1" initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.78, delay: 0.12, ease: EASE }}>
-            We didn't<br />build this<br />for <em>everyone.</em>
-          </motion.h1>
+          <h1 className="abt-hero-h1">
+            {"We didn't".slice(0, Math.min(typedCount, 9))}
+            {typedCount > 9 && <><br />{"build this".slice(0, Math.min(typedCount - 9, 10))}</>}
+            {typedCount > 19 && <><br />{"for ".slice(0, Math.min(typedCount - 19, 4))}</>}
+            {typedCount > 23 && <em>{"everyone.".slice(0, Math.min(typedCount - 23, 9))}</em>}
+            {typedCount < 32 && <span className="abt-typed-cursor" />}
+          </h1>
 
-          <motion.p className="abt-hero-sub" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3, ease: EASE }}>
-            Two IIT Kanpur seniors who spent a month hunting flats in Mumbai — and came back with a mission.
-          </motion.p>
-
-          <motion.div className="abt-hero-btns" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45, ease: EASE }}>
+          <motion.div className="abt-hero-btns" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 2.8, ease: EASE }}>
             <Link className="abt-btn-red" to="/contact">Talk to us</Link>
             <Link className="abt-btn-outline" to="/map">Browse Listings</Link>
           </motion.div>
 
-          <motion.div className="abt-hero-iit-tag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}>
+          <motion.div className="abt-hero-iit-tag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.0 }}>
             IIT Kanpur · Class of 2024
           </motion.div>
         </motion.div>
@@ -698,16 +821,20 @@ export default function About() {
           className="abt-hero-stats-row"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.9, ease: EASE }}
+          transition={{ duration: 0.7, delay: 2.8, ease: EASE }}
         >
           {[
-            { val: '300+', label: 'Verified Brokers' },
-            { val: '8 days', label: 'Avg. time to move in' },
-            { val: '100%', label: 'Dedicated rep' },
+            { val: '300+', label: 'Verified Brokers', note: 'across Bangalore' },
+            { val: '8', unit: 'days', label: 'Avg. time to move in', note: 'from first call' },
+            { val: '100%', label: 'Dedicated rep', note: 'for every move' },
           ].map((s) => (
             <div key={s.label} className="abt-hero-stat-pill">
-              <span className="abt-hero-stat-val">{s.val}</span>
+              <div className="abt-hero-stat-num">
+                <span className="abt-hero-stat-val">{s.val}</span>
+                {s.unit && <span className="abt-hero-stat-unit">{s.unit}</span>}
+              </div>
               <span className="abt-hero-stat-lbl">{s.label}</span>
+              <span className="abt-hero-stat-note">{s.note}</span>
             </div>
           ))}
         </motion.div>
@@ -724,71 +851,57 @@ export default function About() {
         </motion.div>
       </section>
 
-      {/* ══ 5. JOURNEY CHART ════════════════════════════════════ */}
-      <section className="abt-jc-sec">
-        <div className="abt-jc-top">
-          <motion.div
-            className="abt-jc-side"
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: EASE }}
-          >
-            <span className="abt-jc-with-label">WITH MOVEAZY</span>
-            <p className="abt-jc-side-h" style={{ color: GREEN }}>Smooth. Fast. Zero drama.</p>
-          </motion.div>
+      {/* ══ 5. JOURNEY CHART — tall wrapper keeps section sticky while graph draws */}
+      <div ref={jcScrollRef} className="abt-jc-scroll-wrap">
+        <section className="abt-jc-sec">
+          <div className="abt-jc-top">
+            <motion.div
+              className="abt-jc-side"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: EASE }}
+            >
+              <span className="abt-jc-with-label">WITH MOVEAZY</span>
+              <p className="abt-jc-side-h" style={{ color: GREEN }}>Smooth. Fast. Zero drama.</p>
+            </motion.div>
 
-          <motion.div
-            className="abt-jc-vs"
-            initial={{ opacity: 0, scale: 0.7 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
-          >
-            vs
-          </motion.div>
+            <motion.div
+              className="abt-jc-vs"
+              initial={{ opacity: 0, scale: 0.7 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
+            >
+              vs
+            </motion.div>
 
-          <motion.div
-            className="abt-jc-side abt-jc-side-r"
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: EASE }}
-          >
-            <span className="abt-jc-with-label">WITHOUT MOVEAZY</span>
-            <p className="abt-jc-side-h" style={{ color: '#E8321A' }}>Chaotic. Costly. Soul-crushing.</p>
-          </motion.div>
-        </div>
+            <motion.div
+              className="abt-jc-side abt-jc-side-r"
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: EASE }}
+            >
+              <span className="abt-jc-with-label">WITHOUT MOVEAZY</span>
+              <p className="abt-jc-side-h" style={{ color: '#E8321A' }}>Chaotic. Costly. Soul-crushing.</p>
+            </motion.div>
+          </div>
 
-        <motion.p
-          className="abt-jc-caption"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
-        >
-          Your flat-finding journey — visualised.
-        </motion.p>
+          <p className="abt-jc-caption">Your flat-finding journey — visualised.</p>
 
-        <motion.div ref={chartRef} style={{ y: chartY }}
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: EASE }}
-        >
-          <JourneyChart />
-        </motion.div>
-      </section>
+          <JourneyChart scrollProgress={jcScrollProgress} />
+        </section>
+      </div>
 
       {/* ══ 6. SOLUTION ══════════════════════════════════════════ */}
       <SolutionSection />
 
-      {/* ══ 6b. CURTAIN OPENER → STORY ══════════════════════════ */}
-      <CurtainOpener />
-      <StorySection />
+      {/* ══ 6b. STORY WITH CURTAIN ══════════════════════════════ */}
+      <StoryWithCurtain />
 
       {/* ══ 7. TESTIMONIALS ══════════════════════════════════════ */}
-      <section className="abt-testimonials">
+      <section className="abt-testimonials" ref={testiEl}>
         <div className="abt-testi-inner">
           {/* Header row */}
           <div className="abt-testi-hrow">
@@ -797,8 +910,11 @@ export default function About() {
               <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our user <em>say.</em></h2>
             </FadeUp>
           </div>
-          {/* Spread deck — cards stack in center, fly to 6 positions on click */}
-          <div className="abt-spread-wrap" style={{ height: tcExpanded ? '1000px' : '420px', transition: 'height 0.6s ease' }}>
+          {/* Spread deck — auto-expands when section enters view */}
+          <div
+            className="abt-spread-wrap"
+            style={{ height: tcExpanded ? '1000px' : '420px', transition: 'height 0.9s cubic-bezier(0.22,1,0.36,1)' }}
+          >
             {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={i}
@@ -807,24 +923,21 @@ export default function About() {
                   ? { x: SPREAD_POS[i].x, y: SPREAD_POS[i].y, rotate: CARD_ROTS[i] }
                   : { x: 0, y: 0, rotate: DECK_ROTS[i] }
                 }
-                transition={{ duration: 0.65, delay: i * 0.06, ease: [0.34, 1.56, 0.64, 1] }}
-                style={{ zIndex: tcExpanded ? 1 : 6 - i }}
+                transition={{ duration: 0.7, delay: i * 0.07, ease: [0.34, 1.56, 0.64, 1] }}
+                style={{ zIndex: 1 }}
               >
                 <TestiCard t={t} expanded={tcExpanded} />
               </motion.div>
             ))}
-            {/* Star button lives in the center of the deck */}
-            <motion.button
+            <motion.div
               className="abt-star-btn"
               animate={{ scale: tcExpanded ? 0.8 : 1, rotate: tcExpanded ? 135 : 0 }}
               transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              onClick={() => setTcExpanded(v => !v)}
-              aria-label="Toggle reviews"
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                 <path d="M12 1 L14.2 9.8 L23 12 L14.2 14.2 L12 23 L9.8 14.2 L1 12 L9.8 9.8 Z" />
               </svg>
-            </motion.button>
+            </motion.div>
           </div>
 
         </div>
@@ -834,8 +947,7 @@ export default function About() {
       <section className="abt-founders">
         <div className="abt-founders-header">
           <FadeUp>
-            <span className="abt-eye">The team</span>
-            <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>Our <em>team.</em></h2>
+            <h2 className="abt-sec-h2 abt-team-h2" style={{ marginBottom: 0 }}>Our <em>team.</em></h2>
           </FadeUp>
         </div>
 
