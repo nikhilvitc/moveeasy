@@ -31,7 +31,7 @@ const CHAPTERS = [
     ],
     heading: <>Hey. We're your <em>IIT Kanpur</em> seniors.</>,
     body: "Yatharth and Aman — alumni of IIT Kanpur — who landed corporate jobs and were completely pumped about moving to Mumbai. Not investors. Not some faceless startup. If you're at IIT or NIT right now, you know this feeling. Placement done. City decided. A new chapter begins.",
-    tag: 'IIT Kanpur · Class of 2024',
+    tag: '',
   },
   {
     num: '02',
@@ -85,6 +85,14 @@ const CHAPTERS = [
     body: "We built a network of 300+ verified brokers across Bangalore. But here's the difference: your dedicated MovEazy rep understands your commute, budget, lifestyle — then works the network for you. No cold calls. No random listings. Properties curated around your life.",
     tag: 'Relocation-first. Always.',
   },
+];
+
+const STORY_BG_BY_CHAPTER = [
+  '/story2.png',
+  '/story3.png',
+  '/story3.png',
+  '/story4.png',
+  '/story5.png',
 ];
 
 const TESTIMONIALS = [
@@ -433,6 +441,16 @@ function StoryWithCurtain() {
 
   return (
     <div className="abt-story-curtain-wrap" ref={wrapRef}>
+      {/* Episode background: switches per active chapter (story1..storyN in public) */}
+      <motion.div
+        key={`ep-bg-${activeChapter}`}
+        className="abt-story-episode-bg"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.9, ease: EASE }}
+        style={{ backgroundImage: `url('${STORY_BG_BY_CHAPTER[activeChapter] || '/story5.png'}')` }}
+      />
       {/* Curtain: closed → 80% at ch1 → 100% as section exits */}
       <div className="abt-curtain-sticky">
         <motion.div
@@ -648,7 +666,7 @@ function TestiCard({ t, expanded = false }) {
         backgroundColor: expanded ? '#ffffff' : '#1C1C1E',
         borderColor:     expanded ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
       }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.55, ease: EASE }}
     >
       <div className="abt-tcard-toprow">
         <span className="abt-tcard-dot"
@@ -658,29 +676,29 @@ function TestiCard({ t, expanded = false }) {
       <div className="abt-tcard-namewrap">
         <motion.span className="abt-tcard-fname"
           animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.4)' }}
-          transition={{ duration: 0.35 }}>{firstName}</motion.span>
+          transition={{ duration: 0.5, ease: EASE }}>{firstName}</motion.span>
         <motion.span className="abt-tcard-lname"
           animate={{ color: expanded ? '#0C0C0C' : '#ffffff' }}
-          transition={{ duration: 0.35 }}>{lastName}</motion.span>
+          transition={{ duration: 0.5, ease: EASE }}>{lastName}</motion.span>
       </div>
       <motion.p className="abt-tcard-review"
         animate={{
           color:     expanded ? 'rgba(12,12,12,0.6)' : 'rgba(255,255,255,0.38)',
           maxHeight: expanded ? 300 : 72,
         }}
-        transition={{ duration: 0.45 }}
+        transition={{ duration: 0.65, ease: EASE }}
         style={{ overflow: 'hidden', margin: 0 }}
       >"{t.text}"</motion.p>
       <motion.span className="abt-tcard-roletxt"
         animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.32)' }}
-        transition={{ duration: 0.35 }}>{t.role}</motion.span>
+        transition={{ duration: 0.5, ease: EASE }}>{t.role}</motion.span>
       <div className="abt-tcard-pills">
         <motion.span className="abt-tcard-pill"
           animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
-          transition={{ duration: 0.35 }}>{t.college.split('·')[0].trim()}</motion.span>
+          transition={{ duration: 0.5, ease: EASE }}>{t.college.split('·')[0].trim()}</motion.span>
         <motion.span className="abt-tcard-pill"
           animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
-          transition={{ duration: 0.35 }}>{'★'.repeat(t.stars)}</motion.span>
+          transition={{ duration: 0.5, ease: EASE }}>{'★'.repeat(t.stars)}</motion.span>
       </div>
     </motion.div>
   );
@@ -764,16 +782,16 @@ export default function About() {
 
   // "We didn't"(9) + "build this"(10) + "for "(4) + "everyone."(9) = 32
   useEffect(() => {
+    let iv;
     const t = setTimeout(() => {
-      const iv = setInterval(() => {
+      iv = setInterval(() => {
         setTypedCount(c => {
           if (c >= 32) { clearInterval(iv); return c; }
           return c + 1;
         });
       }, 72);
-      return () => clearInterval(iv);
     }, 350);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); if (iv) clearInterval(iv); };
   }, []);
 
   return (
@@ -798,6 +816,8 @@ export default function About() {
 
         {/* Content */}
         <motion.div className="abt-hero-content" style={{ y: heroY, opacity: heroOp }}>
+          {/* badge removed as requested */}
+
           <h1 className="abt-hero-h1">
             {"We didn't".slice(0, Math.min(typedCount, 9))}
             {typedCount > 9 && <><br />{"build this".slice(0, Math.min(typedCount - 9, 10))}</>}
@@ -806,27 +826,43 @@ export default function About() {
             {typedCount < 32 && <span className="abt-typed-cursor" />}
           </h1>
 
-          <motion.div className="abt-hero-btns" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 2.8, ease: EASE }}>
-            <Link className="abt-btn-red" to="/contact">Talk to us</Link>
+          <motion.p
+            className="abt-hero-sub"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 2.65, ease: EASE }}
+          >
+            Built for IIT &amp; NIT graduates moving to Bangalore — by two who got burned doing it themselves.
+          </motion.p>
+
+          <motion.div className="abt-hero-btns" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 2.85, ease: EASE }}>
+            <Link className="abt-btn-red abt-btn-red-arrow" to="/contact">
+              Get Free Consultation
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path d="M2 6.5h9M7.5 2.5l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Link>
             <Link className="abt-btn-outline" to="/map">Browse Listings</Link>
           </motion.div>
 
-          <motion.div className="abt-hero-iit-tag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.0 }}>
+          <motion.div className="abt-hero-iit-tag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.05 }}>
+            <span className="abt-hero-iit-dot" />
             IIT Kanpur · Class of 2024
           </motion.div>
         </motion.div>
 
-        {/* Floating stats row at bottom */}
+        {/* Full-width proof bar at bottom */}
         <motion.div
           className="abt-hero-stats-row"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 2.8, ease: EASE }}
+          transition={{ duration: 0.6, delay: 3.0, ease: EASE }}
         >
           {[
-            { val: '300+', label: 'Verified Brokers', note: 'across Bangalore' },
-            { val: '8', unit: 'days', label: 'Avg. time to move in', note: 'from first call' },
-            { val: '100%', label: 'Dedicated rep', note: 'for every move' },
+            { val: '300+', unit: null,   label: 'Verified Brokers',    note: 'across Bangalore' },
+            { val: '8',    unit: 'days', label: 'Avg. time to move in', note: 'from first call'  },
+            { val: '100%', unit: null,   label: 'Dedicated rep',        note: 'for every move'   },
+            { val: '₹0',   unit: null,   label: 'Brokerage fees',       note: 'ever'             },
           ].map((s) => (
             <div key={s.label} className="abt-hero-stat-pill">
               <div className="abt-hero-stat-num">
@@ -911,9 +947,10 @@ export default function About() {
             </FadeUp>
           </div>
           {/* Spread deck — auto-expands when section enters view */}
-          <div
+          <motion.div
             className="abt-spread-wrap"
-            style={{ height: tcExpanded ? '1000px' : '420px', transition: 'height 0.9s cubic-bezier(0.22,1,0.36,1)' }}
+            animate={{ height: tcExpanded ? 1000 : 520 }}
+            transition={{ duration: 1.05, ease: EASE }}
           >
             {TESTIMONIALS.map((t, i) => (
               <motion.div
@@ -923,7 +960,7 @@ export default function About() {
                   ? { x: SPREAD_POS[i].x, y: SPREAD_POS[i].y, rotate: CARD_ROTS[i] }
                   : { x: 0, y: 0, rotate: DECK_ROTS[i] }
                 }
-                transition={{ duration: 0.7, delay: i * 0.07, ease: [0.34, 1.56, 0.64, 1] }}
+                transition={{ type: 'spring', stiffness: 82, damping: 20, mass: 0.9, delay: i * 0.06 }}
                 style={{ zIndex: 1 }}
               >
                 <TestiCard t={t} expanded={tcExpanded} />
@@ -932,13 +969,13 @@ export default function About() {
             <motion.div
               className="abt-star-btn"
               animate={{ scale: tcExpanded ? 0.8 : 1, rotate: tcExpanded ? 135 : 0 }}
-              transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+              transition={{ duration: 0.65, ease: EASE }}
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
                 <path d="M12 1 L14.2 9.8 L23 12 L14.2 14.2 L12 23 L9.8 14.2 L1 12 L9.8 9.8 Z" />
               </svg>
             </motion.div>
-          </div>
+          </motion.div>
 
         </div>
       </section>
