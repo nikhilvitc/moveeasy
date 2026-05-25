@@ -1496,6 +1496,57 @@
   .abt-hero-h1 { font-size: 2.6rem; }
 }
 
+/* ══ Small-phone fixes (≤ 480px) ══════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Hero — tighter padding, full-width stacked buttons */
+  .abt-hero { padding: 5.5rem 1.25rem 3.5rem; }
+  .abt-hero-h1 { font-size: 2rem; }
+  .abt-hero-btns { flex-direction: column; gap: 0.7rem; }
+  .abt-btn-red,
+  .abt-btn-red-arrow,
+  .abt-btn-outline {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Journey chart — stack panels, make chart horizontally scrollable */
+  .abt-jc-sec { padding: 0.75rem 0.75rem 1rem; }
+  .abt-jc-top { flex-direction: column; gap: 0.4rem; }
+  .abt-jc-vs { display: none; }
+  .abt-jc-wrap {
+    height: 200px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+  }
+  .abt-jc-svg { min-width: 560px; width: 560px; flex: none; }
+
+  /* Testimonials — narrower cards so spread stays on-screen */
+  .abt-spread-card {
+    width: 270px;
+    left: calc(50% - 135px);
+    top: calc(50% - 120px);
+  }
+  .abt-tcard { min-height: 220px; padding: 1rem 1.2rem 1.1rem; }
+  .abt-tcard-fname,
+  .abt-tcard-lname { font-size: 1.5rem; }
+  .abt-spread-wrap { overflow: hidden; }
+
+  /* CTA — stacked buttons */
+  .abt-cta { padding: 4rem 1.25rem; }
+  .abt-cta-btns { flex-direction: column; gap: 0.75rem; align-items: stretch; }
+  .abt-cta-btn-white,
+  .abt-cta-btn-ghost { text-align: center; box-sizing: border-box; }
+
+  /* Solution section extra padding */
+  .abt-sol-inner { padding: 2rem 1rem 1.75rem; }
+  .abt-sol-head { padding: 1.1rem 1.25rem 1.2rem; }
+  .abt-sol-main-h { font-size: 1.6rem; }
+}
+
 /* ══ Journey Chart ═════════════════════════════════════════════════ */
 
 .abt-jc-sec {

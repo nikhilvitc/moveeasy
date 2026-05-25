@@ -746,7 +746,7 @@ export default function About() {
       if (!spreadWrapRef.current) return;
       const halfW = spreadWrapRef.current.offsetWidth / 2;
       // card half-width = 190px, keep 12px min margin from wrap edge
-      setSpreadX(Math.min(390, Math.max(200, halfW - 202)));
+      setSpreadX(Math.min(390, Math.max(0, halfW - 202)));
     };
     update();
     const ro = new ResizeObserver(update);
