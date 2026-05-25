@@ -247,7 +247,7 @@ export default function Login() {
         {/* Brand */}
         <div className="text-center mb-5">
           <p className="text-[26px] font-black tracking-tight">
-            <span style={{ color: "white" }}>Mov</span><span style={{ color: "#dc2626" }}>Eazy</span>
+            <span style={{ color: "#111827" }}>Mov</span><span style={{ color: "#dc2626" }}>Eazy</span>
           </p>
           <p className="text-[12px] text-gray-500 mt-0.5">Find your home in Bengaluru</p>
         </div>

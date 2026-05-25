@@ -110,7 +110,7 @@ export default function Navbar({ variant = "solid" }) {
                 className="flex items-center gap-1.5 rounded-lg px-2 py-1 border border-white/12 bg-white/[0.06] hover:bg-white/10 transition-colors"
                 title={user.name || user.email}
               >
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black text-white" style={{ background: "linear-gradient(135deg,#e85a4f,#f97316)" }}>
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black text-white" style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)" }}>
                   {(user.name || user.email || "?")[0].toUpperCase()}
                 </span>
                 <span className="text-xs font-semibold text-zinc-100 max-w-[80px] truncate">{user.name || user.email?.split("@")[0]}</span>
@@ -209,7 +209,7 @@ export default function Navbar({ variant = "solid" }) {
               {user ? (
                 <>
                   <button type="button" onClick={() => closeAndGo("/customer")} className="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-white/[0.06] transition-colors">
-                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-black text-white shrink-0" style={{ background: "linear-gradient(135deg,#e85a4f,#f97316)" }}>
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-black text-white shrink-0" style={{ background: "linear-gradient(135deg,#dc2626,#ef4444)" }}>
                       {(user.name || user.email || "?")[0].toUpperCase()}
                     </span>
                     <div className="min-w-0">

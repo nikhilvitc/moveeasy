@@ -100,7 +100,7 @@ export default function CustomerDashboard() {
             style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", borderRadius: "14px" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#e85a4f,#f97316)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "16px", flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#dc2626,#ef4444)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "16px", flexShrink: 0 }}>
                 {(user?.name || user?.email || "?")[0].toUpperCase()}
               </div>
               <div style={{ textAlign: "left" }}>
@@ -108,7 +108,7 @@ export default function CustomerDashboard() {
                 <div style={{ fontSize: "12px", color: "#64748b" }}>{user?.email}</div>
               </div>
             </div>
-            <span style={{ fontSize: "12px", color: "#e85a4f", fontWeight: 600 }}>{profileOpen ? "▲ Close" : "✏️ Edit profile"}</span>
+            <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: 600 }}>{profileOpen ? "▲ Close" : "✏️ Edit profile"}</span>
           </button>
 
           {profileOpen && (
@@ -130,7 +130,7 @@ export default function CustomerDashboard() {
                 <>
                   <div style={{ margin: "18px 0 10px", display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ height: 1, flex: 1, background: "#f1f5f9" }} />
-                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#e85a4f", textTransform: "uppercase", letterSpacing: "0.08em" }}>Flat Search Preferences</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.08em" }}>Flat Search Preferences</span>
                     <div style={{ height: 1, flex: 1, background: "#f1f5f9" }} />
                   </div>
 
@@ -139,7 +139,7 @@ export default function CustomerDashboard() {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                       {FLAT_TYPES.map((f) => (
                         <button key={f} type="button" onClick={() => setProfileBhk(profileBhk === f ? "" : f)}
-                          style={{ padding: "5px 13px", borderRadius: "20px", border: `1px solid ${profileBhk === f ? "#e85a4f" : "#e2e8f0"}`, background: profileBhk === f ? "#fff5f2" : "white", color: profileBhk === f ? "#e85a4f" : "#64748b", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                          style={{ padding: "5px 13px", borderRadius: "20px", border: `1px solid ${profileBhk === f ? "#dc2626" : "#e2e8f0"}`, background: profileBhk === f ? "#fef2f2" : "white", color: profileBhk === f ? "#dc2626" : "#64748b", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                           {f}
                         </button>
                       ))}
@@ -173,9 +173,9 @@ export default function CustomerDashboard() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {PRIORITIES.map((p) => (
                         <button key={p} type="button" onClick={() => setProfilePriority(p)}
-                          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 13px", borderRadius: "9px", border: `1px solid ${profilePriority === p ? "#e85a4f" : "#e2e8f0"}`, background: profilePriority === p ? "#fff5f2" : "white", color: profilePriority === p ? "#c2410c" : "#374151", fontSize: "13px", fontWeight: 500, cursor: "pointer", textAlign: "left" }}>
-                          <span style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${profilePriority === p ? "#e85a4f" : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            {profilePriority === p && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e85a4f", display: "block" }} />}
+                          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 13px", borderRadius: "9px", border: `1px solid ${profilePriority === p ? "#dc2626" : "#e2e8f0"}`, background: profilePriority === p ? "#fef2f2" : "white", color: profilePriority === p ? "#b91c1c" : "#374151", fontSize: "13px", fontWeight: 500, cursor: "pointer", textAlign: "left" }}>
+                          <span style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${profilePriority === p ? "#dc2626" : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {profilePriority === p && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#dc2626", display: "block" }} />}
                           </span>
                           {p}
                         </button>
@@ -193,7 +193,7 @@ export default function CustomerDashboard() {
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
                 <button type="submit" disabled={profileSaving}
-                  style={{ padding: "10px 24px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg,#e85a4f,#f97316)", color: "white", fontWeight: 700, fontSize: "13px", cursor: profileSaving ? "wait" : "pointer", opacity: profileSaving ? 0.7 : 1 }}>
+                  style={{ padding: "10px 24px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg,#dc2626,#ef4444)", color: "white", fontWeight: 700, fontSize: "13px", cursor: profileSaving ? "wait" : "pointer", opacity: profileSaving ? 0.7 : 1 }}>
                   {profileSaving ? "Saving…" : "Save changes"}
                 </button>
                 <button type="button" onClick={() => { logout(); navigate("/login"); }}
