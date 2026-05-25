@@ -10,13 +10,14 @@ import {
   signInWithPopup,
   signOut,
 } from "firebase/auth";
+import { saveCustomerSearchProfile } from "../lib/customerSearchProfile";
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import { triggerVerifiedOnboardingEmails } from "../lib/emailService";
 import { createProfileAfterSignup, ensureUserProfileDocuments, getProfileByEmail, getProfileForUser } from "../lib/profileService";
 
 const AuthContext = createContext(null);
-const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
+const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2003@gmail.com")
   .split(",")
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);
@@ -298,7 +299,27 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name, role = "customer", phone = "") => {
+  const checkEmail = async (email) => {
+    const e = String(email || "").toLowerCase().trim();
+    if (!isFirebaseConfigured) {
+      const users = getUsers();
+      return { exists: Boolean(users[e]), unknown: false };
+    }
+    try {
+      await signInWithEmailAndPassword(auth, e, "___check_only_moveazy___");
+      return { exists: true, unknown: false };
+    } catch (err) {
+      const code = err?.code || "";
+      if (code === "auth/user-not-found") return { exists: false, unknown: false };
+      if (code === "auth/wrong-password") return { exists: true, unknown: false };
+      // auth/invalid-credential = Firebase enumeration protection on — can't tell
+      if (code === "auth/invalid-credential") return { exists: false, unknown: true };
+      if (code === "auth/invalid-email") return { exists: false, unknown: false, error: "Invalid email address." };
+      return { exists: false, unknown: true };
+    }
+  };
+
+  const signup = async (email, password, name, role = "customer", phone = "", searchProfile = null) => {
     const e = email.toLowerCase().trim();
     if (!isGmailAddress(e)) return { success: false, error: gmailSignupErrorMessage() };
     const users = getUsers();
@@ -335,7 +356,19 @@ export function AuthProvider({ children }) {
     }
     try {
       const cred = await createUserWithEmailAndPassword(auth, e, password);
+      // Save base profile (name, phone, role)
       await createProfileAfterSignup({ firebaseUser: cred.user, name: name || e.split("@")[0], role: normalizedRole, phone });
+      // Save flat search profile to customerSearchProfiles collection
+      if (normalizedRole === "customer" && searchProfile) {
+        await saveCustomerSearchProfile(cred.user.uid, searchProfile);
+        // Also mirror key search fields onto userProfiles for quick admin reads
+        const { bhk, preferredAreas, moveInDate, budgetMax, priority } = searchProfile;
+        await setDoc(
+          doc(db, "userProfiles", cred.user.uid),
+          { flatSearch: { bhk: bhk || "", preferredAreas: preferredAreas || [], moveInDate: moveInDate || "", budgetMax: budgetMax || null, priority: priority || "" } },
+          { merge: true },
+        );
+      }
       await sendEmailVerification(cred.user);
       await signOut(auth);
       return {
@@ -471,6 +504,30 @@ export function AuthProvider({ children }) {
     saveSellerRequests(requests.map((r) => r.email === e ? { ...r, status: "rejected" } : r));
   };
 
+  const updateUserProfile = async (name, phone, flatSearch = null) => {
+    if (!user?.uid && isFirebaseConfigured) return { success: false, error: "Not signed in." };
+    const trimName = String(name || "").trim();
+    const trimPhone = String(phone || "").trim();
+    if (isFirebaseConfigured) {
+      try {
+        const patch = { name: trimName, phone: trimPhone, updatedAt: serverTimestamp() };
+        if (flatSearch) patch.flatSearch = flatSearch;
+        await setDoc(doc(db, "userProfiles", user.uid), patch, { merge: true });
+        setUser((u) => ({ ...u, name: trimName, phone: trimPhone }));
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: normalizeFirebaseError(error) };
+      }
+    }
+    const users = getUsers();
+    if (users[user.email]) {
+      users[user.email] = { ...users[user.email], name: trimName, phone: trimPhone };
+      saveUsers(users);
+    }
+    setUser((u) => ({ ...u, name: trimName, phone: trimPhone }));
+    return { success: true };
+  };
+
   const logout = async () => {
     setUser(null);
     sessionStorage.removeItem("moveasy_session_user");
@@ -515,6 +572,7 @@ export function AuthProvider({ children }) {
       login,
       loginWithGoogle,
       signup,
+      checkEmail,
       forgotPassword,
       resendVerificationEmail,
       logout,
@@ -527,6 +585,7 @@ export function AuthProvider({ children }) {
       submitSellerBadgeApplication,
       approveSellerBadge,
       rejectSellerBadge,
+      updateUserProfile,
     }}>
       {children}
     </AuthContext.Provider>

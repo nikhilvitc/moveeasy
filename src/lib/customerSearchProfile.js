@@ -16,6 +16,7 @@ export const EMPTY_SEARCH_PROFILE = {
   pets: "",
   parking: "",
   notes: "",
+  priority: "",
 };
 
 function toList(value) {
@@ -56,6 +57,7 @@ export function normalizeSearchProfile(raw) {
     pets: String(r.pets || "").trim().slice(0, 120),
     parking: String(r.parking || "").trim().slice(0, 120),
     notes: String(r.notes || "").trim().slice(0, 800),
+    priority: String(r.priority || "").trim().slice(0, 80),
   };
 }
 

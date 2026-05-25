@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform, useMotionValue, animate } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, useSpring, animate } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -12,6 +12,10 @@ import consultantImg from '../assets/images/guarentee-consultant.png';
 import './About.css';
 
 const EASE = [0.22, 1, 0.36, 1];
+const HERO_LINE1 = 'Moving to Bangalore?';
+const HERO_LINE2 = 'We make it actually easy.';
+const HERO_LINE1_LEN = HERO_LINE1.length;
+const HERO_TOTAL_CHARS = HERO_LINE1_LEN + HERO_LINE2.length;
 
 const MARQUEE = [
   'IIT Kanpur Alumni', '300+ Verified Brokers', 'Zero Brokerage Drama',
@@ -87,14 +91,6 @@ const CHAPTERS = [
   },
 ];
 
-const STORY_BG_BY_CHAPTER = [
-  '/story2.png',
-  '/story3.png',
-  '/story3.png',
-  '/story4.png',
-  '/story5.png',
-];
-
 const TESTIMONIALS = [
   { init: 'R', name: 'Rohan Mehta', role: 'SWE @ Zepto', college: 'IIT Bombay · 2024', text: 'Got my flat in Koramangala in 8 days. My rep WhatsApped me shortlists every morning based on my commute. Zero chaos, zero brokerage drama. 10/10.', stars: 5 },
   { init: 'P', name: 'Priya Sharma', role: 'Analyst @ McKinsey', college: 'IIT Delhi · 2024', text: 'I was in Delhi, moving to Bangalore in 3 weeks with zero local knowledge. My rep did 12 virtual tours before I even landed. Moved in on Day 2.', stars: 5 },
@@ -164,10 +160,47 @@ function FadeUp({ children, delay = 0, className = '' }) {
   );
 }
 
+/* ─── Typing text ───────────────────────────────────────────────────── */
+function TypedText({ text, speed = 34, delay = 400 }) {
+  const [displayed, setDisplayed] = useState('');
+  const elRef = useRef(null);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    let cancel = () => {};
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !startedRef.current) {
+        startedRef.current = true;
+        let i = 0;
+        const t = setTimeout(() => {
+          const iv = setInterval(() => {
+            i++;
+            setDisplayed(text.slice(0, i));
+            if (i >= text.length) clearInterval(iv);
+          }, speed);
+          cancel = () => clearInterval(iv);
+        }, delay);
+        cancel = () => clearTimeout(t);
+      }
+    }, { threshold: 0.3 });
+    obs.observe(el);
+    return () => { obs.disconnect(); cancel(); };
+  }, [text, speed, delay]);
+
+  return (
+    <span ref={elRef}>
+      {displayed}
+      {displayed.length < text.length && <span className="abt-jc-type-cursor" />}
+    </span>
+  );
+}
+
 /* ─── Journey chart ─────────────────────────────────────────────────── */
 const GREEN = '#22C55E';
 const VIEWW = 1000;
-const VIEWH = 420;
+const VIEWH = 450;
 const LW = 130; // label card width
 const LH = 33;  // label card height
 const LC = 38;  // connector length
@@ -217,17 +250,17 @@ function makeSmoothPath(pts) {
   return d;
 }
 
-function ChartLabel({ pt, color, frac, pathProgress, textFill = 'rgba(20,20,20,0.75)' }) {
+function ChartLabel({ pt, color, frac, pathProgress, textFill = 'rgba(255,255,255,.92)', cardBg = 'rgba(22,22,22,.95)' }) {
   const opacity = useTransform(pathProgress, [Math.max(0, frac - 0.06), frac + 0.04], [0, 1]);
-  const rx  = Math.max(8, Math.min(pt.x - LW / 2, VIEWW - LW - 8));
+  const rx  = Math.max(25, Math.min(pt.x - LW / 2, VIEWW - LW - 25));
   const ry  = pt.above ? pt.y - LC - LH : pt.y + LC;
   const cy1 = pt.above ? ry + LH + 2 : pt.y + 5;
   const cy2 = pt.above ? pt.y - 5    : ry - 2;
   return (
     <motion.g style={{ opacity }}>
-      <line x1={pt.x} y1={cy1} x2={pt.x} y2={cy2} stroke={color} strokeWidth="1.5" strokeDasharray="3 2.5" opacity="0.45" />
-      <rect x={rx} y={ry} width={LW} height={LH} rx="8" fill="#fff" stroke={`${color}50`} strokeWidth="1"
-        style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.08))' }} />
+      <line x1={pt.x} y1={cy1} x2={pt.x} y2={cy2} stroke={color} strokeWidth="1.5" strokeDasharray="3 2.5" opacity="0.5" />
+      <rect x={rx} y={ry} width={LW} height={LH} rx="8" fill={cardBg} stroke={`${color}55`} strokeWidth="1"
+        style={{ filter: 'drop-shadow(0 3px 12px rgba(0,0,0,0.55))' }} />
       <text x={rx + LW / 2} y={ry + LH * 0.65} textAnchor="middle"
         fill={textFill} fontSize="10.5" fontWeight="500" fontFamily="Sora, system-ui, sans-serif">
         {pt.label}
@@ -237,34 +270,47 @@ function ChartLabel({ pt, color, frac, pathProgress, textFill = 'rgba(20,20,20,0
 }
 
 function ChartDot({ pt, color, frac, pathProgress }) {
-  const opacity = useTransform(pathProgress, [Math.max(0, frac - 0.04), frac + 0.03], [0, 0.9]);
-  return <motion.circle cx={pt.x} cy={pt.y} r={5.5} fill={color} style={{ opacity }} />;
+  const opacity = useTransform(pathProgress, [Math.max(0, frac - 0.04), frac + 0.03], [0, 1]);
+  return (
+    <motion.g style={{ opacity }}>
+      <circle cx={pt.x} cy={pt.y} r={13} fill={color} opacity={0.12} />
+      <circle cx={pt.x} cy={pt.y} r={6} fill={color} />
+    </motion.g>
+  );
 }
 
 const WITH_END  = WITH_PTS[WITH_PTS.length - 1];
 
 const WITHOUT_END = WITHOUT_PTS[WITHOUT_PTS.length - 1];
 
-function JourneyChart({ scrollProgress }) {
-  const pathProgress = useTransform(scrollProgress, [0.04, 0.62], [0, 1]);
-  const fillOpacity  = useTransform(scrollProgress, [0.04, 0.32], [0, 1]);
-  const photoOpacity = useTransform(scrollProgress, [0.60, 0.76], [0, 1]);
+function JourneyChart() {
+  const [inViewRef, inView] = useInView({ triggerOnce: true, threshold: 0.2 });
+  const progress    = useMotionValue(0);
+  const pathProgress = progress;
+  const fillOpacity  = useTransform(progress, [0.03, 0.38], [0, 1]);
+  const photoOpacity = useTransform(progress, [0.72, 0.88], [0, 1]);
+
+  useEffect(() => {
+    if (!inView) return;
+    const c = animate(progress, 1, { duration: 3.5, ease: 'easeInOut' });
+    return () => c.stop();
+  }, [inView, progress]);
 
   return (
-    <div className="abt-jc-wrap">
-      <svg viewBox={`0 0 ${VIEWW} ${VIEWH}`} preserveAspectRatio="xMidYMid meet" className="abt-jc-svg">
+    <div className="abt-jc-wrap" ref={inViewRef}>
+      <svg viewBox={`0 0 ${VIEWW} ${VIEWH}`} preserveAspectRatio="xMidYMin meet" className="abt-jc-svg">
           <defs>
             <clipPath id="jc-cy"><circle cx={WITH_END.x} cy={WITH_END.y} r={30} /></clipPath>
             <clipPath id="jc-ca"><circle cx={WITHOUT_END.x} cy={WITHOUT_END.y} r={30} /></clipPath>
             <linearGradient id="jc-gfill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor={GREEN} stopOpacity="0.14" />
-              <stop offset="100%" stopColor={GREEN} stopOpacity="0.02" />
+              <stop offset="0%"   stopColor={GREEN} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={GREEN} stopOpacity="0.03" />
             </linearGradient>
           </defs>
 
           {/* Grid */}
           {[80, 160, 240, 320].map(y => (
-            <line key={y} x1="40" y1={y} x2="970" y2={y} stroke="rgba(0,0,0,0.055)" strokeWidth="1" />
+            <line key={y} x1="40" y1={y} x2="970" y2={y} stroke="rgba(255,255,255,.07)" strokeWidth="1" />
           ))}
 
           {/* Green fill — scroll-driven opacity */}
@@ -275,12 +321,12 @@ function JourneyChart({ scrollProgress }) {
           />
 
           {/* With MovEazy line — scroll-driven pathLength */}
-          <motion.path d={makeSmoothPath(WITH_PTS)} stroke={GREEN} strokeWidth="2.8" fill="none"
+          <motion.path d={makeSmoothPath(WITH_PTS)} stroke={GREEN} strokeWidth="3.2" fill="none"
             strokeLinecap="round" strokeLinejoin="round"
             style={{ pathLength: pathProgress }} />
 
           {/* Without MovEazy line — scroll-driven pathLength */}
-          <motion.path d={makeSmoothPath(WITHOUT_PTS)} stroke="#E8321A" strokeWidth="2.8" fill="none"
+          <motion.path d={makeSmoothPath(WITHOUT_PTS)} stroke="#E8321A" strokeWidth="3.2" fill="none"
             strokeLinecap="round" strokeLinejoin="round"
             style={{ pathLength: pathProgress }} />
 
@@ -376,20 +422,22 @@ function StoryWithCurtain() {
   const spacerRefs = useRef([]);
   const [activeChapter, setActiveChapter] = useState(0);
   const [chapterProgress, setChapterProgress] = useState(0);
-  const [pbWidth, setPbWidth] = useState(0);
-  const [hasEntered, setHasEntered] = useState(false);
+  const pbRef = useRef(null);
   const dirRef = useRef(1);
   const prevChRef = useRef(0);
-  const hasEnteredRef = useRef(false);
+  const rafRef = useRef(null);
 
-  // curtainState derived directly — no separate state, no race conditions
+  // Spring-driven curtain — updated imperatively without React re-renders
+  const curtainMV = useMotionValue(0);
+  const curtainSpring = useSpring(curtainMV, { stiffness: 52, damping: 20, restDelta: 0.01 });
+  const leftXVal  = useTransform(curtainSpring, v => `${-v}%`);
+  const rightXVal = useTransform(curtainSpring, v => `${v}%`);
 
   useEffect(() => {
     const tick = () => {
       const mid = window.innerHeight * 0.5;
       let ch = 0;
       let prog = 0;
-      let spacerFound = false;
 
       for (let i = CHAPTERS.length - 1; i >= 0; i--) {
         const el = spacerRefs.current[i];
@@ -398,7 +446,6 @@ function StoryWithCurtain() {
         if (r.top <= mid) {
           ch = i;
           prog = Math.max(0, Math.min(1, (mid - r.top) / r.height));
-          spacerFound = true;
           break;
         }
       }
@@ -409,67 +456,67 @@ function StoryWithCurtain() {
       }
 
       setActiveChapter(ch);
-      if (ch > 0 || (ch === 0 && prog > 0.5)) {
-        setChapterProgress(prog);
-      } else {
-        setChapterProgress(0);
-      }
-
-      if (spacerFound && !hasEnteredRef.current) {
-        hasEnteredRef.current = true;
-        setHasEntered(true);
-      }
+      setChapterProgress(ch > 0 || prog > 0.5 ? prog : 0);
 
       const wrap = wrapRef.current;
       if (wrap) {
         const rect = wrap.getBoundingClientRect();
         const scrolled = Math.max(0, -rect.top);
         const total = wrap.offsetHeight - window.innerHeight;
-        setPbWidth(total > 0 ? Math.min(100, (scrolled / total) * 100) : 0);
+        const pb = total > 0 ? Math.min(100, (scrolled / total) * 100) : 0;
+        const inView = rect.top < window.innerHeight && rect.bottom > 0;
+        if (pbRef.current) {
+          pbRef.current.style.width = `${pb}%`;
+          pbRef.current.style.opacity = inView ? '1' : '0';
+        }
+
+        // Curtain: fast open on entry → hold through chapters → fully open at exit
+        const target =
+          pb < 1  ? 0 :
+          pb < 12 ? ((pb - 1) / 11) * 68 :
+          pb < 82 ? 68 :
+          68 + ((pb - 82) / 18) * 32;
+        curtainMV.set(target);
       }
     };
-    window.addEventListener('scroll', tick, { passive: true });
+
+    const onScroll = () => {
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        tick();
+        rafRef.current = null;
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
     tick();
-    return () => window.removeEventListener('scroll', tick);
-  }, []);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [curtainMV]);
 
   const ch = CHAPTERS[activeChapter];
   const dir = dirRef.current;
-  const curtainState = !hasEntered ? 'closed' : activeChapter >= 4 ? 'full' : 'partial';
-  const leftX  = curtainState === 'full' ? '-100%' : curtainState === 'partial' ? '-70%' : '0%';
-  const rightX = curtainState === 'full' ?  '100%' : curtainState === 'partial' ?  '70%' : '0%';
 
   return (
     <div className="abt-story-curtain-wrap" ref={wrapRef}>
-      {/* Episode background: switches per active chapter (story1..storyN in public) */}
-      <motion.div
-        key={`ep-bg-${activeChapter}`}
-        className="abt-story-episode-bg"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.9, ease: EASE }}
-        style={{ backgroundImage: `url('${STORY_BG_BY_CHAPTER[activeChapter] || '/story5.png'}')` }}
-      />
-      {/* Curtain: closed → 80% at ch1 → 100% as section exits */}
       <div className="abt-curtain-sticky">
         <motion.div
           className="abt-curtain-panel abt-curtain-left"
-          animate={{ x: leftX }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+          style={{ x: leftXVal }}
         >
           <img src="/opener1.png" alt="" draggable={false} />
         </motion.div>
         <motion.div
           className="abt-curtain-panel abt-curtain-right"
-          animate={{ x: rightX }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+          style={{ x: rightXVal }}
         >
           <img src="/opener2.jpg" alt="" draggable={false} />
         </motion.div>
       </div>
 
-      <div className="abt-story-pb" style={{ width: `${pbWidth}%` }} />
+      <div className="abt-story-pb" ref={pbRef} />
 
       <div className="abt-sticky-stage">
         <div className="abt-story-col">
@@ -478,7 +525,7 @@ function StoryWithCurtain() {
             className="abt-story-watermark"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
             aria-hidden="true"
           >
             {ch.num}
@@ -486,9 +533,9 @@ function StoryWithCurtain() {
 
           <motion.div
             key={activeChapter}
-            initial={{ opacity: 0, y: dir * 30 }}
+            initial={{ opacity: 0, y: dir * 22 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: EASE }}
+            transition={{ duration: 0.38, ease: EASE }}
             style={{ position: 'relative', zIndex: 1 }}
           >
             <p className="abt-sn">Chapter {ch.num}</p>
@@ -506,23 +553,14 @@ function StoryWithCurtain() {
     </div>
   );
 }
-/* Cards spread to 6 positions (2×3 grid) — x gap must exceed card width (340px) */
-const SPREAD_POS = [
-  { x: -390, y: -285 }, // top-left
-  { x:    0, y: -335 }, // top-center
-  { x:  390, y: -285 }, // top-right
-  { x: -390, y:  285 }, // bottom-left
-  { x:    0, y:  335 }, // bottom-center
-  { x:  390, y:  285 }, // bottom-right
-];
 const CARD_ROTS  = [-1, 0, 1, 1, 0, -1];
 const DECK_ROTS  = [9, -6, 3, -11, 7, -4];
 
 const SOLUTION_ITEMS = [
-  { num: '01', heading: <>Your rep. Not a broker's.</>, desc: "One dedicated person handles your entire search — shortlisting, visits, negotiations. They work for you, not for a commission from the landlord.", tag: 'Assigned Day 1' },
-  { num: '02', heading: <>Every listing <em>vetted</em> before you see it.</>, desc: "No fake photos, no token traps. We physically verify each flat and confirm availability — so you never waste a Sunday on a ghost listing.", tag: '₹0 Token Losses' },
-  { num: '03', heading: <>Shortlisted around your commute, not a pin.</>, desc: "We filter by your actual travel time to office — not crow-flight distance. Metro routes, traffic patterns, your hours.", tag: 'Commute-First' },
-  { num: '04', heading: <>Reachable on WhatsApp. Even at 11pm.</>, desc: "Your rep picks up calls, replies to messages, and keeps you updated — not a chatbot, not a ticketing queue.", tag: 'Always On' },
+  { num: '01', heading: <>Your rep. Not a broker's.</>, desc: "One dedicated person handles your search — shortlisting, visits, negotiations. For you, not a landlord's commission.", tag: 'Assigned Day 1' },
+  { num: '02', heading: <>Every listing <em>vetted</em> before you see it.</>, desc: "No fake photos, no token traps. We verify each flat and confirm availability before you visit.", tag: '₹0 Token Losses' },
+  { num: '03', heading: <>Shortlisted around your commute.</>, desc: "Filtered by actual travel time to your office — metro routes, traffic, your hours. Not a map pin.", tag: 'Commute-First' },
+  { num: '04', heading: <>Reachable on WhatsApp. Even at 11pm.</>, desc: "Your rep picks up, replies, and keeps you updated. Not a chatbot.", tag: 'Always On' },
 ];
 
 /* ─── Animated checkbox ─────────────────────────────────────────────── */
@@ -600,7 +638,8 @@ function SolutionSection() {
       <motion.div
         className="abt-sol-curtain abt-sol-curtain-top"
         animate={{ y: curtainOpen ? '-100%' : '0%' }}
-        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+        style={{ willChange: 'transform' }}
       >
         <img src="/curtain_1.jpg" alt="" draggable={false} />
       </motion.div>
@@ -609,7 +648,8 @@ function SolutionSection() {
       <motion.div
         className="abt-sol-curtain abt-sol-curtain-bot"
         animate={{ y: curtainOpen ? '100%' : '0%' }}
-        transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+        style={{ willChange: 'transform' }}
       >
         <img src="/curtain_2.jpg" alt="" draggable={false} />
       </motion.div>
@@ -633,7 +673,6 @@ function SolutionSection() {
           animate={curtainOpen ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.45, delay: 0, ease: EASE }}
         >
-          <span className="abt-eye abt-sol-eye">What we actually do</span>
           <h2 className="abt-sol-main-h">Everything broken about rentals? <em>Fixed.</em></h2>
         </motion.div>
 
@@ -660,47 +699,24 @@ function TestiCard({ t, expanded = false }) {
   const [firstName, ...rest] = t.name.split(' ');
   const lastName = rest.join(' ');
   return (
-    <motion.div
-      className="abt-tcard"
-      animate={{
-        backgroundColor: expanded ? '#ffffff' : '#1C1C1E',
-        borderColor:     expanded ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)',
-      }}
-      transition={{ duration: 0.55, ease: EASE }}
-    >
+    <div className={`abt-tcard${expanded ? ' abt-tcard--exp' : ''}`}>
       <div className="abt-tcard-toprow">
-        <span className="abt-tcard-dot"
-          style={{ background: expanded ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.25)' }} />
+        <span className="abt-tcard-dot" />
         <span className="abt-tcard-arrowbtn">↗</span>
       </div>
       <div className="abt-tcard-namewrap">
-        <motion.span className="abt-tcard-fname"
-          animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.4)' }}
-          transition={{ duration: 0.5, ease: EASE }}>{firstName}</motion.span>
-        <motion.span className="abt-tcard-lname"
-          animate={{ color: expanded ? '#0C0C0C' : '#ffffff' }}
-          transition={{ duration: 0.5, ease: EASE }}>{lastName}</motion.span>
+        <span className="abt-tcard-fname">{firstName}</span>
+        <span className="abt-tcard-lname">{lastName}</span>
       </div>
-      <motion.p className="abt-tcard-review"
-        animate={{
-          color:     expanded ? 'rgba(12,12,12,0.6)' : 'rgba(255,255,255,0.38)',
-          maxHeight: expanded ? 300 : 72,
-        }}
-        transition={{ duration: 0.65, ease: EASE }}
-        style={{ overflow: 'hidden', margin: 0 }}
-      >"{t.text}"</motion.p>
-      <motion.span className="abt-tcard-roletxt"
-        animate={{ color: expanded ? 'rgba(12,12,12,0.38)' : 'rgba(255,255,255,0.32)' }}
-        transition={{ duration: 0.5, ease: EASE }}>{t.role}</motion.span>
+      <p className="abt-tcard-review" style={{ maxHeight: expanded ? 130 : 55 }}>
+        "{t.text}"
+      </p>
+      <span className="abt-tcard-roletxt">{t.role}</span>
       <div className="abt-tcard-pills">
-        <motion.span className="abt-tcard-pill"
-          animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
-          transition={{ duration: 0.5, ease: EASE }}>{t.college.split('·')[0].trim()}</motion.span>
-        <motion.span className="abt-tcard-pill"
-          animate={{ borderColor: expanded ? 'rgba(12,12,12,0.18)' : 'rgba(255,255,255,0.16)', color: expanded ? 'rgba(12,12,12,0.5)' : 'rgba(255,255,255,0.48)' }}
-          transition={{ duration: 0.5, ease: EASE }}>{'★'.repeat(t.stars)}</motion.span>
+        <span className="abt-tcard-pill">{t.college.split('·')[0].trim()}</span>
+        <span className="abt-tcard-pill">{'★'.repeat(t.stars)}</span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -708,62 +724,34 @@ function TestiCard({ t, expanded = false }) {
 export default function About() {
   const heroRef = useRef(null);
   const videoRef = useRef(null);
-  const jcScrollRef = useRef(null);
 
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '14%']);
   const heroOp = useTransform(scrollYProgress, [0, 0.65], [1, 0]);
 
-  const { scrollYProgress: jcRawProgress } = useScroll({
-    target: jcScrollRef,
-    offset: ['start start', 'end end'],
-  });
-  // Ratchet: only ever increases so the graph never un-draws on scroll-back
-  const jcScrollProgress = useMotionValue(0);
-  useEffect(() => {
-    return jcRawProgress.on('change', v => {
-      if (v > jcScrollProgress.get()) jcScrollProgress.set(v);
-    });
-  }, [jcRawProgress, jcScrollProgress]);
-
-  // Skip through chart dead-zone in both directions
-  useEffect(() => {
-    let lastY = window.scrollY;
-    let jumping = false;
-    const onScroll = () => {
-      const y = window.scrollY;
-      const up = y < lastY;
-      lastY = y;
-      if (jumping || !jcScrollRef.current) return;
-      const el = jcScrollRef.current;
-      const top = el.offsetTop;
-      const end = top + el.offsetHeight - window.innerHeight;
-      if (up) {
-        // Scrolling up: jump to section top so user isn't stuck in dead zone
-        if (y > top + 50 && y <= end) {
-          jumping = true;
-          window.scrollTo({ top, behavior: 'smooth' });
-          setTimeout(() => { jumping = false; }, 700);
-        }
-      } else {
-        // Scrolling down: once graph is fully drawn, jump past remaining buffer
-        if (jcScrollProgress.get() >= 0.78 && y > top + 20 && y < end) {
-          jumping = true;
-          window.scrollTo({ top: end + 2, behavior: 'smooth' });
-          setTimeout(() => { jumping = false; }, 700);
-        }
-      }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [jcScrollProgress]);
-
   const [tcExpanded, setTcExpanded] = useState(false);
+  const tcExpandedRef = useRef(false);
   const testiEl = useRef(null);
+  const spreadWrapRef = useRef(null);
+  const [spreadX, setSpreadX] = useState(350);
   const [typedCount, setTypedCount] = useState(0);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = 0.6;
+  }, []);
+
+  // Compute card x-offset from actual wrap width so cards never clip
+  useEffect(() => {
+    const update = () => {
+      if (!spreadWrapRef.current) return;
+      const halfW = spreadWrapRef.current.offsetWidth / 2;
+      // card half-width = 190px, keep 12px min margin from wrap edge
+      setSpreadX(Math.min(390, Math.max(200, halfW - 202)));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (spreadWrapRef.current) ro.observe(spreadWrapRef.current);
+    return () => ro.disconnect();
   }, []);
 
   // Expand cards when testimonials section center reaches viewport center
@@ -771,32 +759,53 @@ export default function About() {
     const el = testiEl.current;
     if (!el) return;
     const check = () => {
-      if (tcExpanded) return;
+      if (tcExpandedRef.current) return;
       const { top, height } = el.getBoundingClientRect();
-      if (top + height / 2 <= window.innerHeight * 0.35) setTcExpanded(true);
+      if (top + height / 2 <= window.innerHeight * 0.35) {
+        tcExpandedRef.current = true;
+        setTcExpanded(true);
+      }
     };
     window.addEventListener('scroll', check, { passive: true });
     check();
     return () => window.removeEventListener('scroll', check);
-  }, [tcExpanded]);
+  }, []);
 
-  // "We didn't"(9) + "build this"(10) + "for "(4) + "everyone."(9) = 32
+  // Two-line typing: first line, then second line
   useEffect(() => {
-    let iv;
-    const t = setTimeout(() => {
-      iv = setInterval(() => {
-        setTypedCount(c => {
-          if (c >= 32) { clearInterval(iv); return c; }
-          return c + 1;
+    let intervalId;
+    const timeoutId = setTimeout(() => {
+      intervalId = setInterval(() => {
+        setTypedCount((current) => {
+          if (current >= HERO_TOTAL_CHARS) {
+            clearInterval(intervalId);
+            return current;
+          }
+          return current + 1;
         });
-      }, 72);
-    }, 350);
-    return () => { clearTimeout(t); if (iv) clearInterval(iv); };
+      }, 55);
+    }, 250);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   return (
     <div className="abt-page">
       <Navbar />
+
+      {/* ══ MARQUEE ══════════════════════════════════════════════════ */}
+      <div className="abt-marquee-wrap" aria-hidden="true">
+        <div className="abt-marquee-track">
+          {[...MARQUEE, ...MARQUEE].map((item, i) => (
+            <span key={i} className="abt-marquee-item">
+              {item}<span className="abt-marquee-gem">◆</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* ══ 1. HERO ══════════════════════════════════════════════ */}
       <section className="abt-hero" ref={heroRef}>
@@ -813,66 +822,29 @@ export default function About() {
         {/* Layered overlays */}
         <div className="abt-hero-overlay" />
         <div className="abt-hero-glow" />
+        <div className="abt-hero-noise" />
 
         {/* Content */}
         <motion.div className="abt-hero-content" style={{ y: heroY, opacity: heroOp }}>
           {/* badge removed as requested */}
 
           <h1 className="abt-hero-h1">
-            {"We didn't".slice(0, Math.min(typedCount, 9))}
-            {typedCount > 9 && <><br />{"build this".slice(0, Math.min(typedCount - 9, 10))}</>}
-            {typedCount > 19 && <><br />{"for ".slice(0, Math.min(typedCount - 19, 4))}</>}
-            {typedCount > 23 && <em>{"everyone.".slice(0, Math.min(typedCount - 23, 9))}</em>}
-            {typedCount < 32 && <span className="abt-typed-cursor" />}
+            <span className="abt-hero-line">{HERO_LINE1.slice(0, Math.min(typedCount, HERO_LINE1_LEN))}</span>
+            <span className="abt-hero-line">
+              {typedCount > HERO_LINE1_LEN && <em>{HERO_LINE2.slice(0, Math.min(typedCount - HERO_LINE1_LEN, HERO_LINE2.length))}</em>}
+            </span>
+            {typedCount < HERO_TOTAL_CHARS && <span className="abt-typed-cursor" />}
           </h1>
-
-          <motion.p
-            className="abt-hero-sub"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 2.65, ease: EASE }}
-          >
-            Built for IIT &amp; NIT graduates moving to Bangalore — by two who got burned doing it themselves.
-          </motion.p>
 
           <motion.div className="abt-hero-btns" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 2.85, ease: EASE }}>
             <Link className="abt-btn-red abt-btn-red-arrow" to="/contact">
-              Get Free Consultation
+              Book Free Consultation
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
                 <path d="M2 6.5h9M7.5 2.5l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <Link className="abt-btn-outline" to="/map">Browse Listings</Link>
+            <Link className="abt-btn-outline" to="/map">View Verified Listings</Link>
           </motion.div>
-
-          <motion.div className="abt-hero-iit-tag" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3.05 }}>
-            <span className="abt-hero-iit-dot" />
-            IIT Kanpur · Class of 2024
-          </motion.div>
-        </motion.div>
-
-        {/* Full-width proof bar at bottom */}
-        <motion.div
-          className="abt-hero-stats-row"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 3.0, ease: EASE }}
-        >
-          {[
-            { val: '300+', unit: null,   label: 'Verified Brokers',    note: 'across Bangalore' },
-            { val: '8',    unit: 'days', label: 'Avg. time to move in', note: 'from first call'  },
-            { val: '100%', unit: null,   label: 'Dedicated rep',        note: 'for every move'   },
-            { val: '₹0',   unit: null,   label: 'Brokerage fees',       note: 'ever'             },
-          ].map((s) => (
-            <div key={s.label} className="abt-hero-stat-pill">
-              <div className="abt-hero-stat-num">
-                <span className="abt-hero-stat-val">{s.val}</span>
-                {s.unit && <span className="abt-hero-stat-unit">{s.unit}</span>}
-              </div>
-              <span className="abt-hero-stat-lbl">{s.label}</span>
-              <span className="abt-hero-stat-note">{s.note}</span>
-            </div>
-          ))}
         </motion.div>
 
         {/* Scroll cue */}
@@ -885,21 +857,24 @@ export default function About() {
             <path d="M10 4v12M4 10l6 6 6-6" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </motion.div>
+
       </section>
 
-      {/* ══ 5. JOURNEY CHART — tall wrapper keeps section sticky while graph draws */}
-      <div ref={jcScrollRef} className="abt-jc-scroll-wrap">
-        <section className="abt-jc-sec">
+      {/* ══ 5. JOURNEY CHART ════════════════════════════════════════ */}
+      <section className="abt-jc-sec">
           <div className="abt-jc-top">
             <motion.div
-              className="abt-jc-side"
-              initial={{ opacity: 0, x: -30 }}
+              className="abt-jc-panel abt-jc-panel-green"
+              initial={{ opacity: 0, x: -28 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, ease: EASE }}
             >
-              <span className="abt-jc-with-label">WITH MOVEAZY</span>
-              <p className="abt-jc-side-h" style={{ color: GREEN }}>Smooth. Fast. Zero drama.</p>
+              <span className="abt-jc-panel-dot abt-jc-panel-dot-green" />
+              <div>
+                <span className="abt-jc-with-label">WITH MOVEAZY–<span style={{ color: 'rgba(232,50,26,.88)', fontWeight: 700 }}>SMOOTH. FAST. ZERO-DRAMA.</span></span>
+                
+              </div>
             </motion.div>
 
             <motion.div
@@ -907,28 +882,29 @@ export default function About() {
               initial={{ opacity: 0, scale: 0.7 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2, ease: EASE }}
+              transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
             >
               vs
             </motion.div>
 
             <motion.div
-              className="abt-jc-side abt-jc-side-r"
-              initial={{ opacity: 0, x: 30 }}
+              className="abt-jc-panel abt-jc-panel-red"
+              initial={{ opacity: 0, x: 28 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, ease: EASE }}
             >
-              <span className="abt-jc-with-label">WITHOUT MOVEAZY</span>
-              <p className="abt-jc-side-h" style={{ color: '#E8321A' }}>Chaotic. Costly. Soul-crushing.</p>
+              <span className="abt-jc-panel-dot abt-jc-panel-dot-red" />
+              <div>
+                <span className="abt-jc-with-label">WITHOUT MOVEAZY-<span style={{ color: 'rgba(232,50,26,.88)', fontWeight: 700 }}>CHAOTIC. COSTLY. SOUL-CRUSHING.</span></span>
+              </div>
             </motion.div>
           </div>
 
           <p className="abt-jc-caption">Your flat-finding journey — visualised.</p>
 
-          <JourneyChart scrollProgress={jcScrollProgress} />
-        </section>
-      </div>
+          <JourneyChart />
+      </section>
 
       {/* ══ 6. SOLUTION ══════════════════════════════════════════ */}
       <SolutionSection />
@@ -939,45 +915,49 @@ export default function About() {
       {/* ══ 7. TESTIMONIALS ══════════════════════════════════════ */}
       <section className="abt-testimonials" ref={testiEl}>
         <div className="abt-testi-inner">
-          {/* Header row */}
           <div className="abt-testi-hrow">
             <FadeUp>
-              <span className="abt-eye">User feedback</span>
               <h2 className="abt-sec-h2" style={{ marginBottom: 0 }}>What our user <em>say.</em></h2>
             </FadeUp>
           </div>
-          {/* Spread deck — auto-expands when section enters view */}
-          <motion.div
-            className="abt-spread-wrap"
-            animate={{ height: tcExpanded ? 1000 : 520 }}
-            transition={{ duration: 1.05, ease: EASE }}
-          >
-            {TESTIMONIALS.map((t, i) => (
+        </div>
+
+        {/* Spread deck — lives at section width, not inner width */}
+        <motion.div
+          ref={spreadWrapRef}
+          className="abt-spread-wrap"
+          initial={false}
+          animate={{ height: tcExpanded ? 1040 : 480 }}
+          transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {TESTIMONIALS.map((t, i) => {
+            const xDir = [-1, 0, 1, -1, 0, 1][i];
+            const yPos = i < 3 ? -230 : 230;
+            return (
               <motion.div
                 key={i}
                 className="abt-spread-card"
                 animate={tcExpanded
-                  ? { x: SPREAD_POS[i].x, y: SPREAD_POS[i].y, rotate: CARD_ROTS[i] }
+                  ? { x: xDir * spreadX, y: yPos, rotate: CARD_ROTS[i] }
                   : { x: 0, y: 0, rotate: DECK_ROTS[i] }
                 }
-                transition={{ type: 'spring', stiffness: 82, damping: 20, mass: 0.9, delay: i * 0.06 }}
+                transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: i * 0.04 }}
                 style={{ zIndex: 1 }}
               >
                 <TestiCard t={t} expanded={tcExpanded} />
               </motion.div>
-            ))}
-            <motion.div
-              className="abt-star-btn"
-              animate={{ scale: tcExpanded ? 0.8 : 1, rotate: tcExpanded ? 135 : 0 }}
-              transition={{ duration: 0.65, ease: EASE }}
-            >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                <path d="M12 1 L14.2 9.8 L23 12 L14.2 14.2 L12 23 L9.8 14.2 L1 12 L9.8 9.8 Z" />
-              </svg>
-            </motion.div>
+            );
+          })}
+          <motion.div
+            className="abt-star-btn"
+            animate={{ scale: tcExpanded ? 0.8 : 1, rotate: tcExpanded ? 135 : 0 }}
+            transition={{ duration: 0.65, ease: EASE }}
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+              <path d="M12 1 L14.2 9.8 L23 12 L14.2 14.2 L12 23 L9.8 14.2 L1 12 L9.8 9.8 Z" />
+            </svg>
           </motion.div>
-
-        </div>
+        </motion.div>
       </section>
 
       {/* ══ 8. TEAM CAROUSEL ════════════════════════════════════ */}
@@ -989,12 +969,7 @@ export default function About() {
         </div>
 
         <motion.div className="abt-team-carousel" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
-          <motion.div
-            className="abt-team-track"
-            animate={{ x: -340*12 }}
-            transition={{ duration: 30, repeat: Infinity, ease: "linear", repeatType: "loop" }}
-            onAnimationComplete={() => {}}
-          >
+          <div className="abt-team-track">
             {Array.from({ length: 24 }).map((_, i) => {
               const member = i % 2 === 0
                 ? { photo: yatharthImg, name: 'Yatharth', role: 'Co-Founder' }
@@ -1009,7 +984,7 @@ export default function About() {
                 </div>
               );
             })}
-          </motion.div>
+          </div>
         </motion.div>
       </section>
 

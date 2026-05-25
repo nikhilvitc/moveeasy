@@ -1,587 +1,492 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 const EASE = [0.22, 1, 0.36, 1];
 
+// Same photo used on the home-page hero
+const BG_PHOTO =
+  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1800";
+
+const PRIORITIES = [
+  "Rent",
+  "Spacious Rooms",
+  "Interiors",
+  "Locality",
+  "Proximity to Office",
+];
+
+const FLAT_TYPES = ["1 BHK", "2 BHK", "3 BHK", "4 BHK", "Villa", "PG / Hostel", "Studio"];
+
+const POPULAR_AREAS = [
+  "HSR Layout", "Koramangala", "Bellandur", "Whitefield", "Marathalli",
+  "Indiranagar", "BTM Layout", "Hebbal", "Electronic City", "Hoodi",
+];
+
+// ---------------------------------------------------------------------------
+// Tiny atoms
+// ---------------------------------------------------------------------------
+
+function FieldLabel({ children, required }) {
+  return (
+    <label className="block text-[11px] font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
+      {children}{required && <span className="text-rose-400 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+const inputCls =
+  "w-full h-10 rounded-lg border border-gray-200 bg-white px-3 text-[13px] text-gray-900 placeholder:text-gray-400 outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100 disabled:bg-gray-50 disabled:opacity-60";
+
+function TextInput({ label, required, wrapCls = "", ...props }) {
+  return (
+    <div className={`mb-3 ${wrapCls}`}>
+      {label && <FieldLabel required={required}>{label}</FieldLabel>}
+      <input className={inputCls} {...props} />
+    </div>
+  );
+}
+
+function PrimaryBtn({ children, loading }) {
+  return (
+    <motion.button type="submit"
+      whileHover={loading ? {} : { scale: 1.01 }}
+      whileTap={loading  ? {} : { scale: 0.98 }}
+      disabled={loading}
+      className="w-full h-10 rounded-lg text-[13px] font-bold text-white mt-1 disabled:opacity-60 disabled:cursor-wait"
+      style={{ background: "linear-gradient(135deg,#dc2626 0%,#ef4444 100%)" }}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function GoogleBtn({ onClick, disabled }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      className="w-full h-10 rounded-lg border border-gray-200 bg-white text-[13px] font-semibold text-gray-700 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-60">
+      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden>
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Continue with Google
+    </button>
+  );
+}
+
+const slide = {
+  enter: (d) => ({ opacity: 0, x: d > 0 ? 22 : -22 }),
+  center: { opacity: 1, x: 0 },
+  exit:  (d) => ({ opacity: 0, x: d > 0 ? -22 : 22 }),
+};
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function Login() {
-  const [email,            setEmail]            = useState("");
-  const [password,         setPassword]         = useState("");
-  const [name,             setName]             = useState("");
-  const [phone,            setPhone]            = useState("");
-  const [signupRole,       setSignupRole]        = useState("customer");
-  const [selectedAccountType, setSelectedAccountType] = useState("customer");
-  const [error,            setError]            = useState("");
-  const [info,             setInfo]             = useState("");
-  const [isSignup,         setIsSignup]         = useState(false);
-  const { login, signup, loginWithGoogle, forgotPassword, resendVerificationEmail } = useAuth();
-  const [resendBusy, setResendBusy] = useState(false);
-  const [showResendVerification, setShowResendVerification] = useState(false);
-  const [authBusy, setAuthBusy] = useState(false);
-  const [forgotBusy, setForgotBusy] = useState(false);
+  const { login, signup, loginWithGoogle, forgotPassword, resendVerificationEmail, checkEmail } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const roleCards = [
-    { id: "seller",   title: "Seller",   hint: "Manage your listings and leads" },
-    { id: "customer", title: "Customer", hint: "Browse homes and apply quickly" },
-  ];
+  const [step, setStep]     = useState("email");
+  const [dir,  setDir]      = useState(1);
+  const [email, setEmail]   = useState("");
+  const [pw,    setPw]      = useState("");
+  const [error, setError]   = useState("");
+  const [info,  setInfo]    = useState("");
+  const [busy,  setBusy]    = useState(false);
+  const [fbBusy, setFbBusy] = useState(false);
+  const [showResend, setShowResend] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
+  // signup fields
+  const [name,   setName]   = useState("");
+  const [phone,  setPhone]  = useState("");
+  const [role,   setRole]   = useState("customer");
+  const [ft,     setFt]     = useState("");           // flat type
+  const [area,   setArea]   = useState("");
+  const [mid,    setMid]    = useState("");           // move-in date
+  const [budget, setBudget] = useState("");
+  const [prio,   setPrio]   = useState("");           // priority
+
+  function goTo(next, d = 1) {
+    setDir(d); setError(""); setInfo(""); setShowResend(false); setStep(next);
+  }
+
+  function redirect(r) {
+    const nextUrl = searchParams.get("next");
+    if (nextUrl) {
+      navigate(nextUrl);
+      return;
+    }
+    if      (r === "admin")                        navigate("/admin");
+    else if (r === "consultant" || r === "sub_admin") navigate("/crm");
+    else if (r === "seller")                       navigate("/seller");
+    else                                           navigate("/");
+  }
+
+  /* ── Step 1 ── */
+  const onEmailContinue = async (e) => {
     e.preventDefault();
+    const t = email.trim(); if (!t) return;
     setError("");
-    setInfo("");
-    setShowResendVerification(false);
-
-    if (isSignup) {
-      if (!name.trim()) {
-        setError("Please enter your name");
-        return;
-      }
-      if (!phone.trim()) {
-        setError("Please enter your phone number");
-        return;
-      }
-    }
-
-    setAuthBusy(true);
-    let result = { success: false, error: "Something went wrong" };
-    try {
-      if (isSignup) {
-        result = await signup(email, password, name, signupRole, phone);
-      } else {
-        result = await login(email, password);
-      }
-    } catch (err) {
-      result = { success: false, error: err?.message || "Something went wrong" };
-    } finally {
-      setAuthBusy(false);
-    }
-
-    if (result.success) {
-      if (result.requiresVerification) {
-        setIsSignup(false);
-        setPassword("");
-        setInfo(result.info || "Verification email sent. Please verify your email before login.");
-        return;
-      }
-      if (result.emailWarning) {
-        sessionStorage.setItem("moveasy_onboarding_email_warning", result.emailWarning);
-      } else {
-        sessionStorage.removeItem("moveasy_onboarding_email_warning");
-      }
-      const r = result.role || "customer";
-      if      (r === "admin")       navigate("/admin");
-      else if (r === "consultant" || r === "sub_admin") navigate("/crm");
-      else if (r === "seller")     navigate("/seller");
-      else                         navigate("/");
-    } else {
-      setError(result.error || "Something went wrong");
-      setShowResendVerification(!!result.unverified);
-    }
+    goTo("login", 1);
   };
 
-  const handleResendVerification = async () => {
-    setError("");
-    setInfo("");
-    setShowResendVerification(false);
-    if (!email.trim() || !password) {
-      setError("Enter your email and password, then click resend.");
-      return;
-    }
-    setResendBusy(true);
-    const result = await resendVerificationEmail(email, password);
+  /* ── Step 2a ── */
+  const onLogin = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError(""); setInfo(""); setShowResend(false);
+    try {
+      const r = await login(email, pw);
+      if (r.success) {
+        if (r.requiresVerification) { setPw(""); setInfo(r.info || "Verify your email first."); return; }
+        if (r.emailWarning) sessionStorage.setItem("moveasy_onboarding_email_warning", r.emailWarning);
+        redirect(r.role || "customer");
+      } else {
+        const errMsg = r.error || "Something went wrong.";
+        setError(errMsg);
+        setShowResend(!!r.unverified);
+      }
+    } finally { setBusy(false); }
+  };
+
+  const onForgot = async () => {
+    setError(""); setInfo(""); setFbBusy(true);
+    const r = await forgotPassword(email.trim());
+    setFbBusy(false);
+    if (r.success) setInfo(r.info || "Reset email sent."); else setError(r.error || "Could not send.");
+  };
+
+  const onResend = async () => {
+    setError(""); setInfo(""); setShowResend(false); setResendBusy(true);
+    const r = await resendVerificationEmail(email, pw);
     setResendBusy(false);
-    if (result.success) setInfo(result.info  || "Verification email sent.");
-    else                setError(result.error || "Could not resend.");
+    if (r.success) setInfo(r.info || "Verification email sent."); else setError(r.error || "Could not resend.");
   };
 
-  const handleGoogleSignIn = async () => {
-    setError("");
-    setInfo("");
-    setShowResendVerification(false);
-    setAuthBusy(true);
-    let result = { success: false, error: "Something went wrong" };
+  /* ── Step 2b ── */
+  const onSignup = async (e) => {
+    e.preventDefault();
+    if (!name.trim())               { setError("Please enter your name.");      return; }
+    if (!phone.trim())              { setError("Please enter your phone.");      return; }
+    if (role === "customer" && !prio) { setError("Please pick your priority."); return; }
+
+    setBusy(true); setError("");
+    // All form data that gets saved to customerSearchProfiles + userProfiles
+    const searchProfile = role === "customer" ? {
+      bhk:            ft,
+      preferredAreas: area ? [area] : [],
+      moveInDate:     mid,
+      budgetMax:      budget ? Number(budget) : null,
+      budgetMin:      null,
+      priority:       prio,
+    } : null;
+
     try {
-      result = await loginWithGoogle(selectedAccountType);
-    } catch (err) {
-      result = { success: false, error: err?.message || "Something went wrong" };
-    } finally {
-      setAuthBusy(false);
-    }
-
-    if (result.success) {
-      if (result.emailWarning) {
-        sessionStorage.setItem("moveasy_onboarding_email_warning", result.emailWarning);
+      const r = await signup(email, pw, name.trim(), role, phone.trim(), searchProfile);
+      if (r.success) {
+        if (r.requiresVerification) { setPw(""); setInfo(r.info || "Verify your email then sign in."); goTo("login", 1); return; }
+        redirect(r.role || "customer");
       } else {
-        sessionStorage.removeItem("moveasy_onboarding_email_warning");
+        const msg = r.error || "";
+        if (msg.toLowerCase().includes("already in use") || msg.toLowerCase().includes("already exists")) {
+          setError("Account already exists — please sign in."); goTo("login", 1);
+        } else { setError(msg || "Something went wrong."); }
       }
-      const r = result.role || "customer";
-      if      (r === "admin")       navigate("/admin");
-      else if (r === "consultant" || r === "sub_admin") navigate("/crm");
-      else if (r === "seller")     navigate("/seller");
-      else                         navigate("/");
-    } else {
-      setError(result.error || "Google sign-in failed");
-    }
+    } finally { setBusy(false); }
   };
 
-  const handleForgotPassword = async () => {
-    setError("");
-    setInfo("");
-    const normalized = String(email || "").trim();
-    if (!normalized) {
-      setError("Enter your email first, then click forgot password.");
-      return;
-    }
-    setForgotBusy(true);
-    const result = await forgotPassword(normalized);
-    setForgotBusy(false);
-    if (result.success) setInfo(result.info || "Password reset email sent.");
-    else setError(result.error || "Could not send password reset email.");
+  const onGoogle = async () => {
+    setBusy(true); setError("");
+    try {
+      const r = await loginWithGoogle("customer");
+      if (r.success) {
+        if (r.emailWarning) sessionStorage.setItem("moveasy_onboarding_email_warning", r.emailWarning);
+        redirect(r.role || "customer");
+      } else { setError(r.error || "Google sign-in failed."); }
+    } finally { setBusy(false); }
   };
 
-  const selectedTitle = roleCards.find((r) => r.id === selectedAccountType)?.title || "Customer";
+  const emailChip = (
+    <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+      <span className="text-[12px] text-gray-700 flex-1 truncate font-medium">{email}</span>
+      <button type="button" onClick={() => goTo("email", -1)}
+        className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 shrink-0">Change</button>
+    </div>
+  );
+
+  const titles = { email: "Sign in / Register", login: "Welcome back", signup: "Create your account" };
+  const subs   = { email: "Enter your email to continue", login: "Enter your password", signup: "Fill in your details" };
+  const stepN  = step === "email" ? 1 : 2;
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center overflow-hidden relative"
-      style={{
-        background:
-          "linear-gradient(135deg, #1a0508 0%, #2d0a14 30%, #0f0c29 65%, #0a1628 100%)",
-      }}
-    >
-      <style>{`@keyframes moveasyLoginSpin { to { transform: rotate(360deg); } }`}</style>
-      {/* Animated background blobs */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div
-          style={{
-            position: "absolute",
-            top: "-10%",
-            left: "-5%",
-            width: 400,
-            height: 400,
-            borderRadius: "60% 40% 30% 70% / 60% 30% 70% 40%",
-            background: "radial-gradient(circle, rgba(232,90,79,0.30) 0%, transparent 70%)",
-            animation: "blob-move 12s ease-in-out infinite, float-slow 8s ease-in-out infinite",
-          }}
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-12">
+
+      {/* ── Background: same Unsplash photo as home-page hero ── */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={BG_PHOTO}
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover"
+          style={{ filter: "blur(2px) brightness(0.92)", transform: "scale(1.04)" }}
         />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-10%",
-            right: "-5%",
-            width: 380,
-            height: 380,
-            borderRadius: "40% 60% 70% 30% / 40% 70% 30% 60%",
-            background: "radial-gradient(circle, rgba(14,165,233,0.22) 0%, transparent 70%)",
-            animation: "blob-move 14s ease-in-out infinite 2s, float-slow 10s ease-in-out infinite 1s",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: "40%",
-            left: "60%",
-            width: 260,
-            height: 260,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(236,72,153,0.18) 0%, transparent 70%)",
-            animation: "float-slow 9s ease-in-out infinite 0.5s",
-          }}
-        />
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
+        {/* Warm cream overlay — matches home page colour palette */}
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(160deg, rgba(255,245,242,0.82) 0%, rgba(255,255,255,0.88) 50%, rgba(255,247,245,0.84) 100%)" }} />
       </div>
 
-      {/* Login card */}
-      <motion.div
-        initial={{ opacity: 0, y: 32, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.65, ease: EASE }}
-        className="relative w-full max-w-[440px] mx-4 overflow-hidden"
-        style={{
-          background: "rgba(255,255,255,0.07)",
-          backdropFilter: "blur(28px)",
-          WebkitBackdropFilter: "blur(28px)",
-          borderRadius: 24,
-          border: "1px solid rgba(255,255,255,0.13)",
-          boxShadow:
-            "0 32px 80px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)",
-          padding: "36px 32px",
-        }}
-      >
-        {authBusy ? (
-          <div
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center px-6 text-center"
-            style={{
-              background: "rgba(15, 23, 42, 0.62)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-            }}
-            role="status"
-            aria-live="polite"
-          >
-            <div
-              className="mb-4 h-11 w-11 rounded-full border-2 border-white/25 border-t-white"
-              style={{ animation: "moveasyLoginSpin 0.85s linear infinite" }}
-              aria-hidden
-            />
-            <p className="text-[15px] font-semibold text-white/95 leading-snug">
-              {isSignup ? "Please wait — we are creating your account…" : "Please wait — we are signing you in…"}
-            </p>
-            <p className="mt-2 text-[12px] text-white/55">This can take a few seconds on first load.</p>
-          </div>
-        ) : null}
+      {/* ── Content ── */}
+      <div className="relative z-10 w-full max-w-[370px] mx-auto">
 
-        {/* Inner gradient glow top */}
-        <div
-          className="absolute inset-x-0 top-0 h-[2px] rounded-t-[24px] pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent 0%, rgba(232,90,79,0.8) 30%, rgba(249,115,22,0.8) 50%, rgba(236,72,153,0.8) 70%, transparent 100%)",
-          }}
-          aria-hidden="true"
-        />
-
-        {/* Logo */}
-        <div className="text-center mb-2">
-          <h1 className="text-[32px] font-black tracking-tight gradient-text-shimmer">
-            MovEazy
-          </h1>
-          <p className="text-white/55 text-[14px] mt-1">
-            {isSignup ? "Create your account" : "Sign in to your account"}
+        {/* Brand */}
+        <div className="text-center mb-5">
+          <p className="text-[26px] font-black tracking-tight">
+            <span style={{ color: "white" }}>Mov</span><span style={{ color: "#dc2626" }}>Eazy</span>
           </p>
+          <p className="text-[12px] text-gray-500 mt-0.5">Find your home in Bengaluru</p>
         </div>
 
-        {/* Role cards */}
-        <div className="grid grid-cols-2 gap-2 mt-5 mb-1">
-          {roleCards.map((card) => {
-            const active = selectedAccountType === card.id;
-            return (
-              <motion.button
-                key={card.id}
-                type="button"
-                disabled={authBusy}
-                onClick={() => {
-                  setSelectedAccountType(card.id);
-                  setError("");
-                  setInfo("");
-                  setIsSignup(true);
-                  setSignupRole(card.id === "seller" ? "seller" : "customer");
-                }}
-                className="text-left rounded-xl px-3 py-2.5 border transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  background: active
-                    ? "linear-gradient(135deg, rgba(232,90,79,0.25), rgba(249,115,22,0.18))"
-                    : "rgba(255,255,255,0.06)",
-                  border: active
-                    ? "1px solid rgba(232,90,79,0.55)"
-                    : "1px solid rgba(255,255,255,0.10)",
-                  boxShadow: active ? "0 4px 16px rgba(232,90,79,0.20)" : "none",
-                }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <div
-                  className="text-[12px] font-bold"
-                  style={{ color: active ? "#ff8a7a" : "rgba(255,255,255,0.75)" }}
-                >
-                  {card.title}
-                </div>
-                <div className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.40)" }}>
-                  {card.hint}
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
+        {/* Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: EASE }}
+          className="bg-white/95 backdrop-blur-sm rounded-2xl border border-white/80 shadow-[0_8px_40px_rgba(0,0,0,0.12)]"
+        >
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 flex items-start justify-between">
+            <div>
+              <h1 className="text-[16px] font-extrabold text-gray-900 leading-snug">{titles[step]}</h1>
+              <p className="text-[12px] text-gray-400 mt-0.5">{subs[step]}</p>
+            </div>
+            <div className="flex items-center gap-1 mt-1 ml-3 shrink-0">
+              {[1,2].map((n) => (
+                <span key={n} className="rounded-full transition-all duration-300"
+                  style={{ width: n === stepN ? 18 : 7, height: 7, background: n === stepN ? "#e85a4f" : "#e5e7eb" }} />
+              ))}
+            </div>
+          </div>
 
-        <p className="text-[11px] mb-4 mt-2" style={{ color: "rgba(255,255,255,0.40)" }}>
-          Selected: <span style={{ color: "rgba(255,255,255,0.70)", fontWeight: 600 }}>{selectedTitle}</span>
-        </p>
+          <div className="h-px bg-gray-100 mx-6" />
 
-        {/* Info message */}
-        <AnimatePresence>
-          {info && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="rounded-xl px-4 py-3 mb-4 text-[13px] text-center overflow-hidden"
-              style={{
-                background: "rgba(14,165,233,0.15)",
-                border: "1px solid rgba(14,165,233,0.30)",
-                color: "#7dd3fc",
-              }}
-            >
-              {info}
-              <div className="mt-1 font-semibold" style={{ color: "#38bdf8" }}>
-                Please check your Spam/Junk folder.
-              </div>
-            </motion.div>
+          {/* Spinner overlay */}
+          {busy && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/75 backdrop-blur-[2px] rounded-2xl">
+              <div className="h-7 w-7 rounded-full border-[3px] border-gray-200 border-t-rose-500 animate-spin" />
+            </div>
           )}
-        </AnimatePresence>
 
-        {/* Error message */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="rounded-xl px-4 py-3 mb-4 text-[13px] text-center overflow-hidden"
-              style={{
-                background: "rgba(239,68,68,0.12)",
-                border: "1px solid rgba(239,68,68,0.30)",
-                color: "#fca5a5",
-              }}
-            >
-              {error}
-              {showResendVerification && selectedAccountType !== "admin" && (
-                <div className="mt-2">
-                  <motion.button
-                    type="button"
-                    onClick={handleResendVerification}
-                    disabled={resendBusy}
-                    className="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
-                    style={{
-                      background: "rgba(255,255,255,0.10)",
-                      border: "1px solid rgba(239,68,68,0.40)",
-                      color: "#fca5a5",
-                      cursor: resendBusy ? "wait" : "pointer",
-                    }}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                  >
-                    {resendBusy ? "Sending…" : "Resend verification email"}
-                  </motion.button>
-                </div>
+          {/* Alerts */}
+          <div className="px-6 pt-4">
+            <AnimatePresence>
+              {info && (
+                <motion.div key="info" initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }}
+                  className="mb-3 rounded-lg px-3 py-2.5 text-[12px] text-amber-800 bg-amber-50 border border-amber-200 overflow-hidden">
+                  {info} <span className="font-semibold">Check spam / junk too.</span>
+                </motion.div>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} aria-busy={authBusy}>
-          <AnimatePresence>
-            {isSignup && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="mb-3">
-                  <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={authBusy}
-                    placeholder="Your name"
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
-                    style={{
-                      background: "rgba(255,255,255,0.09)",
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      color: "rgba(255,255,255,0.90)",
-                      caretColor: "#e85a4f",
-                    }}
-                    onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px rgba(232,90,79,0.40)")}
-                    onBlur={(e)  => (e.target.style.boxShadow = "none")}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={authBusy}
-                    placeholder="Your phone number"
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
-                    style={{
-                      background: "rgba(255,255,255,0.09)",
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      color: "rgba(255,255,255,0.90)",
-                      caretColor: "#e85a4f",
-                    }}
-                    onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px rgba(232,90,79,0.40)")}
-                    onBlur={(e)  => (e.target.style.boxShadow = "none")}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-                    Account Type
-                  </label>
-                  <select
-                    value={signupRole}
-                    onChange={(e) => {
-                      setSignupRole(e.target.value);
-                      setSelectedAccountType(e.target.value);
-                    }}
-                    disabled={authBusy}
-                    className="w-full h-10 rounded-xl px-3 text-[14px] outline-none disabled:opacity-55"
-                    style={{
-                      background: "rgba(255,255,255,0.09)",
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      color: "rgba(255,255,255,0.90)",
-                    }}
-                  >
-                    <option value="customer" style={{ background: "#1a0508", color: "#fff" }}>Customer</option>
-                    <option value="seller"   style={{ background: "#1a0508", color: "#fff" }}>Seller / Broker</option>
-                  </select>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Email */}
-          <div className="mb-3">
-            <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-              Email (Gmail for new sign-ups)
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={authBusy}
-              placeholder="you@gmail.com"
-              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
-              style={{
-                background: "rgba(255,255,255,0.09)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "rgba(255,255,255,0.90)",
-                caretColor: "#e85a4f",
-              }}
-              onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px rgba(232,90,79,0.40)")}
-              onBlur={(e)  => (e.target.style.boxShadow = "none")}
-            />
+            </AnimatePresence>
+            <AnimatePresence>
+              {error && (
+                <motion.div key="err" initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }}
+                  className="mb-3 rounded-lg px-3 py-2.5 text-[12px] text-red-700 bg-red-50 border border-red-200 overflow-hidden">
+                  {error}
+                  {showResend && (
+                    <button type="button" onClick={onResend} disabled={resendBusy}
+                      className="mt-1 block font-semibold text-red-600 underline underline-offset-2 disabled:opacity-50">
+                      {resendBusy ? "Sending…" : "Resend verification email"}
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Password */}
-          <div className="mb-5">
-            <label className="block text-[12px] font-semibold mb-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={authBusy}
-              placeholder="Enter password"
-              minLength="6"
-              className="w-full h-10 rounded-xl px-3 text-[14px] outline-none transition-shadow disabled:opacity-55"
-              style={{
-                background: "rgba(255,255,255,0.09)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "rgba(255,255,255,0.90)",
-                caretColor: "#e85a4f",
-              }}
-              onFocus={(e) => (e.target.style.boxShadow = "0 0 0 2px rgba(232,90,79,0.40)")}
-              onBlur={(e)  => (e.target.style.boxShadow = "none")}
-            />
-            {!isSignup ? (
-              <div className="mt-2 text-right">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={authBusy || forgotBusy}
-                  className="text-[12px] font-semibold disabled:opacity-55 disabled:cursor-not-allowed"
-                  style={{ color: "rgba(255,255,255,0.78)" }}
-                >
-                  {forgotBusy ? "Sending reset…" : "Forgot password?"}
-                </button>
-              </div>
-            ) : null}
-          </div>
+          {/* Body */}
+          <div className="px-6 pb-6 relative overflow-hidden">
+            <AnimatePresence mode="wait" custom={dir}>
 
-          {/* Submit button */}
-          <motion.button
-            type="submit"
-            disabled={authBusy}
-            className="w-full py-3 rounded-xl text-[15px] font-bold text-white relative overflow-hidden btn-glow-pulse disabled:opacity-60 disabled:cursor-wait"
-            style={{
-              background: "linear-gradient(135deg, #e85a4f 0%, #f97316 100%)",
-            }}
-            whileHover={authBusy ? {} : { scale: 1.02 }}
-            whileTap={authBusy ? {} : { scale: 0.98 }}
-          >
-            {/* Shimmer */}
-            <span
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.20) 50%, transparent 70%)",
-                backgroundSize: "200% 100%",
-                animation: "shimmer 2s linear infinite",
-              }}
-              aria-hidden="true"
-            />
-            <span className="relative z-10">
-              {authBusy ? (isSignup ? "Creating account…" : "Signing in…") : isSignup ? `Create ${selectedTitle} Account` : `Sign In as ${selectedTitle}`}
+              {/* ── EMAIL ── */}
+              {step === "email" && (
+                <motion.div key="email" custom={dir} variants={slide} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22, ease: EASE }}>
+                  <form onSubmit={onEmailContinue} className="mt-1">
+                    <TextInput type="email" label="Email address" value={email}
+                      onChange={(e) => setEmail(e.target.value)} placeholder="you@gmail.com" required disabled={busy} autoFocus />
+                    <PrimaryBtn loading={busy}>Continue →</PrimaryBtn>
+                  </form>
+                  <div className="my-4 flex items-center gap-3 text-[11px] text-gray-400">
+                    <span className="h-px flex-1 bg-gray-100" /> or <span className="h-px flex-1 bg-gray-100" />
+                  </div>
+                  <GoogleBtn onClick={onGoogle} disabled={busy} />
+                  <p className="mt-4 text-center text-[11px] text-gray-400">
+                    By continuing you agree to our{" "}
+                    <a href="/terms" className="underline text-gray-500">Terms</a> &amp;{" "}
+                    <a href="/privacy" className="underline text-gray-500">Privacy Policy</a>.
+                  </p>
+                </motion.div>
+              )}
+
+              {/* ── LOGIN ── */}
+              {step === "login" && (
+                <motion.div key="login" custom={dir} variants={slide} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22, ease: EASE }}>
+                  <form onSubmit={onLogin} className="mt-1">
+                    {emailChip}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <FieldLabel>Password</FieldLabel>
+                        <button type="button" onClick={onForgot} disabled={fbBusy}
+                          className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 disabled:opacity-50">
+                          {fbBusy ? "Sending…" : "Forgot?"}
+                        </button>
+                      </div>
+                      <input type="password" value={pw} onChange={(e) => setPw(e.target.value)}
+                        required disabled={busy} placeholder="Enter your password" minLength="6" autoFocus className={inputCls} />
+                    </div>
+                    <PrimaryBtn loading={busy}>Sign In</PrimaryBtn>
+                  </form>
+                  <p className="text-center mt-4 text-[12px] text-gray-400">
+                    No account?{" "}
+                    <button type="button" onClick={() => goTo("signup", 1)} className="font-semibold text-red-600 hover:text-red-700">Sign up free</button>
+                  </p>
+                </motion.div>
+              )}
+
+              {/* ── SIGN UP ── */}
+              {step === "signup" && (
+                <motion.div key="signup" custom={dir} variants={slide} initial="enter" animate="center" exit="exit" transition={{ duration: 0.22, ease: EASE }}>
+                  <form onSubmit={onSignup} className="mt-1">
+                    {emailChip}
+
+                    {/* Role */}
+                    <div className="mb-3">
+                      <FieldLabel>I am a</FieldLabel>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "customer", label: "Tenant / Buyer" },
+                          { id: "seller",   label: "Seller / Broker" },
+                        ].map((c) => {
+                          const on = role === c.id;
+                          return (
+                            <button key={c.id} type="button" onClick={() => setRole(c.id)}
+                              className="h-9 rounded-lg border text-[12px] font-semibold transition-all"
+                              style={{ borderColor: on?"#e85a4f":"#e5e7eb", background: on?"#fff5f2":"white", color: on?"#e85a4f":"#6b7280", boxShadow: on?"0 0 0 1px #e85a4f":"none" }}>
+                              {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <TextInput label="Full Name"    type="text" value={name}  onChange={(e) => setName(e.target.value)}  placeholder="Your name"        required disabled={busy} autoFocus />
+                    <TextInput label="Phone Number" type="tel"  value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210"  required disabled={busy} />
+                    <div className="mb-3">
+                      <FieldLabel>Password</FieldLabel>
+                      <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required disabled={busy} placeholder="Min 6 characters" minLength="6" className={inputCls} />
+                    </div>
+
+                    {/* ── Customer search profile ── */}
+                    <AnimatePresence>
+                      {role === "customer" && (
+                        <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }} className="overflow-hidden">
+                          <div className="flex items-center gap-2 my-3">
+                            <span className="h-px flex-1 bg-gray-100" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">Flat Search Details</span>
+                            <span className="h-px flex-1 bg-gray-100" />
+                          </div>
+                          <p className="text-center text-[11px] text-gray-400 mb-3 -mt-1">Saved to your profile · brokers use this for intros</p>
+
+                          {/* Flat type */}
+                          <div className="mb-3">
+                            <FieldLabel>Flat Type</FieldLabel>
+                            <div className="flex flex-wrap gap-1.5">
+                              {FLAT_TYPES.map((f) => (
+                                <button key={f} type="button" onClick={() => setFt(ft === f ? "" : f)}
+                                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                                  style={{ borderColor: ft===f?"#e85a4f":"#e5e7eb", background: ft===f?"#fff5f2":"white", color: ft===f?"#e85a4f":"#6b7280" }}>
+                                  {f}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Area */}
+                          <div className="mb-3">
+                            <FieldLabel>Preferred Area</FieldLabel>
+                            <select value={area} onChange={(e) => setArea(e.target.value)} disabled={busy}
+                              className={inputCls} style={{ height: 40 }}>
+                              <option value="">Select area…</option>
+                              {POPULAR_AREAS.map((a) => <option key={a}>{a}</option>)}
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+
+                          {/* Date + Budget */}
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                              <FieldLabel>Move-in Date</FieldLabel>
+                              <input type="date" value={mid} onChange={(e) => setMid(e.target.value)} disabled={busy}
+                                className={inputCls} style={{ fontSize: 12 }} />
+                            </div>
+                            <div>
+                              <FieldLabel>Budget / mo (₹)</FieldLabel>
+                              <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)}
+                                min="0" step="500" disabled={busy} placeholder="25000" className={inputCls} />
+                            </div>
+                          </div>
+
+                          {/* Priority */}
+                          <div className="mb-3">
+                            <FieldLabel required>My Main Priority</FieldLabel>
+                            <div className="flex flex-col gap-1.5">
+                              {PRIORITIES.map((p) => (
+                                <button key={p} type="button" onClick={() => setPrio(p)}
+                                  className="flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[12px] font-medium text-left transition-all hover:border-rose-300"
+                                  style={{ borderColor: prio===p?"#e85a4f":"#e5e7eb", background: prio===p?"#fff5f2":"white", color: prio===p?"#c2410c":"#374151" }}>
+                                  <span className="h-3.5 w-3.5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                                    style={{ borderColor: prio===p?"#e85a4f":"#d1d5db" }}>
+                                    {prio === p && <span className="h-2 w-2 rounded-full bg-rose-500" />}
+                                  </span>
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <PrimaryBtn loading={busy}>Create Account</PrimaryBtn>
+                  </form>
+                  <p className="text-center mt-3 text-[12px] text-gray-400">
+                    Already have an account?{" "}
+                    <button type="button" onClick={() => goTo("login", -1)} className="font-semibold text-red-600 hover:text-red-700">Sign in</button>
+                  </p>
+                </motion.div>
+              )}
+
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
+        {/* Trust strip */}
+        <div className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[11px] text-gray-600">
+          {["Verified brokers", "Zero hidden charges", "On-ground support"].map((t) => (
+            <span key={t} className="flex items-center gap-1">
+              <svg className="h-3 w-3 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              {t}
             </span>
-          </motion.button>
+          ))}
+        </div>
 
-          <div className="my-3 flex items-center gap-2 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-            <span className="h-px flex-1" style={{ background: "rgba(255,255,255,0.18)" }} />
-            or
-            <span className="h-px flex-1" style={{ background: "rgba(255,255,255,0.18)" }} />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={authBusy}
-            className="w-full h-10 rounded-xl text-[14px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              border: "1px solid rgba(255,255,255,0.35)",
-              color: "#111827",
-            }}
-          >
-            Continue with Google
-          </button>
-        </form>
-
-        <p className="text-center mt-5 text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-          {isSignup ? "Already have an account? " : "No account? "}
-          <motion.button
-            type="button"
-            disabled={authBusy}
-            onClick={() => {
-              setError("");
-              setInfo("");
-              setIsSignup(!isSignup);
-              if (!isSignup) setSelectedAccountType("customer");
-            }}
-            className="font-bold border-none cursor-pointer text-[13px] disabled:opacity-45 disabled:cursor-not-allowed"
-            style={{
-              background: "linear-gradient(135deg, #f97316, #e85a4f)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              padding: 0,
-            }}
-            whileHover={authBusy ? {} : { scale: 1.04 }}
-          >
-            {isSignup ? "Sign In" : "Sign Up"}
-          </motion.button>
-        </p>
-      </motion.div>
+      </div>
     </div>
   );
 }

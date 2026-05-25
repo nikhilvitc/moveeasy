@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import HomeV2 from "./pages/HomeV2";
@@ -8,7 +8,6 @@ import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CrmDashboard from "./pages/CrmDashboard";
-import Services from "./pages/Services";
 import Guarantee from "./pages/Guarantee";
 import Contact from "./pages/Contact";
 import MyActivity from "./pages/MyActivity";
@@ -21,7 +20,14 @@ import AgentsDirectory from "./pages/AgentsDirectory";
 import MySearchProfile from "./pages/MySearchProfile";
 import Onboarding from "./pages/Onboarding";
 import About from "./pages/About";
+import Properties from "./pages/Properties";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+function PayToCheckout() {
+  const [searchParams] = useSearchParams();
+  const qs = searchParams.toString();
+  return <Navigate to={`/checkout${qs ? `?${qs}` : ""}`} replace />;
+}
 
 function OnboardingEmailWarning() {
   // Disabled the confusing email warning for the live demo
@@ -54,13 +60,13 @@ function AppRoutes() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/map" element={<MapView />} />
       <Route path="/about" element={<About />} />
-      <Route path="/services" element={<Services />} />
+      <Route path="/properties" element={<Properties />} />
       <Route path="/guarantee" element={<Guarantee />} />
       <Route path="/listings" element={<Navigate to="/map?openFilters=1" replace />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/activity" element={<MyActivity />} />
       <Route path="/checkout" element={<Checkout />} />
-      <Route path="/pay" element={<Pay />} />
+      <Route path="/pay" element={<PayToCheckout />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/plan" element={<MoveazyPlanPage />} />

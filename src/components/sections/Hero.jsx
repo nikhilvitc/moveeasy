@@ -130,7 +130,7 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative z-[1] w-full min-h-0 overflow-x-hidden overflow-y-visible md:min-h-[min(520px,78vh)] lg:min-h-[calc(100vh-3rem)]"
+      className="relative z-[1] w-full min-h-0 md:min-h-[min(520px,78vh)] lg:min-h-[calc(100vh-3rem)]"
     >
       {/* ── Parallax background photo ── */}
       <motion.img

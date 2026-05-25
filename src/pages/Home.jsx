@@ -13,7 +13,7 @@ import Footer from "../components/layout/Footer";
 /** Same shell as Services / marketing pages — home hero stays full-bleed dark inside. */
 export default function Home() {
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased text-ink">
+    <div className="relative min-h-[100dvh] bg-gradient-to-b from-[#fff5f2] via-white to-[#fff7f5] antialiased text-ink">
       <PremiumPageBackdrop variant="marketing" overlayOnly />
 
       <Navbar />

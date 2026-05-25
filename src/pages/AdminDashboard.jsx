@@ -24,7 +24,7 @@ import {
 import { ingestBrokerListings, ingestPartnerListings, normalizeBrokerListings, normalizePartnerListings } from "../lib/externalFeeds";
 import { isFirebaseConfigured, db, functions } from "../lib/firebase";
 import { httpsCallable } from "firebase/functions";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from "firebase/firestore";
 import {
   addUserProfileData,
   getAllUsersData,
@@ -49,6 +49,7 @@ import {
 } from "../lib/firestoreStore";
 import { notifyCustomerInterestStatusChanged, notifyCustomerListingAssigned } from "../lib/crmSync";
 import { reportClientError } from "../lib/clientLog";
+import { fetchBrokerContacts } from "../lib/brokerContactLog";
 import MediaUploadField from "../components/MediaUploadField";
 import ListingMapPicker from "../components/ListingMapPicker";
 import { getBookings } from "../lib/userActivity";
@@ -63,8 +64,6 @@ import {
   getDefaultDirectoryAgents,
   saveDirectoryAgents,
 } from "../lib/directoryAgentsSettings";
-import { fetchAgentPrivateMap, saveAgentPrivateBatch } from "../lib/agentPrivate";
-import { AGENT_TABS } from "../data/agentsDirectory";
 
 const DEFAULT_FORM = {
   title: "",
@@ -248,9 +247,12 @@ export default function AdminDashboard() {
     })),
   );
   const [agentsSaveStatus, setAgentsSaveStatus] = useState("");
+  const [brokersData, setBrokersData] = useState([]);
   const [adminListingMsg, setAdminListingMsg] = useState("");
   const [adminListingMsgKind, setAdminListingMsgKind] = useState("ok");
   const [adminListingWarning, setAdminListingWarning] = useState("");
+  const [contactQueries, setContactQueries] = useState([]);
+  const [contactQueriesFilter, setContactQueriesFilter] = useState("all");
 
   const parsedListingMediaUrls = useMemo(() => {
     const raw = String(form.imagesText || form.image || "")
@@ -320,15 +322,55 @@ export default function AdminDashboard() {
           contacts: (sitePub.contacts || []).map((c) => ({ ...c })),
         });
         const agentRows = settled[8].status === "fulfilled" ? settled[8].value : getDefaultDirectoryAgents();
-        const privateMap = await fetchAgentPrivateMap(agentRows.map((a) => a.id));
+        // Fetch brokers with engagement counts
+        let rawBrokers = [];
+        try {
+          const bSnap = await getDocs(query(collection(db, "brokers"), orderBy("engagementCount", "desc")));
+          rawBrokers = bSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          if (alive) setBrokersData(rawBrokers);
+        } catch {
+          // brokers fetch failed — engagement ranking will be empty
+        }
+        // Fetch contact form queries
+        try {
+          const cqSnap = await getDocs(query(collection(db, "contactQueries"), orderBy("createdAt", "desc")));
+          if (alive) setContactQueries(cqSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        } catch {
+          // contactQueries may not exist yet
+        }
         if (!alive) return;
+        // Merge any brokers not already in agentRows so they appear in the admin table
+        const agentRowIds = new Set(agentRows.map((a) => a.id));
+        const extraBrokerRows = rawBrokers
+          .filter((b) => b.name && !agentRowIds.has(b.id))
+          .map((b, i) => ({
+            id: b.id,
+            tab: "brokers",
+            name: String(b.name || "").trim(),
+            initials: "",
+            team: false,
+            brokerage: "",
+            priceRangeLabel: "",
+            recentActivity: "",
+            localExpertise: String(b.area || "").trim(),
+            specialties: "Rentals",
+            languages: "English, Hindi, Kannada",
+            areas: String(b.area || "").trim(),
+            rentFocus: true,
+            buyFocus: false,
+            budgetTier: 2,
+            rating: b.rating ?? null,
+            sortOrder: agentRows.length + i,
+            phone: String(b.phone || "").trim(),
+          }));
+        const mergedRows = [...agentRows, ...extraBrokerRows];
         setAgentsDraft(
-          agentRows.map((a) => ({
+          mergedRows.map((a) => ({
             ...a,
-            specialties: Array.isArray(a.specialties) ? a.specialties.join(", ") : "",
-            languages: Array.isArray(a.languages) ? a.languages.join(", ") : "",
-            areas: Array.isArray(a.areas) ? a.areas.join(", ") : "",
-            whatsappPrivate: privateMap[a.id] || "",
+            specialties: Array.isArray(a.specialties) ? a.specialties.join(", ") : (a.specialties || ""),
+            languages: Array.isArray(a.languages) ? a.languages.join(", ") : (a.languages || ""),
+            areas: Array.isArray(a.areas) ? a.areas.join(", ") : (a.areas || ""),
+            phone: a.phone || "",
           })),
         );
       } else {
@@ -460,11 +502,13 @@ export default function AdminDashboard() {
     setAgentsSaveStatus("Saving…");
     try {
       const saved = await saveDirectoryAgents(agentsDraft);
-      await saveAgentPrivateBatch(
-        saved.map((a) => ({
-          agentId: a.id,
-          whatsappPrivate: agentsDraft.find((d) => d.id === a.id)?.whatsappPrivate || "",
-        })),
+      // Sync phone to brokers/{id} so WA connect always reads the latest number
+      await Promise.all(
+        agentsDraft
+          .filter((a) => a.tab === "brokers" && a.id && !a.id.startsWith("agent-"))
+          .map((a) =>
+            setDoc(doc(db, "brokers", a.id), { phone: a.phone || "" }, { merge: true }),
+          ),
       );
       setAgentsSaveStatus("Saved. /agents will show this order on refresh.");
       setTimeout(() => setAgentsSaveStatus(""), 5000);
@@ -794,7 +838,7 @@ export default function AdminDashboard() {
     }
     if (sellerEmail) {
       const custLine = [assignCustomerEmail.trim().toLowerCase(), customerName || null, customerPhone || null].filter(Boolean).join(" · ");
-      const body = `New lead assignment: ${custLine} for “${listingTitle || `Listing #${assignListingId}`}” (#${assignListingId}).${assignNotes.trim() ? ` Notes: ${assignNotes.trim()}` : ""}`;
+      const body = `New lead assignment: ${custLine} for "${listingTitle || `Listing #${assignListingId}`}" (#${assignListingId}).${assignNotes.trim() ? ` Notes: ${assignNotes.trim()}` : ""}`;
       try {
         if (isFirebaseConfigured) {
           await addNotificationData({
@@ -910,76 +954,35 @@ export default function AdminDashboard() {
     setRefreshTick((v) => v + 1);
   };
 
-  const btn = { padding: "8px 16px", borderRadius: "8px", border: "none", fontWeight: 600, fontSize: "13px", cursor: "pointer" };
-  const sectionCard = { background: "white", padding: isMobile ? "12px" : "16px", borderRadius: "12px", marginBottom: "16px" };
+  const btn = { padding: "9px 18px", borderRadius: "10px", border: "none", fontWeight: 700, fontSize: "13px", cursor: "pointer", transition: "opacity 0.15s" };
+  const sectionCard = { background: "white", padding: isMobile ? "16px" : "28px", borderRadius: "20px", marginBottom: "20px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" };
 
   return (
-    <PageShell variant="marketing" overlayOnly className="bg-slate-100">
-      <div style={{ background: "#000000", color: "white", padding: isMobile ? "12px 14px" : "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            onClick={() => navigate("/")}
-            style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-          >
-            <MovEAZYLogo size={isMobile ? "sm" : "lg"} />
+    <PageShell variant="marketing" overlayOnly className="bg-zinc-50">
+      <div style={{ background: "#09090b", color: "white", padding: isMobile ? "0 14px" : "0 28px", height: 56, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, borderBottom: "1px solid #27272a", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div onClick={() => navigate("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+            <MovEAZYLogo size={isMobile ? "sm" : "nav"} />
           </div>
           {!isMobile && (
-            <div style={{ borderLeft: "1px solid #3f3f46", paddingLeft: "16px" }}>
-              <div style={{ fontSize: "16px", fontWeight: 800 }}>Admin Dashboard</div>
-              <div style={{ fontSize: "11px", opacity: 0.6 }}>{user?.email}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, padding: "5px 12px" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#a1a1aa", letterSpacing: "0.05em", textTransform: "uppercase" }}>Admin</span>
+              <span style={{ fontSize: 12, color: "#52525b", margin: "0 4px" }}>·</span>
+              <span style={{ fontSize: 12, color: "#d4d4d8" }}>{user?.email}</span>
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button onClick={() => navigate("/map")} style={{ ...btn, background: "#262626", border: "1px solid #404040", color: "white" }}>Map</button>
-          <button onClick={() => navigate("/")} style={{ ...btn, background: "#262626", border: "1px solid #404040", color: "white" }}>Home</button>
-          <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#7f1d1d", border: "1px solid #991b1b", color: "white" }}>Logout</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => navigate("/crm")} style={{ ...btn, background: "#18181b", border: "1px solid #3f3f46", color: "#e4e4e7", fontSize: 12, padding: "7px 14px" }}>CRM</button>
+          <button onClick={() => navigate("/")} style={{ ...btn, background: "#18181b", border: "1px solid #3f3f46", color: "#e4e4e7", fontSize: 12, padding: "7px 14px" }}>Home</button>
+          <button onClick={() => { logout(); navigate("/login"); }} style={{ ...btn, background: "#7f1d1d", border: "1px solid #991b1b", color: "white", fontSize: 12, padding: "7px 14px" }}>Logout</button>
         </div>
       </div>
 
-      <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
-        {showDebugBanner ? (
-          <div
-            style={{
-              background: "#0f172a",
-              color: "#e2e8f0",
-              borderRadius: "10px",
-              padding: "10px 12px",
-              marginBottom: "14px",
-              fontSize: "12px",
-              lineHeight: 1.5,
-            }}
-          >
-            <strong style={{ color: "#93c5fd" }}>Debug session:</strong>{" "}
-            email=<span style={{ color: "#f8fafc" }}>{user?.email || "—"}</span>{" · "}
-            role=<span style={{ color: "#f8fafc" }}>{user?.role || "—"}</span>{" · "}
-            source=<span style={{ color: "#f8fafc" }}>{isFirebaseConfigured ? "firestore" : "localStorage"}</span>{" · "}
-            host=<span style={{ color: "#f8fafc" }}>{typeof window !== "undefined" ? window.location.host : "—"}</span>{" · "}
-            listings=<span style={{ color: "#f8fafc" }}>{listings.length}</span>{" · "}
-            users=<span style={{ color: "#f8fafc" }}>{users.length}</span>
-          </div>
-        ) : null}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 10,
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-            paddingBottom: 12,
-            borderBottom: "1px solid #e2e8f0",
-          }}
-        >
-          <div
-            role="tablist"
-            aria-label="Admin sections"
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
+      <div style={{ padding: isMobile ? "16px" : "28px 32px" }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-5 pb-5 border-b border-zinc-200">
+          <div className="flex gap-1.5 flex-wrap">
             {[
               ["overview", "Overview"],
               ["site", "Site & contact"],
@@ -987,6 +990,8 @@ export default function AdminDashboard() {
               ["operations", "Leads & queue"],
               ["users", "Users"],
               ["listings", "Listings"],
+              ["brokerContacts", "Broker Contacts"],
+              ["contactQueries", "Contact Queries"],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -994,21 +999,22 @@ export default function AdminDashboard() {
                 role="tab"
                 aria-selected={adminSection === id}
                 onClick={() => setAdminSection(id)}
-                style={{
-                  ...btn,
-                  fontSize: isMobile ? "12px" : "13px",
-                  padding: isMobile ? "8px 12px" : "10px 16px",
-                  background: adminSection === id ? "#0f172a" : "#fff",
-                  color: adminSection === id ? "#fff" : "#334155",
-                  border: `1px solid ${adminSection === id ? "#0f172a" : "#cbd5e1"}`,
-                }}
+                className={`px-4 py-2 rounded-xl text-[13px] font-semibold transition-all ${
+                  adminSection === id
+                    ? "bg-zinc-900 text-white shadow-sm"
+                    : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                }`}
               >
                 {label}
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f766e", color: "#fff", border: "1px solid #0d9488", fontWeight: 800 }}>
-            Staff CRM
+          <button
+            type="button"
+            onClick={() => navigate("/crm")}
+            className="px-4 py-2 rounded-xl text-[13px] font-bold bg-teal-700 text-white hover:bg-teal-800 transition-colors"
+          >
+            Staff CRM →
           </button>
         </div>
         {loadErrors.length > 0 ? (
@@ -1033,307 +1039,402 @@ export default function AdminDashboard() {
           </div>
         ) : null}
         {adminSection === "overview" && (
-          <div style={{ ...sectionCard, marginBottom: 16 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>At a glance</div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fit, minmax(130px, 1fr))",
-                gap: 10,
-              }}
-            >
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-5">
               {[
-                ["Users", users.length],
-                ["Customers", customersList.length],
-                ["Sellers", sellersList.length],
-                ["Consultants", consultantsList.length],
-                ["Sub-admins", subAdminsList.length],
-                ["Admins", adminsList.length],
-                ["Listings", listings.length],
-              ].map(([k, v]) => (
-                <div key={k} style={{ background: "#f8fafc", borderRadius: 10, padding: 12, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>{k}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>{v}</div>
+                { label: "Users", value: users.length, color: "#6366f1" },
+                { label: "Customers", value: customersList.length, color: "#3b82f6" },
+                { label: "Sellers", value: sellersList.length, color: "#f59e0b" },
+                { label: "Consultants", value: consultantsList.length, color: "#10b981" },
+                { label: "Sub-admins", value: subAdminsList.length, color: "#8b5cf6" },
+                { label: "Admins", value: adminsList.length, color: "#ef4444" },
+                { label: "Listings", value: listings.length, color: "#0ea5e9" },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: "white", borderRadius: 16, padding: "16px 18px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, marginBottom: 10 }} />
+                  <div style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 6 }}>{label}</div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 13, color: "#64748b", marginTop: 12, lineHeight: 1.6 }}>
-              <strong>Leads &amp; ops:</strong> {interestsState.length} listing interests · {assignmentsState.length} assignments ·{" "}
-              {visitRequests.length} visit requests · {adminNotifs.filter((n) => !n.read).length} unread admin notifications
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+              {[
+                { label: "Interests", value: interestsState.length, icon: "💬" },
+                { label: "Assignments", value: assignmentsState.length, icon: "🔗" },
+                { label: "Visit requests", value: visitRequests.length, icon: "📅" },
+                { label: "Unread notifications", value: adminNotifs.filter((n) => !n.read).length, icon: "🔔" },
+              ].map(({ label, value, icon }) => (
+                <div key={label} style={{ background: "white", borderRadius: 16, padding: "16px 18px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 22 }}>{icon}</span>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>{value}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: 12, color: "#475569", marginTop: 10, lineHeight: 1.55, maxWidth: 720 }}>
-              <strong>Broker privacy:</strong> Agent and owner numbers are stored in <code style={{ fontSize: 11 }}>listingPrivate</code> only, not on public{" "}
-              <code style={{ fontSize: 11 }}>listings</code> documents, so scraping open Firestore reads cannot harvest phones. Only admins, sub-admins, consultants, and the listing owner can read private phone docs (see Firestore rules). Firebase sign-in already requires a verified email.
+
+            {/* Agent engagement leaderboard */}
+            {brokersData.length > 0 && (
+              <div style={{ background: "white", borderRadius: 20, padding: "18px 20px", border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", marginBottom: 0 }}>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>Agent WhatsApp engagement</div>
+                  <button type="button" onClick={() => setAdminSection("brokerContacts")} style={{ fontSize: 12, color: "#0ea5e9", fontWeight: 700, background: "none", border: "none", cursor: "pointer" }}>Full log →</button>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #f1f5f9" }}>
+                        <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700, color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Rank</th>
+                        <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700, color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Agent</th>
+                        <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 700, color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Area</th>
+                        <th style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Clicks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {brokersData.map((b, i) => {
+                        const medals = ["🥇", "🥈", "🥉"];
+                        const totalClicks = brokersData.reduce((s, x) => s + (Number(x.engagementCount) || 0), 0);
+                        const clicks = Number(b.engagementCount) || 0;
+                        const pct = totalClicks > 0 ? Math.round((clicks / totalClicks) * 100) : 0;
+                        return (
+                          <tr key={b.id} style={{ borderBottom: "1px solid #f8fafc" }}>
+                            <td style={{ padding: "8px 8px", fontSize: 16 }}>{medals[i] || `#${i + 1}`}</td>
+                            <td style={{ padding: "8px 8px", fontWeight: 700, color: "#0f172a" }}>{b.name || b.id}</td>
+                            <td style={{ padding: "8px 8px", color: "#64748b" }}>{b.area || "—"}</td>
+                            <td style={{ padding: "8px 8px", textAlign: "right" }}>
+                              <div className="flex items-center justify-end gap-2">
+                                <div style={{ width: 60, height: 5, borderRadius: 999, background: "#f1f5f9", overflow: "hidden" }}>
+                                  <div style={{ height: "100%", width: `${pct}%`, background: "#22c55e", borderRadius: 999 }} />
+                                </div>
+                                <span style={{ fontWeight: 800, color: "#0f172a", minWidth: 20, textAlign: "right" }}>{clicks}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: "white", borderRadius: 20, padding: 24, border: "1px solid #f1f5f9", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f172a", color: "#fff" }}>Open Staff CRM</button>
+              <button type="button" onClick={() => setRefreshTick((x) => x + 1)} style={{ ...btn, background: "#f1f5f9", color: "#334155", border: "1px solid #e2e8f0" }}>↻ Refresh data</button>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, alignItems: "center" }}>
-              <button type="button" onClick={() => navigate("/crm")} style={{ ...btn, background: "#0f766e", color: "#fff", border: "1px solid #0d9488" }}>
-                Open staff CRM
-              </button>
-              <button type="button" onClick={() => setRefreshTick((x) => x + 1)} style={{ ...btn, background: "#2563eb", color: "#fff" }}>
-                Refresh all data
-              </button>
-              <span style={{ fontSize: 12, color: "#64748b" }}>Use the tabs above for forms and directory tables.</span>
-            </div>
-          </div>
+          </>
         )}
         {adminSection === "site" && (
-        <div style={{ ...sectionCard, border: "1px solid #bfdbfe", background: "#f0f9ff", marginBottom: "20px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "6px", color: "#0c4a6e" }}>Website — Contact page & legal lines</div>
-          <p style={{ fontSize: "13px", color: "#0369a1", marginBottom: "14px", lineHeight: 1.5 }}>
-            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/public</code>). Contact cards appear on{" "}
-            <strong>/contact</strong>; support email, privacy email, and main phone appear in Terms &amp; Privacy.
-          </p>
-          <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Consultant cards ({sitePublicDraft.contacts.length} / 12)</div>
-          {sitePublicDraft.contacts.map((c, idx) => (
-            <div
-              key={`row-${idx}`}
-              style={{
-                border: "1px solid #e2e8f0",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 10,
-                background: "#fff",
-              }}
-            >
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
-                <input
-                  placeholder="Name"
-                  value={c.name}
-                  onChange={(e) => updateContactField(idx, "name", e.target.value)}
-                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-                />
-                <input
-                  placeholder="Title (e.g. Sales Lead)"
-                  value={c.title}
-                  onChange={(e) => updateContactField(idx, "title", e.target.value)}
-                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-                />
-                <input
-                  placeholder="Phone (+91 … or digits for WhatsApp)"
-                  value={c.phone}
-                  onChange={(e) => updateContactField(idx, "phone", e.target.value)}
-                  style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }}
-                />
-                <label style={{ fontSize: 12, color: "#64748b", gridColumn: isMobile ? undefined : "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
-                  Optional: WhatsApp digits only (auto-filled from phone if empty)
-                  <input
-                    placeholder="9170…"
-                    value={c.phoneRaw}
-                    onChange={(e) => updateContactField(idx, "phoneRaw", e.target.value.replace(/\D/g, ""))}
-                    style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-                  />
-                </label>
-              </div>
-              <button type="button" onClick={() => removeContactRow(idx)} style={{ ...btn, marginTop: 8, background: "#f1f5f9", color: "#64748b", fontSize: "12px" }}>
-                Remove card
-              </button>
+        <div style={{ ...sectionCard, marginBottom: 20 }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Site & Contact</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Contact cards on /contact · Legal lines in Terms & Privacy</div>
             </div>
-          ))}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-            <button type="button" onClick={addContactRow} disabled={sitePublicDraft.contacts.length >= 12} style={{ ...btn, background: "#0ea5e9", color: "white" }}>
-              + Add contact card
-            </button>
-            <button type="button" onClick={() => navigate("/contact")} style={{ ...btn, background: "#e0f2fe", color: "#0369a1" }}>
-              Preview contact page
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button type="button" onClick={addContactRow} disabled={sitePublicDraft.contacts.length >= 12} style={{ ...btn, background: "#0ea5e9", color: "white" }}>+ Add card</button>
+              <button type="button" onClick={() => navigate("/contact")} style={{ ...btn, background: "#f1f5f9", color: "#334155" }}>Preview</button>
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 12 }}>
+
+          {/* Contact cards table */}
+          <div style={{ overflowX: "auto", marginBottom: 16 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569", width: 28 }}>#</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Name</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Title</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone (display)</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>WhatsApp digits</th>
+                  <th style={{ padding: "9px 10px", textAlign: "right", fontWeight: 700, color: "#475569" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sitePublicDraft.contacts.map((c, idx) => (
+                  <tr key={`contact-${idx}`} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <td style={{ padding: "8px 10px", color: "#94a3b8", fontWeight: 700 }}>{idx + 1}</td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={c.name} onChange={(e) => updateContactField(idx, "name", e.target.value)} placeholder="Name"
+                        style={{ width: "100%", minWidth: 100, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={c.title} onChange={(e) => updateContactField(idx, "title", e.target.value)} placeholder="Sales Lead"
+                        style={{ width: "100%", minWidth: 110, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={c.phone} onChange={(e) => updateContactField(idx, "phone", e.target.value)} placeholder="+91 …"
+                        style={{ width: "100%", minWidth: 130, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={c.phoneRaw} onChange={(e) => updateContactField(idx, "phoneRaw", e.target.value.replace(/\D/g, ""))} placeholder="9170… (auto)"
+                        style={{ width: "100%", minWidth: 110, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px", textAlign: "right" }}>
+                      <button type="button" onClick={() => removeContactRow(idx)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", padding: "4px 10px", fontSize: 12 }}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+                {sitePublicDraft.contacts.length === 0 && (
+                  <tr><td colSpan={6} style={{ padding: "16px 10px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No contact cards — click "+ Add card" to add one.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Legal fields compact row */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 14, padding: "14px 16px", background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0" }}>
             <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4 }}>
-              Terms — support email
-              <input
-                value={sitePublicDraft.supportEmail}
-                onChange={(e) => setSitePublicDraft((p) => ({ ...p, supportEmail: e.target.value }))}
-                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-              />
+              Support email (Terms)
+              <input value={sitePublicDraft.supportEmail} onChange={(e) => setSitePublicDraft((p) => ({ ...p, supportEmail: e.target.value }))}
+                style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontWeight: 400 }} />
             </label>
             <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4 }}>
-              Privacy — DPO email
-              <input
-                value={sitePublicDraft.privacyEmail}
-                onChange={(e) => setSitePublicDraft((p) => ({ ...p, privacyEmail: e.target.value }))}
-                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-              />
+              DPO email (Privacy)
+              <input value={sitePublicDraft.privacyEmail} onChange={(e) => setSitePublicDraft((p) => ({ ...p, privacyEmail: e.target.value }))}
+                style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontWeight: 400 }} />
             </label>
-            <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4, gridColumn: isMobile ? undefined : "1 / -1" }}>
-              Terms &amp; Privacy — main phone (display text)
-              <input
-                value={sitePublicDraft.legalPhoneDisplay}
-                onChange={(e) => setSitePublicDraft((p) => ({ ...p, legalPhoneDisplay: e.target.value }))}
-                style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-              />
+            <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", flexDirection: "column", gap: 4 }}>
+              Main phone (display)
+              <input value={sitePublicDraft.legalPhoneDisplay} onChange={(e) => setSitePublicDraft((p) => ({ ...p, legalPhoneDisplay: e.target.value }))}
+                style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, fontWeight: 400 }} />
             </label>
           </div>
+
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
-            <button type="button" onClick={handleSaveSitePublic} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>
-              Save to Firestore
-            </button>
+            <button type="button" onClick={handleSaveSitePublic} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>Save to Firestore</button>
             {sitePublicStatus ? <span style={{ fontSize: 13, color: sitePublicStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{sitePublicStatus}</span> : null}
           </div>
         </div>
         )}
 
         {adminSection === "agents" && (
-        <div style={{ ...sectionCard, border: "1px solid #fde68a", background: "#fffbeb", marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: "#78350f" }}>Agents directory</div>
-          <p style={{ fontSize: 13, color: "#92400e", marginBottom: 14, lineHeight: 1.5 }}>
-            Public read, admin-only write (<code style={{ fontSize: 12 }}>siteSettings/directoryAgents</code>). WhatsApp numbers save to{" "}
-            <code style={{ fontSize: 12 }}>agentPrivate</code> only — never on public cards. Order on <strong>/agents</strong> follows the list.
-          </p>
-          {agentsDraft.map((a, idx) => (
-            <div key={a.id || `agent-${idx}`} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginBottom: 10, background: "#fff" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                <strong style={{ fontSize: 14, color: "#0f172a" }}>#{idx + 1}</strong>
-                <button type="button" disabled={idx === 0} onClick={() => moveAgentRow(idx, -1)} style={{ ...btn, fontSize: 12, padding: "4px 10px" }}>↑</button>
-                <button type="button" disabled={idx >= agentsDraft.length - 1} onClick={() => moveAgentRow(idx, 1)} style={{ ...btn, fontSize: 12, padding: "4px 10px" }}>↓</button>
-                <button type="button" onClick={() => setAgentsDraft((rows) => rows.filter((_, i) => i !== idx))} style={{ ...btn, fontSize: 12, padding: "4px 10px", background: "#fef2f2", color: "#b91c1c" }}>Remove</button>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
-                <input placeholder="Name" value={a.name} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, name: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
-                <select value={a.tab} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, tab: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}>
-                  {AGENT_TABS.map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
-                <input placeholder="Brokerage" value={a.brokerage} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, brokerage: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
-                <input placeholder="Price range label" value={a.priceRangeLabel} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, priceRangeLabel: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
-                <input placeholder="Recent activity" value={a.recentActivity} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, recentActivity: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
-                <input placeholder="Local expertise" value={a.localExpertise} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, localExpertise: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
-                <input placeholder="Specialties (comma-separated)" value={a.specialties} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, specialties: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
-                <input placeholder="Languages (comma-separated)" value={a.languages} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, languages: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
-                <input placeholder="Areas (comma-separated)" value={a.areas} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, areas: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }} />
-                <input placeholder="WhatsApp number (private — not on /agents)" value={a.whatsappPrivate || ""} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, whatsappPrivate: e.target.value } : r)))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, gridColumn: isMobile ? undefined : "1 / -1" }} />
-                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={a.team} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, team: e.target.checked } : r)))} /> Team
-                </label>
-                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={a.rentFocus} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, rentFocus: e.target.checked } : r)))} /> Rentals
-                </label>
-                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={a.buyFocus} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => (i === idx ? { ...r, buyFocus: e.target.checked } : r)))} /> Buy / invest
-                </label>
-              </div>
+        <div style={{ ...sectionCard, marginBottom: 20 }}>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Agents directory</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>siteSettings/directoryAgents · phone saved to brokers collection</div>
             </div>
-          ))}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={() =>
-                setAgentsDraft((rows) => [
-                  ...rows,
-                  {
-                    id: `agent-${Date.now()}`,
-                    tab: "experts",
-                    name: "",
-                    initials: "",
-                    team: false,
-                    brokerage: "MovEazy · Verified area guide",
-                    priceRangeLabel: "",
-                    recentActivity: "",
-                    localExpertise: "",
-                    specialties: "Rentals",
-                    languages: "English, Hindi",
-                    areas: "",
-                    whatsappPrivate: "",
-                    rentFocus: true,
-                    buyFocus: false,
-                    budgetTier: 2,
-                  },
-                ])
-              }
-              style={{ ...btn, background: "#d97706", color: "white" }}
-            >
-              + Add agent
-            </button>
-            <button type="button" onClick={() => navigate("/agents")} style={{ ...btn, background: "#e0f2fe", color: "#0369a1" }}>Preview /agents</button>
-            <button type="button" onClick={handleSaveAgents} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>Save agents</button>
-            {agentsSaveStatus ? <span style={{ fontSize: 13, color: agentsSaveStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{agentsSaveStatus}</span> : null}
+            <div className="flex gap-2 flex-wrap">
+              <button type="button" onClick={() => setAgentsDraft((rows) => [...rows, { id: `agent-${Date.now()}`, tab: "brokers", name: "", initials: "", team: false, brokerage: "", priceRangeLabel: "", recentActivity: "", localExpertise: "", specialties: "Rentals", languages: "English, Hindi", areas: "", phone: "", rentFocus: true, buyFocus: false, budgetTier: 2, rating: null }])}
+                style={{ ...btn, background: "#d97706", color: "white" }}>+ Add agent</button>
+              <button type="button" onClick={() => navigate("/agents")} style={{ ...btn, background: "#f1f5f9", color: "#334155" }}>Preview</button>
+              <button type="button" onClick={handleSaveAgents} style={{ ...btn, background: "#0284c7", color: "white", fontWeight: 800 }}>Save agents</button>
+              {agentsSaveStatus ? <span style={{ fontSize: 13, color: agentsSaveStatus.startsWith("Saved") ? "#15803d" : "#b91c1c" }}>{agentsSaveStatus}</span> : null}
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569", width: 60 }}>Order</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Name</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Location</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Specialties</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Rating</th>
+                  <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone (WA connect)</th>
+                  <th style={{ padding: "9px 10px", textAlign: "right", fontWeight: 700, color: "#475569" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {agentsDraft.map((a, idx) => (
+                  <tr key={a.id || `agent-${idx}`} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button type="button" disabled={idx === 0} onClick={() => moveAgentRow(idx, -1)}
+                          style={{ ...btn, fontSize: 11, padding: "3px 7px", opacity: idx === 0 ? 0.35 : 1 }}>↑</button>
+                        <button type="button" disabled={idx >= agentsDraft.length - 1} onClick={() => moveAgentRow(idx, 1)}
+                          style={{ ...btn, fontSize: 11, padding: "3px 7px", opacity: idx >= agentsDraft.length - 1 ? 0.35 : 1 }}>↓</button>
+                      </div>
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={a.name} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => i === idx ? { ...r, name: e.target.value } : r))} placeholder="Name"
+                        style={{ width: "100%", minWidth: 110, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={a.localExpertise} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => i === idx ? { ...r, localExpertise: e.target.value } : r))} placeholder="Area"
+                        style={{ width: "100%", minWidth: 100, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={a.specialties} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => i === idx ? { ...r, specialties: e.target.value } : r))} placeholder="Rentals, Sales"
+                        style={{ width: "100%", minWidth: 110, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={a.rating ?? ""} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => i === idx ? { ...r, rating: e.target.value === "" ? null : Number(e.target.value) } : r))} placeholder="e.g. 4.5" type="number" min="0" max="5" step="0.1"
+                        style={{ width: 70, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input value={a.phone || ""} onChange={(e) => setAgentsDraft((rows) => rows.map((r, i) => i === idx ? { ...r, phone: e.target.value } : r))} placeholder="+91 …"
+                        style={{ width: "100%", minWidth: 120, padding: "5px 8px", borderRadius: 7, border: "1px solid #e2e8f0", fontSize: 13 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px", textAlign: "right" }}>
+                      <button type="button" onClick={() => setAgentsDraft((rows) => rows.filter((_, i) => i !== idx))}
+                        style={{ ...btn, background: "#fef2f2", color: "#dc2626", padding: "4px 10px", fontSize: 12 }}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+                {agentsDraft.length === 0 && (
+                  <tr><td colSpan={8} style={{ padding: "16px 10px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No agents — click "+ Add agent" to add one.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
         )}
 
         {adminSection === "operations" && (
         <>
-        <div style={{ ...sectionCard, marginBottom: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Queue summary</div>
-          <div style={{ fontSize: 13, color: "#475569", display: "flex", flexWrap: "wrap", gap: "10px 22px", lineHeight: 1.6 }}>
-            <span><strong>Interests:</strong> {interestsState.length}</span>
-            <span><strong>Assignments:</strong> {assignmentsState.length}</span>
-            <span><strong>Visit requests:</strong> {visitRequests.length}</span>
-            <span><strong>Admin alerts:</strong> {adminNotifs.length}</span>
-            <span><strong>Pending seller requests:</strong> {sellerReqs.length}</span>
-            <span><strong>Pending badge reviews:</strong> {pendingSellerBadgeApps.length}</span>
+        {/* Queue summary chips */}
+        <div style={{ ...sectionCard, marginBottom: 14, padding: "14px 18px" }}>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { label: "Interests", value: interestsState.length },
+              { label: "Assignments", value: assignmentsState.length },
+              { label: "Visits", value: visitRequests.length },
+              { label: "Alerts", value: adminNotifs.length },
+              { label: "Seller reqs", value: sellerReqs.length },
+              { label: "Badge reviews", value: pendingSellerBadgeApps.length },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                {value} <span style={{ fontWeight: 500, color: "#64748b" }}>{label}</span>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Badge approvals table */}
         {pendingSellerBadgeApps.length > 0 && (
-          <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e", marginBottom: "10px" }}>
-              Pending verified seller badge ({pendingSellerBadgeApps.length})
+          <div style={{ ...sectionCard, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#0f766e", marginBottom: 10 }}>Pending verified seller badge ({pendingSellerBadgeApps.length})</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Name</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Email</th>
+                    <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#475569" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingSellerBadgeApps.map((p, i) => (
+                    <tr key={p.email} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      <td style={{ padding: "9px 12px", fontWeight: 600, color: "#0f172a" }}>{p.name}</td>
+                      <td style={{ padding: "9px 12px", color: "#475569" }}>{p.email}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button type="button" onClick={() => handleApproveSellerBadge(p.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: 12, padding: "5px 12px" }}>Approve</button>
+                          <button type="button" onClick={() => handleRejectSellerBadge(p.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: 12, padding: "5px 12px" }}>Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {pendingSellerBadgeApps.map((p) => (
-              <div key={p.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: "12px" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{p.email}</div>
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
-                  <button type="button" onClick={() => handleApproveSellerBadge(p.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve badge</button>
-                  <button type="button" onClick={() => handleRejectSellerBadge(p.email)} style={{ ...btn, background: "#dc2626", color: "white", fontSize: "12px" }}>Reject</button>
-                </div>
-              </div>
-            ))}
           </div>
         )}
 
+        {/* Seller requests table */}
         {sellerReqs.length > 0 && (
-          <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#dc2626", marginBottom: "10px" }}>Pending Seller Requests ({sellerReqs.length})</div>
-            {sellerReqs.map((r) => (
-              <div key={r.email} style={{ background: "white", padding: "12px 16px", borderRadius: "8px", marginBottom: "8px", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: "10px" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{r.name}</div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>{r.email}</div>
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => handleApprove(r.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: "12px" }}>Approve</button>
-                  <button onClick={() => handleReject(r.email)} style={{ ...btn, background: "#dc2626", color: "white", fontSize: "12px" }}>Reject</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {visitRequests.length > 0 && (
-          <div style={{ background: "#fffbeb", padding: "16px", borderRadius: "12px", marginBottom: "16px", border: "1px solid #fcd34d" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "#b45309", marginBottom: "10px" }}>Global Visit Requests</div>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
-              {visitRequests.map((v) => (
-                <div key={v.id} style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid #fde68a" }}>
-                  <div style={{ fontSize: "13px", color: "#92400e" }}><strong>Time:</strong> {v.visitTime}</div>
-                  <div style={{ fontSize: "13px", color: "#92400e" }}><strong>Phone:</strong> {v.customerPhone}</div>
-                  <div style={{ fontSize: "12px", color: "#78350f", marginTop: "4px" }}>Customer: {v.customerEmail}</div>
-                  <div style={{ fontSize: "12px", color: "#78350f" }}>Seller: {v.sellerEmail}</div>
-                  <div style={{ fontSize: "12px", color: "#78350f" }}>Listing: #{v.listingId}</div>
-                </div>
-              ))}
+          <div style={{ ...sectionCard, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#b91c1c", marginBottom: 10 }}>Pending seller requests ({sellerReqs.length})</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Name</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Email</th>
+                    <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#475569" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sellerReqs.map((r, i) => (
+                    <tr key={r.email} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      <td style={{ padding: "9px 12px", fontWeight: 600, color: "#0f172a" }}>{r.name}</td>
+                      <td style={{ padding: "9px 12px", color: "#475569" }}>{r.email}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button type="button" onClick={() => handleApprove(r.email)} style={{ ...btn, background: "#16a34a", color: "white", fontSize: 12, padding: "5px 12px" }}>Approve</button>
+                          <button type="button" onClick={() => handleReject(r.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: 12, padding: "5px 12px" }}>Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
+        {/* Visit requests table */}
+        {visitRequests.length > 0 && (
+          <div style={{ ...sectionCard, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#b45309", marginBottom: 10 }}>Visit requests ({visitRequests.length})</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Visit time</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Customer</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Seller</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Listing</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visitRequests.map((v, i) => (
+                    <tr key={v.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      <td style={{ padding: "9px 12px", whiteSpace: "nowrap", color: "#0f172a", fontWeight: 600 }}>{v.visitTime || "—"}</td>
+                      <td style={{ padding: "9px 12px", color: "#475569" }}>{v.customerEmail}</td>
+                      <td style={{ padding: "9px 12px", color: "#64748b", whiteSpace: "nowrap" }}>{v.customerPhone || "—"}</td>
+                      <td style={{ padding: "9px 12px", color: "#475569" }}>{v.sellerEmail}</td>
+                      <td style={{ padding: "9px 12px", color: "#64748b" }}>#{v.listingId}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Admin notifications compact list */}
         {adminNotifs.length > 0 && (
-          <div style={{ ...sectionCard, border: "1px solid #fecdd3", background: "#fff1f2" }}>
-            <div style={{ fontSize: "18px", fontWeight: 800, color: "#9f1239", marginBottom: "10px" }}>Admin notifications ({adminNotifs.filter((n) => !n.read).length} unread)</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: 280, overflowY: "auto" }}>
-              {adminNotifs.map((n) => (
-                <div key={n.id} style={{ background: "white", borderRadius: "10px", padding: "10px 12px", border: n.read ? "1px solid #e2e8f0" : "2px solid #f43f5e", opacity: n.read ? 0.85 : 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a" }}>{n.title}</div>
-                  <div style={{ fontSize: "13px", color: "#475569", marginTop: "4px", lineHeight: 1.45 }}>{n.body}</div>
-                  {!n.read ? (
-                    <button type="button" onClick={() => handleNotifRead(n)} style={{ ...btn, marginTop: "8px", background: "#0f172a", color: "white", fontSize: "12px" }}>
-                      Mark read
-                    </button>
-                  ) : null}
-                </div>
-              ))}
+          <div style={{ ...sectionCard, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#9f1239", marginBottom: 10 }}>
+              Admin notifications ({adminNotifs.filter((n) => !n.read).length} unread / {adminNotifs.length} total)
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569", width: 60 }}>Status</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Title</th>
+                    <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Body</th>
+                    <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: "#475569" }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminNotifs.map((n, i) => (
+                    <tr key={n.id} style={{ borderBottom: "1px solid #f1f5f9", background: n.read ? (i % 2 === 0 ? "#fff" : "#fafafa") : "#fff1f2", opacity: n.read ? 0.8 : 1 }}>
+                      <td style={{ padding: "9px 12px" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: n.read ? "#64748b" : "#e11d48", background: n.read ? "#f1f5f9" : "#ffe4e6", padding: "2px 7px", borderRadius: 6 }}>
+                          {n.read ? "read" : "new"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "9px 12px", fontWeight: 700, color: "#0f172a" }}>{n.title}</td>
+                      <td style={{ padding: "9px 12px", color: "#475569", maxWidth: 300 }}>{n.body}</td>
+                      <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                        {!n.read && (
+                          <button type="button" onClick={() => handleNotifRead(n)} style={{ ...btn, background: "#0f172a", color: "white", fontSize: 11, padding: "4px 10px" }}>Mark read</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -1341,7 +1442,7 @@ export default function AdminDashboard() {
         <div style={sectionCard}>
           <div style={{ fontSize: "18px", fontWeight: 800, marginBottom: "10px", color: "#0f172a" }}>Listing interests and applications</div>
           <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "12px", lineHeight: 1.5 }}>
-            Every “Submit interest” from the map is stored here. Update status as your team progresses the lead.
+            Every "Submit interest" from the map is stored here. Update status as your team progresses the lead.
           </p>
           {interestsState.length === 0 ? (
             <div style={{ fontSize: "14px", color: "#64748b" }}>No interests yet.</div>
@@ -1483,18 +1584,37 @@ export default function AdminDashboard() {
             </button>
           </form>
           {assignmentsState.length > 0 && (
-            <div style={{ marginTop: "16px" }}>
-              <div style={{ fontWeight: 700, marginBottom: "8px", fontSize: "14px" }}>Recent assignments</div>
-              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
-                {assignmentsState.slice(0, 15).map((a) => (
-                  <li key={a.id}>
-                    {a.listingTitle ? `“${a.listingTitle}”` : `Listing #${a.listingId}`} → {a.customerName ? `${a.customerName} · ` : ""}
-                    {a.customerEmail}
-                    {a.customerPhone ? ` · ${a.customerPhone}` : ""} · seller {a.sellerName || a.sellerEmail || "—"}
-                    {a.sellerContactPhone ? ` (listing phone: ${a.sellerContactPhone})` : ""}
-                  </li>
-                ))}
-              </ul>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>Recent assignments ({assignmentsState.length})</div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Listing</th>
+                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Customer</th>
+                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone</th>
+                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Seller</th>
+                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Listing phone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignmentsState.slice(0, 15).map((a, i) => (
+                      <tr key={a.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 600, color: "#0f172a", maxWidth: 200 }}>
+                          {a.listingTitle ? `"${a.listingTitle}"` : `Listing #${a.listingId}`}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {a.customerName && <div style={{ fontWeight: 600, color: "#0f172a" }}>{a.customerName}</div>}
+                          <div style={{ color: "#475569" }}>{a.customerEmail}</div>
+                        </td>
+                        <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>{a.customerPhone || "—"}</td>
+                        <td style={{ padding: "8px 10px", color: "#475569" }}>{a.sellerName || a.sellerEmail || "—"}</td>
+                        <td style={{ padding: "8px 10px", color: "#64748b", whiteSpace: "nowrap" }}>{a.sellerContactPhone || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -1503,128 +1623,113 @@ export default function AdminDashboard() {
 
         {adminSection === "users" && (
         <>
-        {/* User Management Section */}
         <div style={sectionCard}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
-            <div style={{ fontSize: "18px", fontWeight: 700 }}>Users</div>
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {/* Header + filter tabs */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Users</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{displayUsers.length} shown</div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
               {[
-                ["all", `All (${users.length})`],
-                ["admin", `Admins (${adminsList.length})`],
-                ["consultant", `Consultants (${consultantsList.length})`],
-                ["sub_admin", `Sub-admins (${subAdminsList.length})`],
-                ["customer", `Customers (${customersList.length})`],
-                ["seller", `Sellers (${sellersList.length})`],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setUserListTab(key)}
-                  style={{
-                    ...btn,
-                    fontSize: "12px",
-                    padding: "6px 12px",
-                    background: userListTab === key ? "#1e3a8a" : "#f1f5f9",
-                    color: userListTab === key ? "white" : "#334155",
-                  }}
-                >
-                  {label}
+                ["all", "All", users.length],
+                ["admin", "Admins", adminsList.length],
+                ["consultant", "Consultants", consultantsList.length],
+                ["sub_admin", "Sub-admins", subAdminsList.length],
+                ["customer", "Customers", customersList.length],
+                ["seller", "Sellers", sellersList.length],
+              ].map(([key, label, count]) => (
+                <button key={key} type="button" onClick={() => setUserListTab(key)}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${userListTab === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}>
+                  {label} <span className="opacity-60">{count}</span>
                 </button>
               ))}
             </div>
           </div>
-          <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "10px", color: "#64748b" }}>Directory · {displayUsers.length} shown</div>
-          
-          <form onSubmit={handleAddUser} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) minmax(100px,0.75fr) auto", gap: "10px", marginBottom: "16px" }}>
-            <input placeholder="Full Name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
-            <input type="email" placeholder="Email Address" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
-            <input type="tel" placeholder="Phone (optional) — +91 9876543210" value={newUserPhone} onChange={(e) => setNewUserPhone(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }} />
-            <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)} style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}>
+
+          {/* Add user form */}
+          <form onSubmit={handleAddUser} className="flex flex-wrap gap-2 mb-4 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
+            <input placeholder="Full name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required
+              className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/20" />
+            <input type="email" placeholder="Email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required
+              className="flex-1 min-w-[180px] px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/20" />
+            <input type="tel" placeholder="Phone (optional)" value={newUserPhone} onChange={(e) => setNewUserPhone(e.target.value)}
+              className="flex-1 min-w-[140px] px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/20" />
+            <select value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none">
               <option value="customer">Customer</option>
-              <option value="seller">Seller / Broker</option>
-              <option value="consultant">Consultant (CRM)</option>
-              <option value="sub_admin">Sub-admin (CRM + private phones)</option>
+              <option value="seller">Seller</option>
+              <option value="consultant">Consultant</option>
+              <option value="sub_admin">Sub-admin</option>
               <option value="admin">Admin</option>
             </select>
-            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white" }}>Add User</button>
+            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "9px 18px" }}>+ Add</button>
           </form>
 
-          <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
-            {displayUsers.map((u) => (
-              <div key={u.uid || u.email} style={{ padding: "10px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "10px" : 0 }}>
-                {editingUserEmail === u.email ? (
-                  <form onSubmit={handleUpdateUser} style={{ flex: 1, display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                    <input value={editUserForm.name} onChange={(e) => setEditUserForm(p => ({...p, name: e.target.value}))} placeholder="Name" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
-                    <input value={editUserForm.phone} onChange={(e) => setEditUserForm(p => ({...p, phone: e.target.value}))} placeholder="Phone" style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }} />
-                    <select value={editUserForm.role} onChange={(e) => setEditUserForm(p => ({...p, role: e.target.value}))} style={{ padding: "6px", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
-                      <option value="customer">Customer</option>
-                      <option value="seller">Seller</option>
-                      <option value="consultant">Consultant</option>
-                      <option value="sub_admin">Sub-admin</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "6px 12px" }}>Save</button>
-                    <button type="button" onClick={() => setEditingUserEmail(null)} style={{ ...btn, background: "#94a3b8", color: "white", padding: "6px 12px" }}>Cancel</button>
-                  </form>
-                ) : (
-                  <>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>
-                        {u.name}{" "}
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            color: "white",
-                            background:
-                              canonicalRole(u) === "admin"
-                                ? "#7c3aed"
-                                : canonicalRole(u) === "seller"
-                                  ? "#f59e0b"
-                                  : canonicalRole(u) === "consultant"
-                                    ? "#0d9488"
-                                    : canonicalRole(u) === "sub_admin"
-                                      ? "#4f46e5"
-                                      : "#3b82f6",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            marginLeft: "6px",
-                          }}
-                        >
-                          {canonicalRole(u)}
-                        </span>
-                        {u.sellerBadgeStatus && canonicalRole(u) === "seller" ? (
-                          <span style={{ fontSize: "10px", marginLeft: "6px", color: "#64748b" }}>badge: {u.sellerBadgeStatus}</span>
-                        ) : null}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.5 }}>
-                        <div><strong>Email:</strong> {u.email}</div>
-                        <div><strong>Phone:</strong> {u.phone?.trim() ? u.phone : "—"}</div>
-                        <div style={{ fontSize: "11px", wordBreak: "break-all" }}><strong>User id:</strong> {u.uid || "—"}</div>
-                        {(u.customerOfficeLocation || (Array.isArray(u.customerFlatTypes) && u.customerFlatTypes.length)) ? (
-                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
-                            {u.customerOfficeLocation ? <span><strong>Office:</strong> {u.customerOfficeLocation}</span> : null}
-                            {Array.isArray(u.customerFlatTypes) && u.customerFlatTypes.length ? (
-                              <span>{u.customerOfficeLocation ? " · " : null}<strong>Flat types:</strong> {u.customerFlatTypes.join(", ")}</span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      {(canonicalRole(u) === "customer" || canonicalRole(u) === "seller" || canonicalRole(u) === "consultant" || canonicalRole(u) === "sub_admin") && !String(u.uid || "").startsWith("reserved") ? (
-                        <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#ecfdf5", color: "#166534", fontSize: "12px", padding: "6px 12px" }}>
-                          History
-                        </button>
-                      ) : null}
-                      <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#dbeafe", color: "#1d4ed8", fontSize: "12px", padding: "6px 12px" }}>Edit</button>
-                      {String(u.uid || "").startsWith("reserved-admin") ? null : (
-                        <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", fontSize: "12px", padding: "6px 12px" }}>Remove</button>
+          {/* Compact table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>Name</th>
+                  <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Email</th>
+                  <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone</th>
+                  <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Role</th>
+                  <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: "#475569" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayUsers.map((u, i) => {
+                  const role = canonicalRole(u);
+                  const roleBg = role === "admin" ? "#7c3aed" : role === "seller" ? "#f59e0b" : role === "consultant" ? "#0d9488" : role === "sub_admin" ? "#4f46e5" : "#3b82f6";
+                  const isEditing = editingUserEmail === u.email;
+                  return (
+                    <tr key={u.uid || u.email} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      {isEditing ? (
+                        <td colSpan={5} style={{ padding: "8px 12px" }}>
+                          <form onSubmit={handleUpdateUser} className="flex flex-wrap gap-2 items-center">
+                            <input value={editUserForm.name} onChange={(e) => setEditUserForm(p => ({...p, name: e.target.value}))} placeholder="Name"
+                              className="px-2.5 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 min-w-[120px]" />
+                            <input value={editUserForm.phone} onChange={(e) => setEditUserForm(p => ({...p, phone: e.target.value}))} placeholder="Phone"
+                              className="px-2.5 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none min-w-[120px]" />
+                            <select value={editUserForm.role} onChange={(e) => setEditUserForm(p => ({...p, role: e.target.value}))}
+                              className="px-2.5 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none">
+                              <option value="customer">Customer</option>
+                              <option value="seller">Seller</option>
+                              <option value="consultant">Consultant</option>
+                              <option value="sub_admin">Sub-admin</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button type="submit" style={{ ...btn, background: "#16a34a", color: "white", padding: "6px 14px", fontSize: 12 }}>Save</button>
+                            <button type="button" onClick={() => setEditingUserEmail(null)} style={{ ...btn, background: "#f1f5f9", color: "#64748b", padding: "6px 14px", fontSize: 12 }}>Cancel</button>
+                          </form>
+                        </td>
+                      ) : (
+                        <>
+                          <td style={{ padding: "10px 12px", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>{u.name || "—"}</td>
+                          <td style={{ padding: "10px 12px", color: "#475569" }}>{u.email}</td>
+                          <td style={{ padding: "10px 12px", color: "#64748b" }}>{u.phone?.trim() || "—"}</td>
+                          <td style={{ padding: "10px 12px" }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "white", background: roleBg, padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>{role}</span>
+                          </td>
+                          <td style={{ padding: "10px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                              {["customer","seller","consultant","sub_admin"].includes(role) && !String(u.uid||"").startsWith("reserved") && (
+                                <button type="button" onClick={() => setHistoryUser(u)} style={{ ...btn, background: "#f0fdf4", color: "#166534", padding: "5px 10px", fontSize: 11 }}>History</button>
+                              )}
+                              <button type="button" onClick={() => handleEditUser(u)} style={{ ...btn, background: "#eff6ff", color: "#1d4ed8", padding: "5px 10px", fontSize: 11 }}>Edit</button>
+                              {!String(u.uid||"").startsWith("reserved-admin") && (
+                                <button type="button" onClick={() => handleRemoveUser(u.email)} style={{ ...btn, background: "#fef2f2", color: "#dc2626", padding: "5px 10px", fontSize: 11 }}>Remove</button>
+                              )}
+                            </div>
+                          </td>
+                        </>
                       )}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
         </>
@@ -1716,7 +1821,7 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div style={{ marginTop: 8, fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
-                  This is the media already saved in Firestore (`images[]`). Use “Listing Media Upload” below to add more.
+                  This is the media already saved in Firestore (`images[]`). Use "Listing Media Upload" below to add more.
                 </div>
               </div>
             ) : null}
@@ -1843,6 +1948,133 @@ export default function AdminDashboard() {
         </>
         )}
 
+        {adminSection === "brokerContacts" && (
+          <BrokerContactsTable sectionCard={sectionCard} brokersData={brokersData} />
+        )}
+
+        {adminSection === "contactQueries" && (
+          <div style={sectionCard}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Contact Form Queries</div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                  Submissions from the /contact page — {contactQueries.length} total
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {["all", "pending", "resolved", "spam"].map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setContactQueriesFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold capitalize transition-all ${
+                      contactQueriesFilter === f
+                        ? "bg-zinc-900 text-white"
+                        : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                    }`}
+                  >
+                    {f === "all" ? `All (${contactQueries.length})` : `${f} (${contactQueries.filter((q) => q.status === f).length})`}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setRefreshTick((v) => v + 1)}
+                  style={{ ...btn, background: "#f1f5f9", color: "#334155" }}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>Date</th>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Name</th>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Email</th>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Phone</th>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Message</th>
+                    <th style={{ padding: "9px 10px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Status</th>
+                    <th style={{ padding: "9px 10px", textAlign: "right", fontWeight: 700, color: "#475569" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(contactQueriesFilter === "all"
+                    ? contactQueries
+                    : contactQueries.filter((q) => q.status === contactQueriesFilter)
+                  ).map((q, idx) => {
+                    const ts = q.createdAt?.toDate ? q.createdAt.toDate() : null;
+                    const dateStr = ts ? ts.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "—";
+                    const timeStr = ts ? ts.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "";
+                    const statusColors = {
+                      pending: { bg: "#fef9c3", color: "#854d0e" },
+                      resolved: { bg: "#dcfce7", color: "#14532d" },
+                      spam: { bg: "#fee2e2", color: "#991b1b" },
+                    };
+                    const sc = statusColors[q.status] || statusColors.pending;
+
+                    const updateStatus = async (newStatus) => {
+                      try {
+                        await updateDoc(doc(db, "contactQueries", q.id), { status: newStatus });
+                        setContactQueries((prev) => prev.map((item) => item.id === q.id ? { ...item, status: newStatus } : item));
+                      } catch (e) {
+                        alert("Update failed: " + String(e?.message || e));
+                      }
+                    };
+
+                    return (
+                      <tr key={q.id} style={{ borderBottom: "1px solid #f1f5f9", background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ padding: "10px 10px", color: "#64748b", whiteSpace: "nowrap", verticalAlign: "top" }}>
+                          <div style={{ fontWeight: 700, fontSize: 12 }}>{dateStr}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{timeStr}</div>
+                        </td>
+                        <td style={{ padding: "10px 10px", fontWeight: 700, color: "#0f172a", verticalAlign: "top", whiteSpace: "nowrap" }}>{q.name || "—"}</td>
+                        <td style={{ padding: "10px 10px", color: "#334155", verticalAlign: "top" }}>
+                          <a href={`mailto:${q.email}`} style={{ color: "#0ea5e9", textDecoration: "underline" }}>{q.email || "—"}</a>
+                        </td>
+                        <td style={{ padding: "10px 10px", color: "#334155", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                          {q.phone ? <a href={`tel:${q.phone}`} style={{ color: "#334155" }}>{q.phone}</a> : "—"}
+                        </td>
+                        <td style={{ padding: "10px 10px", color: "#475569", verticalAlign: "top", maxWidth: 280 }}>
+                          <div style={{ fontSize: 12, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
+                            {q.message || <span style={{ color: "#94a3b8" }}>No message</span>}
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 10px", verticalAlign: "top" }}>
+                          <span style={{ display: "inline-block", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.color }}>
+                            {q.status || "pending"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 10px", textAlign: "right", verticalAlign: "top" }}>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            {q.status !== "resolved" && (
+                              <button type="button" onClick={() => updateStatus("resolved")} style={{ ...btn, background: "#dcfce7", color: "#15803d", padding: "4px 10px", fontSize: 11 }}>Resolved</button>
+                            )}
+                            {q.status !== "pending" && (
+                              <button type="button" onClick={() => updateStatus("pending")} style={{ ...btn, background: "#fef9c3", color: "#854d0e", padding: "4px 10px", fontSize: 11 }}>Pending</button>
+                            )}
+                            {q.status !== "spam" && (
+                              <button type="button" onClick={() => updateStatus("spam")} style={{ ...btn, background: "#fee2e2", color: "#991b1b", padding: "4px 10px", fontSize: 11 }}>Spam</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {(contactQueriesFilter === "all" ? contactQueries : contactQueries.filter((q) => q.status === contactQueriesFilter)).length === 0 && (
+                    <tr>
+                      <td colSpan={7} style={{ padding: "24px 10px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                        No {contactQueriesFilter !== "all" ? contactQueriesFilter : ""} queries yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {historyUser ? (
           <div
             role="dialog"
@@ -1953,5 +2185,143 @@ export default function AdminDashboard() {
         ) : null}
       </div>
     </PageShell>
+  );
+}
+
+function BrokerContactsTable({ sectionCard, brokersData = [] }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterBroker, setFilterBroker] = useState("");
+
+  useEffect(() => {
+    fetchBrokerContacts()
+      .then(setRows)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const fmt = (ts) => {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  };
+
+  const medals = ["🥇", "🥈", "🥉"];
+  const totalClicks = brokersData.reduce((s, b) => s + (Number(b.engagementCount) || 0), 0);
+
+  // Leaderboard from brokers.engagementCount (live counter, source of truth)
+  const leaderboard = [...brokersData]
+    .sort((a, b) => (Number(b.engagementCount) || 0) - (Number(a.engagementCount) || 0));
+
+  // Contact log filtered
+  const filtered = filterBroker
+    ? rows.filter((r) => (r.brokerName || "").toLowerCase().includes(filterBroker.toLowerCase()))
+    : rows;
+
+  return (
+    <>
+      {/* Leaderboard — reads engagementCount from brokers docs */}
+      <div style={{ ...sectionCard, marginBottom: 14 }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Agent Engagement Ranking</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Live click count from brokers collection · updates on every WhatsApp tap</div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b" }}>{totalClicks} total tap{totalClicks !== 1 ? "s" : ""}</div>
+        </div>
+
+        {leaderboard.length === 0 ? (
+          <p style={{ fontSize: 13, color: "#94a3b8" }}>No brokers yet — add brokers in the Agents section.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569", width: 50 }}>Rank</th>
+                  <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Agent</th>
+                  <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Area</th>
+                  <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Clicks</th>
+                  <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569" }}>Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((b, i) => {
+                  const clicks = Number(b.engagementCount) || 0;
+                  const pct = totalClicks > 0 ? Math.round((clicks / totalClicks) * 100) : 0;
+                  return (
+                    <tr key={b.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                      <td style={{ padding: "10px 12px", fontSize: 18 }}>{medals[i] || `#${i + 1}`}</td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div style={{ fontWeight: 700, color: "#0f172a" }}>{b.name || "—"}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{b.phone || ""}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", color: "#64748b" }}>{b.area || "—"}</td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <span style={{ fontSize: 22, fontWeight: 800, color: clicks > 0 ? "#0f172a" : "#94a3b8" }}>{clicks}</span>
+                          <div style={{ flex: 1, minWidth: 60, maxWidth: 120, height: 6, borderRadius: 999, background: "#f1f5f9", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: "#22c55e", borderRadius: 999, transition: "width 0.4s" }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>{pct}%</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Full contact log */}
+      <div style={sectionCard}>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>Full contact log</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Every WhatsApp connect tap, newest first</div>
+          </div>
+          <input
+            placeholder="Filter by broker…"
+            value={filterBroker}
+            onChange={(e) => setFilterBroker(e.target.value)}
+            style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, minWidth: 180 }}
+          />
+        </div>
+
+        {loading ? (
+          <p style={{ fontSize: 13, color: "#94a3b8" }}>Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ fontSize: 13, color: "#94a3b8" }}>{filterBroker ? "No matches." : "No contacts yet."}</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                  {["Time", "Client", "Client Email", "Broker", "Broker ID"].map((h) => (
+                    <th key={h} style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    <td style={{ padding: "9px 12px", color: "#64748b", whiteSpace: "nowrap" }}>{fmt(r.timestamp)}</td>
+                    <td style={{ padding: "9px 12px" }}>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{r.clientName || "—"}</div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{r.clientId || ""}</div>
+                    </td>
+                    <td style={{ padding: "9px 12px", color: "#334155" }}>{r.clientEmail || "—"}</td>
+                    <td style={{ padding: "9px 12px", fontWeight: 600, color: "#0f172a" }}>{r.brokerName || "—"}</td>
+                    <td style={{ padding: "9px 12px", color: "#94a3b8", fontFamily: "monospace", fontSize: 11 }}>{r.brokerId || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ marginTop: 10, fontSize: 11, color: "#94a3b8" }}>{filtered.length} record{filtered.length !== 1 ? "s" : ""}</p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

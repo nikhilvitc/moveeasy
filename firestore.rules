@@ -54,7 +54,7 @@ service cloud.firestore {
     // default in profileService / AuthContext). Firestore must allow the initial userRoles write.
     // Other admin emails: add bootstrapAdmins/{email} in Console (no client read on that path).
     function isDefaultSeedAdminEmail() {
-      return authEmail() == "jiyanshudhaka20@gmail.com";
+      return authEmail() == "jiyanshudhaka2003@gmail.com";
     }
 
     function maySelfProvisionInitialAdminRole() {
@@ -72,6 +72,12 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isSignedIn();
       allow delete: if isAdmin();
+    }
+
+    // Facebook-scraped rental properties: public read for discovery. Admin-only writes.
+    match /facebookProperties/{propertyId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // Broker / owner phones — never on public `listings` docs. Staff + listing owner only.
@@ -189,6 +195,20 @@ service cloud.firestore {
       allow write: if isAdmin() && (docId == "public" || docId == "directoryAgents");
     }
 
+    // Broker profiles — public read for navbar dropdown and agents directory. Admin-only writes.
+    // Exception: signed-in users may increment engagementCount (WhatsApp connect tap counter)
+    // or update ratingAvg/ratingCount/ratingTotal when submitting a rating.
+    match /brokers/{brokerId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["engagementCount"]))
+        || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(["ratingAvg", "ratingCount", "ratingTotal"]));
+    }
+
     // Agent WhatsApp — never readable by customers (Connect uses Cloud Function).
     match /agentPrivate/{agentId} {
       allow read, write: if isAdmin() || isSubAdmin();
@@ -204,6 +224,32 @@ service cloud.firestore {
     match /agentConnectEvents/{id} {
       allow read: if isAdmin() || isSubAdmin();
       allow write: if false;
+    }
+
+    // User–broker contact log — written by signed-in users on button click.
+    // Users may read their own entries (needed to determine 12-hr rating unlock).
+    match /brokerContacts/{id} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin() || isSubAdmin()
+        || (isSignedIn() && resource.data.clientId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // Agent ratings — one doc per (client, agent) pair. Doc id: {clientId}_{agentId}.
+    // Public read so average ratings are visible to all; users create/update only their own.
+    match /agentRatings/{ratingId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.clientId == request.auth.uid
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update: if isSignedIn()
+        && resource.data.clientId == request.auth.uid
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow delete: if isAdmin();
     }
 
     // Staff CRM — customers/sellers have no access. Admins see all; sub-admins & consultants only rows where they are assignee.
@@ -233,6 +279,20 @@ service cloud.firestore {
 
     match /importJobs/{jobId} {
       allow read, write: if isAdmin() || isSubAdmin();
+    }
+
+    // Contact page form submissions — anyone can submit, only admin can read/update status.
+    match /contactQueries/{id} {
+      allow create: if true;
+      allow read, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Facebook-scraped rental properties — public read, admin-only writes.
+    match /facebookProperties/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

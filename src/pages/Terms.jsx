@@ -6,7 +6,7 @@ import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
 export default function Terms() {
   const { sitePublic } = useSitePublicSettings();
   return (
-    <div className="relative min-h-screen overflow-x-hidden antialiased bg-gradient-to-b from-stone-50 via-white to-rose-50/30">
+    <div className="relative min-h-screen antialiased bg-gradient-to-b from-stone-50 via-white to-rose-50/30">
       <PremiumPageBackdrop variant="marketing" overlayOnly />
       <Navbar />
       <main className="relative z-10 max-w-3xl mx-auto px-6 py-16">

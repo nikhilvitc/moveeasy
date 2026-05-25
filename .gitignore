@@ -58,3 +58,7 @@ restart.bat
 # Coverage
 coverage
 .nyc_output
+
+# Firebase service account key — never commit
+scripts/serviceAccount.json
+serviceAccount.json

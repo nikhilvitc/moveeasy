@@ -1,13 +1,17 @@
 /** Shared primary nav links (desktop + mobile header). */
 export const PRIMARY_NAV_LINKS = [
-  { label: "Services", path: "/services" },
-  { label: "Guarantee", path: "/guarantee" },
-  { label: "Listings", path: "/listings" },
-  { label: "Flat Plan", path: "/plan" },
+  {
+    label: "Services",
+    // Render as dropdown in the header — contains plan/listings/guarantee
+    children: [
+      { label: "Flat Plan", path: "/plan" },
+      { label: "Listings", path: "/listings" },
+      { label: "Guarantee", path: "/guarantee" },
+    ],
+  },
   { label: "Agents", path: "/agents" },
+  { label: "About Us", path: "/about" },
   { label: "Contact", path: "/contact" },
-  { label: "Terms", path: "/terms" },
-  { label: "Privacy", path: "/privacy" },
 ];
 
 export const HEADER_CTA = {

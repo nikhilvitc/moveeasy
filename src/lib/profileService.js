@@ -2,7 +2,7 @@ import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where
 import { db } from "./firebase";
 
 const PROFILE_FUNCTION_URL = import.meta.env.VITE_CREATE_PROFILE_FUNCTION_URL || "";
-const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka20@gmail.com")
+const ADMIN_EMAILS = String(import.meta.env.VITE_ADMIN_EMAILS || "jiyanshudhaka2003@gmail.com")
   .split(",")
   .map((e) => e.toLowerCase().trim())
   .filter(Boolean);

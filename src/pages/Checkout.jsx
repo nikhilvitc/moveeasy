@@ -1,8 +1,6 @@
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import Tilt3D from "../components/ui/Tilt3D";
-import PremiumPageBackdrop from "../components/ui/PremiumPageBackdrop";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { BRAND_PAYEE_NAME, getPaymentProduct } from "../config/paymentProducts";
@@ -14,7 +12,7 @@ const EASE = [0.22, 1, 0.36, 1];
 export default function Checkout() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmed, setConfirmed] = useState(() => searchParams.get("status") === "paid");
 
   const product = useMemo(() => getPaymentProduct(searchParams), [searchParams]);
   const razorpayHostedUrl = useMemo(() => getRazorpayHostedPaymentUrl(product.key), [product.key]);
@@ -39,252 +37,250 @@ export default function Checkout() {
   const whatsAppReceiptHref = `https://wa.me/${whatsappOrderE164}?text=${product.whatsappPath}`;
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden antialiased">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <PremiumPageBackdrop variant="checkout" />
-      </div>
-
+    <div className="min-h-[100dvh] bg-[#fafafa] antialiased">
       <Navbar />
 
-      <main className="relative z-10 max-w-4xl mx-auto px-6 py-12 sm:py-16">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }}>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-rose-200/80 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-rose-700 shadow-sm backdrop-blur-sm">
-            <motion.span
-              className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"
-              animate={{ scale: [1, 1.35, 1], opacity: [1, 0.7, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-            />
-            Live checkout
-          </div>
-          <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-stone-900 via-rose-900 to-orange-700 bg-clip-text text-transparent">Checkout</span>
-          </h1>
-          <p className="mt-2 text-slate-600 font-medium">
-            {product.key === "personalized-match"
-              ? "Unlock your personalized property pack — pay once, get curated picks and priority."
-              : hasDirectUpiFallback
-                ? "Pay on Razorpay (UPI, cards & more) or use the business UPI QR below."
-                : "Pay on Razorpay — UPI and cards go through MovEazy’s business Razorpay account (no personal UPI on this page)."}
-          </p>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+        {confirmed ? (
+          <SuccessScreen
+            product={product}
+            whatsAppHref={whatsAppReceiptHref}
+            onHome={() => navigate("/")}
+          />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="grid lg:grid-cols-[1fr_420px] gap-12 lg:gap-20 items-start"
+          >
+            {/* ── Left ── */}
+            <div className="lg:sticky lg:top-24">
+              <p className="text-xs font-medium text-slate-400 tracking-wide">Secure checkout</p>
+              <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-stone-900 leading-snug">
+                {product.title}
+              </h1>
+              {product.subtitle && (
+                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{product.subtitle}</p>
+              )}
 
-          <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
-            <a
-              href={razorpayHostedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#0d3c61] to-[#0f5a8c] px-5 py-2.5 text-sm font-bold text-white shadow-md ring-1 ring-black/10 hover:opacity-[0.96]"
-            >
-              Pay on Razorpay — UPI · Card · more
-            </a>
-            <span className="text-slate-400">or</span>
-            <Link
-              to={`/pay${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
-              className="font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800"
-            >
-              Full pay page
-            </Link>
-          </p>
+              <div className="mt-5">
+                <span className="text-3xl font-bold text-stone-900 tabular-nums">
+                  ₹{product.amountRupee.toLocaleString("en-IN")}
+                </span>
+                <span className="ml-2 text-sm text-slate-400">one-time payment</span>
+              </div>
 
-          <div className="mt-10 grid md:grid-cols-2 gap-8 md:gap-10">
-            <Tilt3D intensity={6} scale={1.01} className="rounded-2xl [transform-style:preserve-3d]">
-              <div className="rounded-2xl border border-white/80 bg-white/95 p-8 shadow-card-lg backdrop-blur-md ring-1 ring-stone-900/[0.04]">
-                <h2 className="text-xl font-bold text-stone-900 mb-6">Order summary</h2>
+              {product.bullets?.length > 0 && (
+                <ul className="mt-7 space-y-2.5">
+                  {product.bullets.map((b) => (
+                    <li key={b} className="flex items-start gap-2.5">
+                      <svg className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 8l3.5 3.5L13 5" />
+                      </svg>
+                      <span className="text-sm text-stone-600 leading-snug">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-                <div className="space-y-4 mb-8">
-                  <div className="flex justify-between items-center gap-4 pb-4 border-b border-stone-100">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-stone-900">{product.title}</div>
-                      <div className="text-sm text-slate-500 mt-1">{product.subtitle}</div>
-                    </div>
-                    <div className="font-bold text-lg text-stone-900 shrink-0">₹{product.amountRupee.toLocaleString("en-IN")}</div>
-                  </div>
-
-                  <div className="space-y-2 text-sm text-slate-600">
-                    {product.bullets.map((line) => (
-                      <div key={line} className="flex items-center gap-2">
-                        <span className="text-emerald-500 font-bold">✓</span>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
+              <div className="mt-10 pt-6 border-t border-stone-200 space-y-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="12" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+                  256-bit SSL encryption
                 </div>
-
-                <div className="flex justify-between items-center pt-4 border-t-2 border-stone-900">
-                  <div className="font-bold text-lg text-stone-900">Total</div>
-                  <motion.div
-                    className="font-extrabold text-2xl text-stone-900 tabular-nums"
-                    animate={{ scale: [1, 1.03, 1] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    ₹{product.amountRupee.toLocaleString("en-IN")}
-                  </motion.div>
+                <div className="flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5 6.5 5z"/></svg>
+                  Powered by Razorpay
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+                  Confirmation within 2 hours
                 </div>
               </div>
-            </Tilt3D>
+            </div>
 
-            <Tilt3D intensity={7} scale={1.015} className="rounded-2xl [transform-style:preserve-3d]">
-              <div className="rounded-2xl border border-white/80 bg-white/95 p-8 shadow-card-lg backdrop-blur-md ring-1 ring-stone-900/[0.04]">
-                <div className="mb-6 flex items-start justify-between gap-3">
-                  <h2 className="text-xl font-bold text-stone-900">
-                    {hasDirectUpiFallback ? "Pay on Razorpay or UPI" : "Pay on Razorpay"}
-                  </h2>
-                  <span className="shrink-0 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80">
-                    Encrypted
-                  </span>
+            {/* ── Right ── */}
+            <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
+                <span className="text-sm font-semibold text-stone-800">
+                  {hasDirectUpiFallback ? "Payment" : "Pay via Razorpay"}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="12" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg>
+                  Secure
+                </span>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Amount row */}
+                <div className="flex items-center justify-between py-3 border-b border-stone-100">
+                  <span className="text-sm text-stone-600">{product.title}</span>
+                  <span className="text-sm font-semibold text-stone-900 tabular-nums">₹{product.amountRupee.toLocaleString("en-IN")}</span>
                 </div>
 
+                {/* Pay button */}
                 <a
                   href={razorpayHostedUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mb-5 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#0d3c61] to-[#0f5a8c] py-3.5 text-sm font-bold text-white shadow-md ring-1 ring-black/10 hover:opacity-[0.96]"
+                  className="flex w-full items-center justify-center rounded-lg bg-stone-900 py-3.5 text-sm font-semibold text-white hover:bg-stone-800 active:scale-[0.99] transition-all"
                 >
-                  Razorpay — UPI · debit / credit · more
+                  Pay ₹{product.amountRupee.toLocaleString("en-IN")}
                 </a>
+                <p className="text-center text-[11px] text-slate-400">
+                  UPI · Debit &amp; Credit cards · Netbanking · Wallets
+                </p>
 
-                {!hasDirectUpiFallback ? (
-                  <div className="mb-6 rounded-xl border border-stone-200 bg-stone-50/90 p-4 text-sm text-stone-700 ring-1 ring-stone-900/[0.04]">
-                    <p className="font-semibold text-stone-900">Business checkout</p>
-                    <p className="mt-2 text-slate-600 leading-relaxed">
-                      UPI (Google Pay, PhonePe, BHIM, etc.) and cards are collected on Razorpay’s secure page for MovEazy — open{" "}
-                      <a href={razorpayHostedUrl} className="font-semibold text-rose-700 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
-                        Pay on Razorpay
-                      </a>{" "}
-                      to complete payment. An optional on-page UPI QR can be enabled later using your Razorpay business UPI or a hosted QR image.
-                    </p>
-                  </div>
-                ) : (
+                {/* QR */}
+                {hasDirectUpiFallback && qrSrc && (
                   <>
-                    <div className="mb-5 text-center text-[11px] font-medium uppercase tracking-wide text-slate-400">or scan QR</div>
-
-                    <div className="mb-6 rounded-2xl bg-gradient-to-r from-rose-400 via-orange-300 to-violet-400 p-[2px] shadow-lg bg-[length:240%_240%] animate-gradient-shift">
-                      <div className="rounded-[14px] bg-gradient-to-b from-stone-50/95 to-white p-6 text-center">
-                        <Tilt3D intensity={5} scale={1.02} className="mx-auto inline-block rounded-xl">
-                          <div className="w-52 h-52 mx-auto bg-white rounded-xl shadow-inner flex items-center justify-center border border-stone-200/80 p-2 ring-2 ring-white">
-                            {qrSrc ? (
-                              <img src={qrSrc} alt={product.qrAlt} width={220} height={220} className="max-w-full h-auto rounded-md" decoding="async" />
-                            ) : null}
-                          </div>
-                        </Tilt3D>
-                        <p className="mt-4 text-sm font-semibold text-stone-800">Scan with any UPI app</p>
-                        <p className="text-xs text-slate-500 mt-1">Google Pay • PhonePe • Paytm • BHIM</p>
-                      </div>
+                    <div className="flex items-center gap-3 py-1">
+                      <div className="flex-1 border-t border-stone-100" />
+                      <span className="text-[11px] text-slate-400">or scan to pay</span>
+                      <div className="flex-1 border-t border-stone-100" />
                     </div>
-
-                    {businessUpiVpa ? (
-                      <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
-                        <div className="font-semibold text-sky-950 mb-2">Business UPI ID</div>
-                        <div className="text-sky-900 space-y-1">
-                          <div>
-                            UPI: <span className="font-mono font-bold">{businessUpiVpa}</span>
-                          </div>
-                          <div>After payment, share screenshot on WhatsApp:</div>
-                          <a
-                            href={whatsAppReceiptHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
-                          >
-                            💬 Share on WhatsApp
-                          </a>
-                        </div>
-                      </div>
-                    ) : null}
+                    <div className="flex flex-col items-center rounded-lg border border-stone-100 bg-stone-50 py-5 px-4">
+                      <img src={qrSrc} alt={product.qrAlt} width={160} height={160} className="rounded" decoding="async" />
+                      <p className="mt-3 text-xs text-stone-500 text-center">
+                        Scan with Google Pay, PhonePe, Paytm or any UPI app
+                      </p>
+                      {businessUpiVpa && (
+                        <p className="mt-1.5 text-xs text-slate-400">
+                          UPI: <span className="font-mono text-stone-600">{businessUpiVpa}</span>
+                        </p>
+                      )}
+                    </div>
                   </>
                 )}
 
-                {hasDirectUpiFallback && !businessUpiVpa ? (
-                  <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
-                    <div className="font-semibold text-sky-950 mb-2">Receipt</div>
-                    <div className="text-sky-900 space-y-1">
-                      <div>After payment, share screenshot on WhatsApp:</div>
-                      <a
-                        href={whatsAppReceiptHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
-                      >
-                        💬 Share on WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                ) : null}
-
-                {!hasDirectUpiFallback ? (
-                  <div className="bg-sky-50/90 rounded-xl p-4 mb-6 text-sm border border-sky-100 ring-1 ring-sky-200/40">
-                    <div className="font-semibold text-sky-950 mb-2">After paying on Razorpay</div>
-                    <div className="text-sky-900 space-y-1">
-                      <div>Share your Razorpay receipt or payment screenshot on WhatsApp so we can confirm:</div>
-                      <a
-                        href={whatsAppReceiptHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md"
-                      >
-                        💬 Share on WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                ) : null}
-
-                {!confirmed ? (
-                  <motion.button
-                    type="button"
-                    onClick={() => setConfirmed(true)}
-                    className="relative w-full overflow-hidden rounded-xl py-4 font-bold text-base text-white shadow-red-lg"
-                    style={{
-                      background: "linear-gradient(135deg, #e11d48 0%, #ea580c 45%, #c026d3 100%)",
-                    }}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    animate={{ boxShadow: ["0 8px 28px rgba(225,29,72,0.45)", "0 12px 40px rgba(225,29,72,0.65)", "0 8px 28px rgba(225,29,72,0.45)"] }}
-                    transition={{ boxShadow: { duration: 2.2, repeat: Infinity, ease: "easeInOut" } }}
+                {/* WhatsApp receipt */}
+                <div className="rounded-lg border border-stone-100 bg-stone-50 p-4">
+                  <p className="text-xs font-medium text-stone-600 mb-2.5">After payment, send your receipt</p>
+                  <a
+                    href={whatsAppReceiptHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center rounded-lg border border-stone-200 bg-white py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
                   >
-                    <span className="relative z-[1]">I&apos;ve made the payment — continue</span>
-                    <motion.span
-                      className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
-                      initial={{ x: "-100%" }}
-                      animate={{ x: "200%" }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "linear", repeatDelay: 0.8 }}
-                    />
-                  </motion.button>
-                ) : (
-                  <div className="text-center">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-4 shadow-sm">
-                      <motion.div
-                        className="text-4xl mb-2"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 16 }}
-                      >
-                        🎉
-                      </motion.div>
-                      <div className="font-bold text-emerald-900 text-lg">Payment received</div>
-                      <div className="text-sm font-semibold text-emerald-900/90 mt-1">{product.confirmTitle}</div>
-                      <div className="text-sm text-emerald-700/90 mt-2">{product.confirmBody}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/")}
-                      className="px-8 py-3 rounded-full font-semibold text-white bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 shadow-md transition-colors"
-                    >
-                      Back to home
-                    </button>
-                  </div>
-                )}
+                    Send receipt via WhatsApp
+                  </a>
+                </div>
 
-                <p className="mt-5 text-center text-[11px] font-medium text-slate-400">
-                  Trusted checkout · UPI protected · No card data stored on {BRAND_PAYEE_NAME}
+                <p className="text-center text-[10px] text-slate-400 leading-relaxed">
+                  No card details are stored on our servers. Payments are processed securely by Razorpay.
                 </p>
               </div>
-            </Tilt3D>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+        )}
       </main>
 
-      <div className="relative z-10">
-        <Footer />
-      </div>
+      <Footer />
     </div>
+  );
+}
+
+function SuccessScreen({ product, whatsAppHref, onHome }) {
+  const steps = [
+    { title: "Payment verified", body: "Our team confirms your payment within 2 hours." },
+    { title: "WhatsApp confirmation", body: "You will receive a confirmation message on WhatsApp." },
+    { title: "Your guide is assigned", body: "A dedicated consultant will reach out to get started." },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="max-w-md mx-auto py-14"
+    >
+      {/* Check icon */}
+      <div className="flex justify-center">
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-stone-900">
+          <motion.svg
+            viewBox="0 0 40 40"
+            className="h-7 w-7 text-white"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <motion.path
+              d="M10 21l7 7 13-14"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.45, delay: 0.15, ease: "easeOut" }}
+            />
+          </motion.svg>
+        </div>
+      </div>
+
+      <div className="mt-5 text-center">
+        <h2 className="text-xl font-bold text-stone-900">Payment received</h2>
+        <p className="mt-1 text-sm text-slate-500">Your order has been confirmed.</p>
+      </div>
+
+      {/* Order card */}
+      <div className="mt-7 rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Order summary</p>
+        </div>
+        <div className="px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-stone-800">{product.title}</p>
+            {product.subtitle && <p className="text-xs text-slate-500 mt-0.5">{product.subtitle}</p>}
+          </div>
+          <p className="text-sm font-bold text-stone-900 tabular-nums ml-4 shrink-0">
+            ₹{product.amountRupee.toLocaleString("en-IN")}
+          </p>
+        </div>
+      </div>
+
+      {/* Next steps */}
+      <div className="mt-5 rounded-xl border border-stone-200 bg-white overflow-hidden divide-y divide-stone-100">
+        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">What happens next</p>
+        </div>
+        {steps.map((s, i) => (
+          <div key={s.title} className="px-5 py-3.5 flex items-start gap-3">
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-200 text-[10px] font-semibold text-stone-500">
+              {i + 1}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-stone-800">{s.title}</p>
+              <p className="text-xs text-slate-500 mt-0.5 leading-snug">{s.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-5 space-y-2.5">
+        {whatsAppHref && (
+          <a
+            href={whatsAppHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center rounded-lg bg-stone-900 py-3 text-sm font-semibold text-white hover:bg-stone-800 transition-colors"
+          >
+            Send receipt on WhatsApp
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onHome}
+          className="w-full rounded-lg border border-stone-200 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors"
+        >
+          Return to home
+        </button>
+      </div>
+
+      <p className="mt-6 text-center text-[11px] text-slate-400">
+        Questions? Contact us on WhatsApp — we respond within 2 hours.
+      </p>
+    </motion.div>
   );
 }

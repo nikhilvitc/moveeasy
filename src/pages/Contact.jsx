@@ -1,453 +1,320 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import PageShell from "../components/layout/PageShell";
-import { FLAT_SEARCH_CTA, HEADER_CTA } from "../config/navLinks";
-import {
-  buildContactWhatsAppUrl,
-  contactRoleLabel,
-  formatContactDisplayName,
-  formatTelHref,
-  SALES_WA_GREETING,
-  whatsAppLabelForContact,
-} from "../config/contactChannels";
-import { DEFAULT_CONTACT_TEAM } from "../lib/sitePublicSettings";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { useSitePublicSettings } from "../hooks/useSitePublicSettings";
-import Tilt3D from "../components/ui/Tilt3D";
+import { DEFAULT_CONTACT_TEAM } from "../lib/sitePublicSettings";
+import { buildContactWhatsAppUrl } from "../config/contactChannels";
+import { db, isFirebaseConfigured } from "../lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
-const EASE = [0.22, 1, 0.36, 1];
+const MAX_MSG = 500;
 
-const WHY_ITEMS = [
-  {
-    icon: "🎯",
-    title: "Built around your brief",
-    desc: "Budget, commute radius, flat type, PG vs whole flat, and move-in week — we translate that into a tight shortlist, not random WhatsApp forwards.",
-  },
-  {
-    icon: "⚡",
-    title: "Exclusive & fast-moving stock",
-    desc: "Paid match clients get earlier nudge on landlord-approved deals and off-market options when owners want a quick close.",
-  },
-  {
-    icon: "📌",
-    title: "Priority when you move",
-    desc: "When you are ready to visit or block a unit, your request is queued ahead of cold inquiries so you waste fewer weekends.",
-  },
-];
-
-function TeamContactCard({ contact, index, waMessage }) {
-  const telHref = formatTelHref(contact.phoneRaw);
-  const waHref = buildContactWhatsAppUrl(contact, waMessage) || "#";
-
+function WaIcon() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.1 + index * 0.08, ease: EASE }}
-    >
-      <Tilt3D intensity={5} scale={1.02} className="h-full">
-        <motion.div
-          className="h-full rounded-2xl p-7 flex flex-col gap-5 relative overflow-hidden"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.30)",
-            transition: "box-shadow 0.3s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow =
-              "0 20px 60px rgba(0,0,0,0.40), 0 0 60px rgba(232,90,79,0.20)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.30)";
-          }}
+    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current shrink-0" aria-hidden>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+    </svg>
+  );
+}
+
+const INPUT_STYLE = {
+  width: "100%",
+  padding: "11px 14px 11px 40px",
+  borderRadius: 10,
+  background: "#ffffff",
+  border: "2px solid #0f172a",
+  color: "#0f172a",
+  fontSize: 14,
+  fontWeight: 600,
+  outline: "none",
+  transition: "border-color 0.15s",
+};
+
+function Field({ label, icon, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[13px] font-semibold" style={{ color: "#475569" }}>
+        {label}
+      </label>
+      <div className="relative">
+        <span
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px]"
+          style={{ color: "#94a3b8", pointerEvents: "none" }}
         >
-          <div
-            className={`absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl pointer-events-none bg-gradient-to-r ${contact.gradient || "from-[#e85a4f] to-[#f97316]"}`}
-            aria-hidden="true"
-          />
-
-          <div className="flex items-center gap-4">
-            <motion.div
-              className={`w-14 h-14 rounded-full bg-gradient-to-br ${contact.gradient || "from-[#e85a4f] to-[#f97316]"} flex items-center justify-center text-white font-bold text-lg shadow-lg`}
-            >
-              {contact.avatar}
-            </motion.div>
-            <div className="min-w-0">
-              <p
-                className="text-[11px] font-semibold uppercase tracking-wider mb-1"
-                style={{ color: "#ff8a7a" }}
-              >
-                {contactRoleLabel(contact)}
-              </p>
-              <div className="font-bold text-[17px] text-white leading-snug">
-                {formatContactDisplayName(contact)}
-              </div>
-            </div>
-          </div>
-
-          <div className="text-[14px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true">📞</span>
-              <a
-                href={telHref}
-                className="font-medium transition-colors"
-                style={{ color: "rgba(255,255,255,0.70)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#ff8a7a")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.70)")}
-              >
-                {contact.phone}
-              </a>
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-auto">
-            <motion.a
-              href={telHref}
-              className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.16)",
-              }}
-              whileHover={{ scale: 1.03, backgroundColor: "rgba(255,255,255,0.20)" }}
-              whileTap={{ scale: 0.97 }}
-            >
-              📞 Call Now
-            </motion.a>
-            <motion.a
-              href={waHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 text-center py-3 px-4 rounded-xl font-semibold text-[14px] text-white"
-              style={{
-                background: "linear-gradient(135deg, #16a34a, #15803d)",
-                boxShadow: "0 4px 16px rgba(22,163,74,0.35)",
-              }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              💬 WhatsApp
-            </motion.a>
-          </div>
-        </motion.div>
-      </Tilt3D>
-    </motion.div>
+          {icon}
+        </span>
+        {children}
+      </div>
+    </div>
   );
 }
 
 export default function Contact() {
-  const navigate = useNavigate();
-  const { sitePublic, loading } = useSitePublicSettings();
+  const { sitePublic } = useSitePublicSettings();
   const contacts = sitePublic.contacts?.length ? sitePublic.contacts : DEFAULT_CONTACT_TEAM;
   const supportEmail = sitePublic.supportEmail || "support@moveazy.in";
-  const supportPhone = sitePublic.legalPhoneDisplay || "+91 70559 54373";
-  const supportTel = sitePublic.legalPhoneTel || formatTelHref("917055954373");
 
-  const gridCols =
-    contacts.length >= 3
-      ? "md:grid-cols-2 lg:grid-cols-3"
-      : contacts.length === 1
-      ? "md:grid-cols-1 max-w-md mx-auto"
-      : "md:grid-cols-2";
+  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "", agreed: false });
+  const [status, setStatus] = useState(null); // null | "sending" | "sent" | "error"
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.agreed) { setErrorMsg("Please agree to the Privacy Policy."); return; }
+    if (!form.name.trim() || !form.email.trim()) { setErrorMsg("Name and email are required."); return; }
+    setErrorMsg("");
+    setStatus("sending");
+    try {
+      if (isFirebaseConfigured) {
+        await addDoc(collection(db, "contactQueries"), {
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim(),
+          message: form.message.trim(),
+          status: "pending",
+          createdAt: serverTimestamp(),
+        });
+      }
+      setStatus("sent");
+      setForm({ name: "", email: "", phone: "", message: "", agreed: false });
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg("Something went wrong. Please try WhatsApp directly.");
+      console.error(err);
+    }
+  };
 
   return (
-    <PageShell fixedBackdrop variant="dark" overlayOnly className="antialiased bg-[#0d0d14]">
+    <PageShell fixedBackdrop variant="light" overlayOnly className="antialiased" style={{ background: "#f5f5f7" }}>
       <Navbar />
 
-      <main className="relative">
-        {/* Hero — rich gradient */}
-        <section
-          className="relative text-white overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(145deg, #0f0c29 0%, #1a0508 40%, #0a1228 100%)",
-          }}
-        >
-          {/* Floating blobs */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-            <div
-              style={{
-                position: "absolute",
-                top: "-5%",
-                left: "-5%",
-                width: 400,
-                height: 400,
-                borderRadius: "60% 40% 30% 70% / 60% 30% 70% 40%",
-                background: "radial-gradient(circle, rgba(232,90,79,0.28) 0%, transparent 70%)",
-                animation: "blob-move 12s ease-in-out infinite, float-slow 9s ease-in-out infinite",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                bottom: "-10%",
-                right: "-5%",
-                width: 340,
-                height: 340,
-                borderRadius: "40% 60% 70% 30% / 40% 70% 30% 60%",
-                background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 70%)",
-                animation: "blob-move 14s ease-in-out infinite 2s, float-slow 11s ease-in-out infinite 1s",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "60%",
-                width: 220,
-                height: 220,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(249,115,22,0.16) 0%, transparent 70%)",
-                animation: "float-slow 8s ease-in-out infinite 0.5s",
-              }}
-            />
-          </div>
+      <main
+        className="min-h-screen relative"
+        style={{ background: "#f5f5f7" }}
+      >
+        {/* Background glow */}
+        <div
+          className="pointer-events-none absolute bottom-0 left-0"
+          style={{ width: 600, height: 500, background: "radial-gradient(ellipse at bottom left, rgba(99,102,241,0.10) 0%, transparent 65%)" }}
+          aria-hidden
+        />
 
-          {/* Gradient border bottom */}
-          <div
-            className="absolute bottom-0 left-0 right-0 h-[1px] pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(90deg, transparent, rgba(232,90,79,0.40), rgba(249,115,22,0.40), transparent)",
-            }}
-            aria-hidden="true"
-          />
+        <div className="relative z-10 max-w-5xl mx-auto px-6 pt-6 pb-14 sm:pt-8 sm:pb-20">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
-          <div className="relative z-10 max-w-5xl mx-auto px-6 py-20 sm:py-28 text-center">
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: EASE }}
-              className="font-semibold text-sm tracking-widest uppercase mb-4"
-              style={{ color: "#ff8a7a" }}
-            >
-              Sales &amp; Support
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.08, ease: EASE }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight"
-            >
-              Contact{" "}
-              <span className="gradient-text">MovEazy</span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.16, ease: EASE }}
-              className="mt-5 text-lg max-w-2xl mx-auto"
-              style={{ color: "rgba(255,255,255,0.60)" }}
-            >
-              <strong className="text-white/90">Sales</strong> — WhatsApp Kuldeep or Suresh for flat search (₹1,499), guarantee (₹1,999), and visits.{" "}
-              <strong className="text-white/90">Support</strong> — email{" "}
-              <a href={`mailto:${supportEmail}`} className="text-[#ff8a7a] underline font-semibold">
-                {supportEmail}
-              </a>{" "}
-              for account and listing help. See our{" "}
-              <Link to="/plan" className="text-[#ff8a7a] underline font-semibold">
-                Flat Plan
-              </Link>{" "}
-              for how matching works.
-            </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.24, ease: EASE }}
-              className="mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4"
-            >
-              <Link
-                to={HEADER_CTA.path}
-                className="inline-flex px-10 py-4 rounded-full font-bold text-base text-white btn-glow-pulse text-center"
-                style={{ background: "linear-gradient(135deg, #e85a4f, #f97316)" }}
-              >
-                {HEADER_CTA.label}
-              </Link>
-              <Link
-                to={FLAT_SEARCH_CTA.path}
-                className="inline-flex px-8 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
-              >
-                {FLAT_SEARCH_CTA.label} — ₹1,499
-              </Link>
-              {contacts.map((c) => {
-                const href = buildContactWhatsAppUrl(c, SALES_WA_GREETING);
-                if (!href) return null;
-                return (
-                  <a
-                    key={c.phoneRaw}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex px-6 py-4 rounded-full font-semibold text-base border border-white/30 text-white/90 hover:bg-white/10 transition-colors"
-                  >
-                    {whatsAppLabelForContact(c)}
-                  </a>
-                );
-              })}
-            </motion.div>
-          </div>
-        </section>
+            {/* ── Left ── */}
+            <div className="pt-0">
+              <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight mb-3" style={{ color: "#0f172a" }}>
+                Let&apos;s Get In Touch.
+              </h1>
 
-        {/* Sales & Support */}
-        <section className="max-w-6xl mx-auto px-6 -mt-12 relative z-20 pb-20">
-          {loading ? (
-            <div
-              className="text-center py-16 text-sm font-medium"
-              style={{ color: "rgba(255,255,255,0.40)" }}
-            >
-              Loading contact team…
-            </div>
-          ) : (
-            <>
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: EASE }}
-                className="mb-6"
-                id="sales"
-              >
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">Sales team</h2>
-                <p className="mt-2 text-sm max-w-2xl" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  Flat search, guarantee plans, and visit scheduling — call or WhatsApp directly.
+              <p className="text-[15px] font-semibold mb-2" style={{ color: "#334155" }}>
+                Or just reach out manually to{" "}
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="font-bold transition-colors hover:underline"
+                  style={{ color: "#4f46e5" }}
+                >
+                  {supportEmail}
+                </a>
+              </p>
+
+              {/* WhatsApp direct links */}
+              <div className="mt-6 flex flex-col gap-3">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] mb-1" style={{ color: "#475569" }}>
+                  WhatsApp our sales team
                 </p>
-              </motion.div>
-              <div className={`grid gap-8 ${gridCols}`}>
-                {contacts.map((c, i) => (
-                  <TeamContactCard
-                    key={`${c.name}-${c.phoneRaw}-${i}`}
-                    contact={c}
-                    index={i}
-                    waMessage={SALES_WA_GREETING}
-                  />
-                ))}
+                {contacts.map((c) => {
+                  const href = buildContactWhatsAppUrl(c, "Hi — I'd like to connect with MovEazy sales.");
+                  const first = String(c.name || "team").split(/\s+/)[0];
+                  return (
+                    <a
+                      key={c.phoneRaw || c.name}
+                      href={href || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-3 w-fit group"
+                    >
+                      <span
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-sm shrink-0"
+                        style={{ background: "#0f172a" }}
+                      >
+                        {c.avatar || first.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="text-[14px] font-extrabold text-gray-900 group-hover:text-green-600 transition-colors flex items-center gap-1.5">
+                          <span className="text-green-600"><WaIcon /></span> {first}
+                        </span>
+                        <span className="text-[12px] font-semibold" style={{ color: "#475569" }}>{c.phone}</span>
+                      </span>
+                    </a>
+                  );
+                })}
               </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, delay: 0.2, ease: EASE }}
-                className="mt-14"
-                id="support"
-              >
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">Customer support</h2>
-                <p className="mt-2 text-sm max-w-2xl mb-6" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  Account access, payments, guarantee claims, and listing issues — we aim to reply within one business day.
+              <div className="mt-6 pt-6 border-t" style={{ borderColor: "#cbd5e1" }}>
+                <p className="text-[13px] font-bold" style={{ color: "#475569" }}>
+                  Mon–Sun · 9 am – 9 pm IST · Bangalore
                 </p>
-                <div
-                  className="max-w-xl rounded-2xl p-7 flex flex-col sm:flex-row sm:items-center gap-5"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    backdropFilter: "blur(16px)",
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-[11px] font-semibold uppercase tracking-wider mb-2"
-                      style={{ color: "#ff8a7a" }}
-                    >
-                      Support
-                    </p>
-                    <p className="font-bold text-lg text-white">MovEazy customer support</p>
-                    <p className="mt-2 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
-                      Email us for non-urgent help; use sales WhatsApp above for flat search and visits.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:shrink-0">
-                    <a
-                      href={`mailto:${supportEmail}`}
-                      className="text-center py-3 px-5 rounded-xl font-semibold text-[14px] text-white"
-                      style={{
-                        background: "linear-gradient(135deg, #e85a4f, #f97316)",
-                        boxShadow: "0 4px 16px rgba(232,90,79,0.35)",
-                      }}
-                    >
-                      ✉️ {supportEmail}
-                    </a>
-                    <a
-                      href={supportTel}
-                      className="text-center py-3 px-5 rounded-xl font-semibold text-[14px] text-white"
-                      style={{
-                        background: "rgba(255,255,255,0.12)",
-                        border: "1px solid rgba(255,255,255,0.16)",
-                      }}
-                    >
-                      📞 {supportPhone}
-                    </a>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-
-          {/* Why talk to us */}
-
-          {/* Why talk to us */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
-            className="mt-16 text-center"
-          >
-            <h2 className="text-2xl font-bold mb-4">
-              <span style={{ color: "rgba(255,255,255,0.85)" }}>Why Talk to </span>
-              <span className="gradient-text">Us?</span>
-            </h2>
-            <div className="grid sm:grid-cols-3 gap-6 mt-8 max-w-3xl mx-auto">
-              {WHY_ITEMS.map((item, i) => (
-                <motion.div
-                  key={item.title}
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 + i * 0.08, ease: EASE }}
-                  className="rounded-xl p-6 text-left"
-                  style={{
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    backdropFilter: "blur(10px)",
-                  }}
-                  whileHover={{ backgroundColor: "rgba(255,255,255,0.08)" }}
-                >
-                  <div className="text-3xl mb-3">{item.icon}</div>
-                  <div className="font-bold mb-1 text-white">{item.title}</div>
-                  <div className="text-[13px]" style={{ color: "rgba(255,255,255,0.45)" }}>
-                    {item.desc}
-                    {item.bullets?.length ? (
-                      <ul className="mt-2 pl-4 list-disc space-y-1 text-left">
-                        {item.bullets.map((b) => (
-                          <li key={b}>{b}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                </motion.div>
-              ))}
+              </div>
             </div>
-          </motion.div>
 
-          {/* Bottom CTA */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.6, ease: EASE }}
-            className="mt-14 text-center"
-          >
-            <motion.button
-              onClick={() => navigate("/guarantee")}
-              className="px-10 py-4 text-white rounded-full font-bold text-base btn-glow-pulse"
-              style={{
-                background: "linear-gradient(135deg, #e85a4f, #f97316)",
-              }}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.97 }}
+            {/* ── Right: Form ── */}
+            <div
+              className="rounded-2xl p-6"
+              style={{ background: "#ffffff", border: "2px solid #0f172a", boxShadow: "4px 4px 0 #0f172a" }}
             >
-              View Our Guarantee Plan →
-            </motion.button>
-          </motion.div>
-        </section>
+              {status === "sent" ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
+                  <div className="text-4xl">✅</div>
+                  <h2 className="text-xl font-extrabold" style={{ color: "#0f172a" }}>Message received!</h2>
+                  <p className="text-[14px] max-w-xs" style={{ color: "#64748b" }}>
+                    We usually respond within a few hours. You can also reach us on WhatsApp for faster replies.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStatus(null)}
+                    className="mt-2 text-[13px] font-semibold underline"
+                    style={{ color: "#818cf8" }}
+                  >
+                    Send another message
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <Field label="Full Name" icon="👤">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your full name..."
+                      value={form.name}
+                      onChange={(e) => set("name", e.target.value)}
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                      onBlur={(e) => (e.target.style.borderColor = "#0f172a")}
+                    />
+                  </Field>
+
+                  <Field label="Email Address" icon="✉️">
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your email address..."
+                      value={form.email}
+                      onChange={(e) => set("email", e.target.value)}
+                      style={INPUT_STYLE}
+                      onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                      onBlur={(e) => (e.target.style.borderColor = "#0f172a")}
+                    />
+                  </Field>
+
+                  <Field label="Phone Number" icon="">
+                    <div className="flex">
+                      <span
+                        className="flex items-center px-3.5 text-[13px] font-bold rounded-l-[10px] shrink-0"
+                        style={{
+                          background: "#f1f5f9",
+                          border: "2px solid #0f172a",
+                          borderRight: "none",
+                          color: "#0f172a",
+                        }}
+                      >
+                        +91
+                      </span>
+                      <input
+                        type="tel"
+                        placeholder="(000) 000-0000"
+                        value={form.phone}
+                        onChange={(e) => set("phone", e.target.value.replace(/[^\d\s\-()]/g, ""))}
+                        style={{
+                          ...INPUT_STYLE,
+                          paddingLeft: 14,
+                          borderRadius: "0 10px 10px 0",
+                          borderLeft: "none",
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                        onBlur={(e) => (e.target.style.borderColor = "#0f172a")}
+                      />
+                    </div>
+                  </Field>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[13px] font-semibold" style={{ color: "#475569" }}>
+                      Message
+                    </label>
+                    <div className="relative">
+                      <textarea
+                        placeholder="Enter your main query here..."
+                        rows={5}
+                        maxLength={MAX_MSG}
+                        value={form.message}
+                        onChange={(e) => set("message", e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "11px 14px",
+                          borderRadius: 10,
+                          background: "#ffffff",
+                          border: "2px solid #0f172a",
+                          color: "#0f172a",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          outline: "none",
+                          resize: "vertical",
+                          minHeight: 110,
+                        }}
+                        onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                        onBlur={(e) => (e.target.style.borderColor = "#0f172a")}
+                      />
+                      <span
+                        className="absolute bottom-3 left-4 text-[11px]"
+                        style={{ color: "#94a3b8" }}
+                      >
+                        {form.message.length}/{MAX_MSG}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={form.agreed}
+                      onChange={(e) => set("agreed", e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded accent-indigo-500 shrink-0"
+                    />
+                    <span className="text-[13px]" style={{ color: "#64748b" }}>
+                      I hereby agree to our{" "}
+                      <Link
+                        to="/privacy"
+                        className="font-semibold transition-colors"
+                        style={{ color: "#818cf8" }}
+                      >
+                        Privacy Policy
+                      </Link>{" "}
+                      terms.
+                    </span>
+                  </label>
+
+                  {errorMsg && (
+                    <p className="text-[13px] font-semibold" style={{ color: "#f87171" }}>{errorMsg}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={status === "sending"}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[10px] font-bold text-[15px] text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                    style={{ background: "#0f172a", border: "2px solid #0f172a" }}
+                  >
+                    {status === "sending" ? "Sending…" : <>Submit Form <span className="text-lg">→</span></>}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       </main>
 
       <Footer />
