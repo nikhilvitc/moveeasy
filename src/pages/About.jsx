@@ -746,7 +746,9 @@ export default function About() {
       if (!spreadWrapRef.current) return;
       const halfW = spreadWrapRef.current.offsetWidth / 2;
       // card half-width = 190px, keep 12px min margin from wrap edge
-      setSpreadX(Math.min(390, Math.max(0, halfW - 202)));
+      // cardHalfWidth = 190 (380px card) or 140 (280px card on mobile)
+      const cardHalfWidth = window.innerWidth <= 640 ? 140 : 190;
+      setSpreadX(Math.min(390, Math.max(0, halfW - cardHalfWidth - 10)));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -958,6 +960,15 @@ export default function About() {
             </svg>
           </motion.div>
         </motion.div>
+
+        {/* Mobile: horizontal swipe strip (replaces the spread on small screens) */}
+        <div className="abt-testi-mobile-scroll">
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} className="abt-testi-mobile-card">
+              <TestiCard t={t} />
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ══ 8. TEAM CAROUSEL ════════════════════════════════════ */}

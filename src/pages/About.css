@@ -601,7 +601,7 @@
 
 @media (max-width: 640px) {
   .abt-sol-inner { padding: 2.5rem 1.25rem 2rem; }
-  .abt-sol-row { grid-template-columns: 36px 1fr; gap: 0 .75rem; padding: 1rem 0; }
+  .abt-sol-row { grid-template-columns: 36px 1fr; gap: 0 .75rem; padding: 1rem 0.5rem; margin: 0; border-radius: 10px; }
   .abt-sol-item-h { font-size: 1.25rem; }
   .abt-sol-item-desc { font-size: .9rem; }
 }
@@ -793,10 +793,10 @@
 }
 
 @media (max-width: 560px) {
-  .abt-story-col { padding: 0 1.25rem; }
-  .abt-sh { font-size: 1.7rem; }
-  .abt-sb { font-size: 1rem; }
-  .abt-ch-spacer { height: 70vh; }
+  .abt-story-col { padding: 0 1.1rem; }
+  .abt-sh { font-size: 1.5rem; }
+  .abt-sb { font-size: 0.9rem; }
+  .abt-ch-spacer { height: 35vh; }
   .abt-story-watermark { display: none; }
 }
 
@@ -1477,8 +1477,9 @@
   .abt-hero-content { margin-left: 0; max-width: 100%; }
   .abt-hero-overlay {
     background:
-      linear-gradient(to bottom, rgba(8,8,8,.75) 0%, rgba(8,8,8,.5) 50%, rgba(8,8,8,.85) 100%);
+      linear-gradient(to bottom, rgba(4,4,4,.88) 0%, rgba(4,4,4,.72) 50%, rgba(4,4,4,.92) 100%);
   }
+  .abt-hero-h1 { text-shadow: 0 2px 16px rgba(0,0,0,.85); }
   .abt-hero-scroll-cue { display: none; }
 
   .abt-origin-inner { grid-template-columns: 1fr; gap: 2rem; padding: 3rem 1.5rem; }
@@ -1493,58 +1494,111 @@
 }
 
 @media (max-width: 560px) {
-  .abt-hero-h1 { font-size: 2.6rem; }
+  .abt-hero-h1 { font-size: 2.4rem; min-height: auto; }
 }
 
-/* ══ Small-phone fixes (≤ 480px) ══════════════════════════════════ */
-@media (max-width: 480px) {
-  /* Hero — tighter padding, full-width stacked buttons */
-  .abt-hero { padding: 5.5rem 1.25rem 3.5rem; }
-  .abt-hero-h1 { font-size: 2rem; }
-  .abt-hero-btns { flex-direction: column; gap: 0.7rem; }
-  .abt-btn-red,
-  .abt-btn-red-arrow,
-  .abt-btn-outline {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-    box-sizing: border-box;
+/* ══ Mobile (≤ 640px) ══════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Hero — full video, content anchored near top just below navbar */
+  .abt-hero { min-height: 5svh; padding: 1.25rem 1.25rem 2rem; justify-content: flex-start; }
+  .abt-hero-content { padding-top: 0; }
+  .abt-hero-h1 { font-size: 2.1rem; min-height: auto; margin-bottom: 0.875rem; }
+  .abt-hero-btns { flex-direction: column; gap: 0.6rem; margin-bottom: 0; }
+  .abt-btn-red, .abt-btn-red-arrow, .abt-btn-outline {
+    width: 100%; justify-content: center; text-align: center; box-sizing: border-box;
   }
 
-  /* Journey chart — stack panels, make chart horizontally scrollable */
-  .abt-jc-sec { padding: 0.75rem 0.75rem 1rem; }
-  .abt-jc-top { flex-direction: column; gap: 0.4rem; }
+  /* Curtain: decorative panels break mobile sticky — hide them */
+  .abt-curtain-sticky { display: none; }
+
+  /* Journey chart — hidden on mobile */
+  .abt-jc-sec { display: none; }
+  .abt-jc-top { flex-direction: column; gap: 0.3rem; margin-bottom: 0.3rem; }
+  .abt-jc-panel { padding: 0.5rem 0.75rem; }
+  .abt-jc-caption { margin-bottom: 0.3rem; }
   .abt-jc-vs { display: none; }
-  .abt-jc-wrap {
-    height: 200px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    border-radius: 10px;
-  }
+  .abt-jc-wrap { height: 185px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; padding: 0.3rem 0.2rem; }
   .abt-jc-svg { min-width: 560px; width: 560px; flex: none; }
 
-  /* Testimonials — narrower cards so spread stays on-screen */
-  .abt-spread-card {
-    width: 270px;
-    left: calc(50% - 135px);
-    top: calc(50% - 120px);
+  /* Solution — remove curtain/video on mobile, always show content */
+  .abt-sol-curtain { display: none; }
+  .abt-sol-video { display: none; }
+  .abt-sol-overlay { display: none; }
+  .abt-solution { background: #f0ebe1; }
+  .abt-sol-inner { padding: 1.5rem 1rem 1.25rem; }
+  .abt-sol-head {
+    padding: 0.875rem 1rem;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 0.875rem;
+    opacity: 1 !important;
+    transform: none !important;
   }
-  .abt-tcard { min-height: 220px; padding: 1rem 1.2rem 1.1rem; }
-  .abt-tcard-fname,
-  .abt-tcard-lname { font-size: 1.5rem; }
-  .abt-spread-wrap { overflow: hidden; }
+  .abt-sol-top-divider { transform: scaleX(1) !important; }
+  .abt-sol-main-h { font-size: 1.35rem; }
+  .abt-sol-row { backdrop-filter: none; -webkit-backdrop-filter: none; background: #fff; }
+  .abt-sol-row-wrap { opacity: 1 !important; transform: none !important; }
+  .abt-sol-divider { transform: scaleX(1) !important; }
 
-  /* CTA — stacked buttons */
-  .abt-cta { padding: 4rem 1.25rem; }
-  .abt-cta-btns { flex-direction: column; gap: 0.75rem; align-items: stretch; }
-  .abt-cta-btn-white,
-  .abt-cta-btn-ghost { text-align: center; box-sizing: border-box; }
+  /* Story */
+  .abt-story-col { padding: 0 1.1rem; }
+  .abt-sn { margin-bottom: 0.4rem; padding-top: 0.5rem; }
+  .abt-sh { font-size: 1.55rem; margin-bottom: 0.6rem; }
+  .abt-sb { font-size: 0.92rem; line-height: 1.65; margin-bottom: 0.4rem; }
+  .abt-ch-spacer { height: 35vh; }
+  .abt-sticky-stage { height: auto; min-height: 0; padding: 1.5rem 0; align-items: flex-start; }
+  .abt-story-watermark { display: none; }
 
-  /* Solution section extra padding */
-  .abt-sol-inner { padding: 2rem 1rem 1.75rem; }
-  .abt-sol-head { padding: 1.1rem 1.25rem 1.2rem; }
-  .abt-sol-main-h { font-size: 1.6rem; }
+  /* Testimonials */
+  .abt-testimonials { padding: 1.25rem 0 0.5rem; }
+  .abt-spread-wrap { display: none; }
+
+  /* Founders */
+  .abt-founders { padding: 1rem 0.75rem 1.25rem; }
+  .abt-founders-header { margin-bottom: 0.875rem; }
+  .abt-team-carousel { padding: 0.75rem 0; }
+
+  /* CTA */
+  .abt-cta { padding: 2.5rem 1.25rem; }
+  .abt-cta-h2 { font-size: 1.85rem; }
+  .abt-cta-sub { margin-bottom: 1.5rem; }
+  .abt-cta-btns { flex-direction: column; gap: 0.65rem; align-items: stretch; }
+  .abt-cta-btn-white, .abt-cta-btn-ghost { text-align: center; box-sizing: border-box; }
+}
+
+/* ── Mobile testimonials scroll strip (≤640px) ─────────────────── */
+.abt-testi-mobile-scroll { display: none; }
+
+@media (max-width: 640px) {
+  .abt-testi-mobile-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.75rem;
+    padding: 0.5rem 0.875rem 1.75rem;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .abt-testi-mobile-scroll::-webkit-scrollbar { display: none; }
+
+  .abt-testi-mobile-card {
+    flex-shrink: 0;
+    width: 78vw;
+    max-width: 300px;
+    scroll-snap-align: center;
+  }
+
+  .abt-testi-mobile-card .abt-tcard {
+    min-height: auto;
+  }
+
+  .abt-testi-mobile-card .abt-tcard-review {
+    max-height: 140px !important;
+    color: rgba(255,255,255,.52) !important;
+    overflow: hidden;
+  }
 }
 
 /* ══ Journey Chart ═════════════════════════════════════════════════ */
@@ -1711,4 +1765,8 @@
   .abt-jc-top { gap: 0.5rem; }
   .abt-jc-panel { padding: 0.75rem 1rem; }
   .abt-jc-wrap { height: 260px; border-radius: 14px; padding: 0.5rem 0.25rem; }
+}
+
+@media (max-width: 640px) {
+  .abt-jc-sec { display: none; }
 }
