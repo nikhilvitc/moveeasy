@@ -6,6 +6,7 @@ export const PRIMARY_NAV_LINKS = [
     children: [
       { label: "Flat Plan", path: "/plan" },
       { label: "Listings", path: "/listings" },
+      { label: "New Listings", path: "/new-listings" },
       { label: "Guarantee", path: "/guarantee" },
     ],
   },

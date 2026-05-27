@@ -21,6 +21,8 @@ import MySearchProfile from "./pages/MySearchProfile";
 import Onboarding from "./pages/Onboarding";
 import About from "./pages/About";
 import Properties from "./pages/Properties";
+import Listings from "./pages/Listings";
+import FlatListings from "./pages/FlatListings";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 function PayToCheckout() {
@@ -62,7 +64,8 @@ function AppRoutes() {
       <Route path="/about" element={<About />} />
       <Route path="/properties" element={<Properties />} />
       <Route path="/guarantee" element={<Guarantee />} />
-      <Route path="/listings" element={<Navigate to="/map?openFilters=1" replace />} />
+      <Route path="/listings" element={<Listings />} />
+      <Route path="/new-listings" element={<FlatListings />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/activity" element={<MyActivity />} />
       <Route path="/checkout" element={<Checkout />} />
